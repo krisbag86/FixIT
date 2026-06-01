@@ -6,6 +6,7 @@ import { findUserById } from "@/lib/data-store";
 import type { User } from "@/lib/types";
 
 export const sessionCookieName = "fixit_session";
+export const sessionMaxAgeSeconds = 60 * 60 * 24 * 14;
 
 export async function getCurrentUser(): Promise<User | undefined> {
   const cookieStore = await cookies();

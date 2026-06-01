@@ -4,7 +4,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
+import { getAppBaseUrl } from "@/lib/base-url";
 import { addComment, createTicket, findTicket, readDatabase, updateTicket } from "@/lib/data-store";
+import {
+  notifyNewComment,
+  notifyTicketAssigned,
+  notifyTicketCreated,
+  notifyTicketResolved
+} from "@/lib/notifications";
 import { can, canViewTicket } from "@/lib/permissions";
 import type { CommentVisibility, TicketPriority, TicketStatus } from "@/lib/types";
 
@@ -48,6 +55,9 @@ export async function createTicketAction(formData: FormData): Promise<void> {
     reporterId: user.id
   });
 
+  const baseUrl = await getAppBaseUrl();
+  await notifyTicketCreated({ ticket, baseUrl });
+
   revalidatePath("/tickets");
   redirect(`/tickets/${ticket.id}`);
 }
@@ -60,13 +70,25 @@ export async function updateTicketAction(formData: FormData): Promise<void> {
   }
 
   const ticketId = String(formData.get("ticketId") ?? "");
-  await updateTicket({
+  const result = await updateTicket({
     ticketId,
     actorId: user.id,
     status: String(formData.get("status") ?? "NEW") as TicketStatus,
     priority: String(formData.get("priority") ?? "NORMAL") as TicketPriority,
     assigneeId: String(formData.get("assigneeId") || "") || undefined
   });
+
+  if (result) {
+    const baseUrl = await getAppBaseUrl();
+
+    if (result.assigneeChanged) {
+      await notifyTicketAssigned({ ticket: result.ticket, baseUrl });
+    }
+
+    if (result.newlyResolved) {
+      await notifyTicketResolved({ ticket: result.ticket, baseUrl });
+    }
+  }
 
   revalidatePath("/tickets");
   revalidatePath("/admin/tickets");
@@ -93,12 +115,17 @@ export async function addCommentAction(formData: FormData): Promise<void> {
     throw new Error("Komentarz jest za krotki.");
   }
 
-  await addComment({
+  const result = await addComment({
     ticketId: ticket.id,
     authorId: user.id,
     body,
     visibility
   });
+
+  if (result && visibility === "PUBLIC") {
+    const baseUrl = await getAppBaseUrl();
+    await notifyNewComment({ ticket: result.ticket, authorId: user.id, body, baseUrl });
+  }
 
   revalidatePath(`/tickets/${ticket.id}`);
   revalidatePath(`/admin/tickets/${ticket.id}`);

@@ -122,9 +122,50 @@ Do zbudowania:
 - Testy e2e dla loginu, tworzenia ticketu, panelu IT i widocznosci notatek wewnetrznych.
 - Obsluga audytu podatnosci npm. Aktualnie `npm audit` raportuje 7 moderate severity vulnerabilities w zaleznosciach developerskich/runtime; nie zastosowano `npm audit fix --force`, bo mogloby wprowadzic breaking changes.
 
-## Etap 6 - Prisma w Docker Compose
+## Etap 6 - Zakladanie kont (magic link) i powiadomienia email
 
 Status: zrobione.
+
+Zrobione:
+
+- Dodano warstwe email `lib/email.ts` z abstrakcja `sendEmail`. Gdy ustawiony `RESEND_API_KEY`, maile ida przez Resend (REST API, bez dodatkowej zaleznosci); w przeciwnym razie fallback loguje maila do konsoli, zeby development dzialal bez konta Resend.
+- Dodano szablony maili `lib/email-templates.ts` per case: potwierdzenie konta / link do logowania, ticket utworzony (zglaszajacy), nowy ticket w kolejce (IT), przypisanie wykonawcy, nowy komentarz publiczny, ticket rozwiazany. Tresc z danych uzytkownika jest escape'owana w HTML.
+- Zastapiono natychmiastowe logowanie przeplywem magic link: `lib/magic-link.ts` (token, TTL, walidacja), tokeny w JSON-store, server action wysylajacy link i route handler `app/auth/verify` aktywujacy konto i ustawiajacy sesje.
+- Zakladanie kont z potwierdzeniem email: pierwsze klikniecie w link zaklada aktywne konto REPORTER dla adresu `@bagietka.pl`; kolejne logowania uzywaja tego samego mechanizmu.
+- Podlaczono realne powiadomienia do zdarzen ticketow (utworzenie, przypisanie, komentarz publiczny, rozwiazanie) z zapisem statusu `SENT`/`FAILED` w `notification_logs`. Bledy wysylki nie przerywaja glownej operacji.
+- Zaktualizowano `.env.example`, `docker-compose.yml`, `README.md` o `RESEND_API_KEY`, `EMAIL_FROM`, `APP_URL`, `MAGIC_LINK_TTL_MINUTES`.
+- Dodano testy: walidacja tokenow magic link i renderowanie szablonow maili. `npm run lint`, `npm run typecheck`, `npm run test` (15 testow) oraz `npm run build` - OK.
+
+Do zbudowania:
+
+- Realna weryfikacja domeny nadawcy w Resend i podlaczenie produkcyjnego `RESEND_API_KEY` (przy deployu na Railway).
+- Migracja runtime z JSON-store na Prisma/PostgreSQL (tokeny magic link i notification logs przeniesc do bazy).
+- Rate limit dla wysylki linkow logowania i audit log zmian rol/statusow.
+
+Pelna lista otwartych zadan na przyszle sesje jest w `remaining_tasks.md` (root repo).
+
+## Etap 7 - Testy E2E magic link i powiadomien (na logach)
+
+Status: zrobione.
+
+Testowane lokalnie (`npm run dev`, JSON-store, swieze `.data`). Bez `RESEND_API_KEY` - maile lecialy do logu serwera (fallback z `lib/email.ts`); realna wysylka Resend nie byla testowana w tej sesji (zostaje na deploy na Railway). Wszystkie 5 testow przeszlo, brak bugow.
+
+Zweryfikowano:
+
+- Nowy adres `@bagietka.pl` -> panel "Sprawdz skrzynke", a nie natychmiastowe logowanie. W logu link z tematem "Potwierdz konto FixIT" i `…/auth/verify?token=<64 hex>`.
+- Klikniecie linku -> redirect na `/tickets`, zalogowany jako REPORTER; w DB konto `isActive:true`, token ma `usedAt`.
+- Link jednorazowy: ponowne uzycie -> `/login?status=used`, baner "Ten link zostal juz uzyty…", brak logowania.
+- Restrykcja domeny: `intruder@gmail.com` -> baner bledu, zero wpisow email w logu.
+- Utworzenie ticketu `IT-2026-0004` -> 3 powiadomienia (zglaszajacy + 2x IT) zapisane w `notification_logs` ze statusem `SENT` (nie `QUEUED`).
+- Drugi request linku dla istniejacego konta uzyl tematu "Link do logowania FixIT" (galaz `isNewAccount` dziala).
+
+Uwaga operacyjna (merge):
+
+- `main` dostal commit konwertujacy pliki na konce linii CRLF, co wywolalo pozorne konflikty w 13 plikach. Rozwiazane przez `git merge origin/main -Xignore-all-space` - konflikty czysto whitespace'owe zniknely, kod funkcjonalny bez zmian. Po merge: `npm run lint`, `npm run typecheck`, `npm run test` (15), `npm run build` - OK.
+
+## Etap 8 - Prisma w Docker Compose
+
+Status: zrobione (z gałęzi `main`, commit `codex fix2`).
 
 Zrobione:
 
@@ -136,4 +177,4 @@ Zrobione:
 
 Do zbudowania:
 
-- Zobacz aktualna liste w `remaining-tasks.md`.
+- Zobacz aktualna liste w `remaining_tasks.md` (root) oraz `docs/it-helpdesk-docs/remaining-tasks.md`.

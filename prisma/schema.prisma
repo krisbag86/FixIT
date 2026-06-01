@@ -219,3 +219,15 @@ model NotificationLog {
   @@index([recipientEmail])
   @@index([createdAt])
 }
+
+model MagicToken {
+  token        String    @id
+  email        String
+  isNewAccount Boolean   @default(true)
+  expiresAt    DateTime
+  usedAt       DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([email])
+  @@index([expiresAt])
+}

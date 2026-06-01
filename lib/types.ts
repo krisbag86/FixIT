@@ -98,6 +98,15 @@ export type NotificationLog = {
   createdAt: string;
 };
 
+export type MagicToken = {
+  token: string;
+  email: string;
+  isNewAccount: boolean;
+  expiresAt: string;
+  usedAt?: string;
+  createdAt: string;
+};
+
 export type Database = {
   meta: {
     ticketSequences: Record<string, number>;
@@ -110,4 +119,5 @@ export type Database = {
   events: TicketEvent[];
   knowledgeArticles: KnowledgeArticle[];
   notificationLogs: NotificationLog[];
+  magicTokens: MagicToken[];
 };
