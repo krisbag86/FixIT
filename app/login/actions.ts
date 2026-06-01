@@ -2,28 +2,37 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { createOrFindUser } from "@/lib/data-store";
+import { getAppBaseUrl } from "@/lib/base-url";
+import { createMagicToken } from "@/lib/data-store";
 import { isAllowedBagietkaEmail, normalizeEmail } from "@/lib/email-domain";
+import { magicLinkTtlMinutes } from "@/lib/magic-link";
+import { sendMagicLink } from "@/lib/notifications";
 import { sessionCookieName } from "@/lib/auth";
 
-export async function loginAction(_previousState: string | undefined, formData: FormData): Promise<string | undefined> {
+export type LoginState =
+  | { status: "error"; message: string }
+  | { status: "sent"; email: string }
+  | undefined;
+
+export async function loginAction(_previousState: LoginState, formData: FormData): Promise<LoginState> {
   const email = normalizeEmail(String(formData.get("email") ?? ""));
 
   if (!isAllowedBagietkaEmail(email)) {
-    return "Podaj sluzbowy adres w dokladnej domenie bagietka.pl.";
+    return { status: "error", message: "Podaj sluzbowy adres w dokladnej domenie bagietka.pl." };
   }
 
-  const user = await createOrFindUser(email);
-  const cookieStore = await cookies();
-  cookieStore.set(sessionCookieName, user.id, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 14
+  const magicToken = await createMagicToken(email);
+  const baseUrl = await getAppBaseUrl();
+
+  await sendMagicLink({
+    email,
+    token: magicToken.token,
+    isNewAccount: magicToken.isNewAccount,
+    baseUrl,
+    ttlMinutes: magicLinkTtlMinutes()
   });
 
-  redirect("/");
+  return { status: "sent", email };
 }
 
 export async function logoutAction(): Promise<void> {

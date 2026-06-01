@@ -155,9 +155,10 @@ export function createSeedDatabase(): Database {
         ticketId: "t_001",
         recipientEmail: "kasjer@bagietka.pl",
         type: "TICKET_CREATED",
-        status: "QUEUED",
+        status: "SENT",
         createdAt: now
       }
-    ]
+    ],
+    magicTokens: []
   };
 }

@@ -9,7 +9,9 @@ services:
       DATABASE_URL: "postgresql://fixit:fixit@postgres:5432/fixit"
       NEXTAUTH_URL: "http://localhost:3001"
       NEXTAUTH_SECRET: "dev-secret-change-me"
-      EMAIL_FROM: "IT Helpdesk <it@bagietka.pl>"
+      EMAIL_FROM: "FixIT Helpdesk <no-reply@bagietka.pl>"
+      RESEND_API_KEY: "${RESEND_API_KEY:-}"
+      MAGIC_LINK_TTL_MINUTES: "15"
     ports:
       - "3001:3000"
     volumes:

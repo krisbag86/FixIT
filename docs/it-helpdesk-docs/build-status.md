@@ -120,3 +120,23 @@ Do zbudowania:
 - Migracja runtime z JSON-store na Prisma/PostgreSQL.
 - Testy e2e dla loginu, tworzenia ticketu, panelu IT i widocznosci notatek wewnetrznych.
 - Obsluga audytu podatnosci npm. Aktualnie `npm audit` raportuje 7 moderate severity vulnerabilities w zaleznosciach developerskich/runtime; nie zastosowano `npm audit fix --force`, bo mogloby wprowadzic breaking changes.
+
+## Etap 6 - Zakladanie kont (magic link) i powiadomienia email
+
+Status: zrobione.
+
+Zrobione:
+
+- Dodano warstwe email `lib/email.ts` z abstrakcja `sendEmail`. Gdy ustawiony `RESEND_API_KEY`, maile ida przez Resend (REST API, bez dodatkowej zaleznosci); w przeciwnym razie fallback loguje maila do konsoli, zeby development dzialal bez konta Resend.
+- Dodano szablony maili `lib/email-templates.ts` per case: potwierdzenie konta / link do logowania, ticket utworzony (zglaszajacy), nowy ticket w kolejce (IT), przypisanie wykonawcy, nowy komentarz publiczny, ticket rozwiazany. Tresc z danych uzytkownika jest escape'owana w HTML.
+- Zastapiono natychmiastowe logowanie przeplywem magic link: `lib/magic-link.ts` (token, TTL, walidacja), tokeny w JSON-store, server action wysylajacy link i route handler `app/auth/verify` aktywujacy konto i ustawiajacy sesje.
+- Zakladanie kont z potwierdzeniem email: pierwsze klikniecie w link zaklada aktywne konto REPORTER dla adresu `@bagietka.pl`; kolejne logowania uzywaja tego samego mechanizmu.
+- Podlaczono realne powiadomienia do zdarzen ticketow (utworzenie, przypisanie, komentarz publiczny, rozwiazanie) z zapisem statusu `SENT`/`FAILED` w `notification_logs`. Bledy wysylki nie przerywaja glownej operacji.
+- Zaktualizowano `.env.example`, `docker-compose.yml`, `README.md` o `RESEND_API_KEY`, `EMAIL_FROM`, `APP_URL`, `MAGIC_LINK_TTL_MINUTES`.
+- Dodano testy: walidacja tokenow magic link i renderowanie szablonow maili. `npm run lint`, `npm run typecheck`, `npm run test` (15 testow) oraz `npm run build` - OK.
+
+Do zbudowania:
+
+- Realna weryfikacja domeny nadawcy w Resend i podlaczenie produkcyjnego `RESEND_API_KEY` (przy deployu na Railway).
+- Migracja runtime z JSON-store na Prisma/PostgreSQL (tokeny magic link i notification logs przeniesc do bazy).
+- Rate limit dla wysylki linkow logowania i audit log zmian rol/statusow.

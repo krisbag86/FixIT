@@ -4,11 +4,13 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { unstable_noStore as noStore } from "next/cache";
 import { createSeedDatabase } from "@/lib/seed";
+import { generateMagicToken, magicLinkTtlMinutes } from "@/lib/magic-link";
 import { generateTicketNumber } from "@/lib/ticket-number";
 import type {
   Category,
   CommentVisibility,
   Database,
+  MagicToken,
   NotificationLog,
   Ticket,
   TicketComment,
@@ -29,10 +31,16 @@ function id(prefix: string): string {
   return `${prefix}_${crypto.randomUUID().slice(0, 8)}`;
 }
 
+function normalizeDatabase(database: Database): Database {
+  database.magicTokens = database.magicTokens ?? [];
+  database.notificationLogs = database.notificationLogs ?? [];
+  return database;
+}
+
 async function ensureDatabase(): Promise<Database> {
   try {
     const raw = await readFile(dataFile, "utf8");
-    return JSON.parse(raw) as Database;
+    return normalizeDatabase(JSON.parse(raw) as Database);
   } catch {
     const seed = createSeedDatabase();
     await writeDatabase(seed);
@@ -67,11 +75,17 @@ export async function getCategories(): Promise<Category[]> {
   return database.categories.filter((category) => category.isActive);
 }
 
-export async function createOrFindUser(email: string): Promise<User> {
+export async function findUserByEmail(email: string): Promise<User | undefined> {
+  const database = await readDatabase();
+  return database.users.find((user) => user.email === email);
+}
+
+export async function activateUserByEmail(email: string): Promise<User> {
   return withDatabase((database) => {
     const existing = database.users.find((user) => user.email === email);
 
     if (existing) {
+      existing.isActive = true;
       return existing;
     }
 
@@ -86,6 +100,57 @@ export async function createOrFindUser(email: string): Promise<User> {
 
     database.users.push(user);
     return user;
+  });
+}
+
+export async function createMagicToken(email: string): Promise<MagicToken> {
+  return withDatabase((database) => {
+    const existingActive = database.users.some((user) => user.email === email && user.isActive);
+    const timestamp = now();
+    const expiresAt = new Date(Date.now() + magicLinkTtlMinutes() * 60_000).toISOString();
+
+    // Invalidate older unused tokens for this email so only the newest link works.
+    for (const token of database.magicTokens) {
+      if (token.email === email && !token.usedAt) {
+        token.usedAt = timestamp;
+      }
+    }
+
+    const magicToken: MagicToken = {
+      token: generateMagicToken(),
+      email,
+      isNewAccount: !existingActive,
+      expiresAt,
+      createdAt: timestamp
+    };
+
+    database.magicTokens.push(magicToken);
+    return magicToken;
+  });
+}
+
+export async function findMagicToken(token: string): Promise<MagicToken | undefined> {
+  const database = await readDatabase();
+  return database.magicTokens.find((item) => item.token === token);
+}
+
+export async function markMagicTokenUsed(token: string): Promise<void> {
+  await withDatabase((database) => {
+    const magicToken = database.magicTokens.find((item) => item.token === token);
+
+    if (magicToken && !magicToken.usedAt) {
+      magicToken.usedAt = now();
+    }
+  });
+}
+
+export async function logNotification(input: Omit<NotificationLog, "id" | "createdAt">): Promise<void> {
+  await withDatabase((database) => {
+    database.notificationLogs.push({
+      id: id("n"),
+      createdAt: now(),
+      ...input
+    });
   });
 }
 
@@ -173,18 +238,17 @@ export async function createTicket(input: {
       type: "TICKET_CREATED",
       createdAt: timestamp
     });
-    database.notificationLogs.push({
-      id: id("n"),
-      ticketId: ticket.id,
-      recipientEmail: database.users.find((user) => user.id === input.reporterId)?.email ?? "",
-      type: "TICKET_CREATED",
-      status: "QUEUED",
-      createdAt: timestamp
-    });
 
     return ticket;
   });
 }
+
+export type TicketUpdateResult = {
+  ticket: Ticket;
+  statusChanged: boolean;
+  assigneeChanged: boolean;
+  newlyResolved: boolean;
+};
 
 export async function updateTicket(input: {
   ticketId: string;
@@ -192,7 +256,7 @@ export async function updateTicket(input: {
   status: TicketStatus;
   priority: TicketPriority;
   assigneeId?: string;
-}): Promise<Ticket | undefined> {
+}): Promise<TicketUpdateResult | undefined> {
   return withDatabase((database) => {
     const ticket = database.tickets.find((item) => item.id === input.ticketId);
 
@@ -202,6 +266,9 @@ export async function updateTicket(input: {
 
     const timestamp = now();
     const events: TicketEvent[] = [];
+    let statusChanged = false;
+    let assigneeChanged = false;
+    let newlyResolved = false;
 
     if (ticket.status !== input.status) {
       events.push({
@@ -212,9 +279,11 @@ export async function updateTicket(input: {
         payload: { from: ticket.status, to: input.status },
         createdAt: timestamp
       });
+      newlyResolved = input.status === "RESOLVED" && ticket.status !== "RESOLVED";
       ticket.status = input.status;
       ticket.resolvedAt = input.status === "RESOLVED" ? timestamp : ticket.resolvedAt;
       ticket.closedAt = input.status === "CLOSED" ? timestamp : ticket.closedAt;
+      statusChanged = true;
     }
 
     if (ticket.priority !== input.priority) {
@@ -239,31 +308,29 @@ export async function updateTicket(input: {
         createdAt: timestamp
       });
       ticket.assigneeId = input.assigneeId;
+      assigneeChanged = Boolean(input.assigneeId);
     }
 
     if (events.length > 0) {
       ticket.updatedAt = timestamp;
       database.events.push(...events);
-      database.notificationLogs.push({
-        id: id("n"),
-        ticketId: ticket.id,
-        recipientEmail: database.users.find((user) => user.id === ticket.reporterId)?.email ?? "",
-        type: "TICKET_UPDATED",
-        status: "QUEUED",
-        createdAt: timestamp
-      });
     }
 
-    return ticket;
+    return { ticket, statusChanged, assigneeChanged, newlyResolved };
   });
 }
+
+export type CommentResult = {
+  comment: TicketComment;
+  ticket: Ticket;
+};
 
 export async function addComment(input: {
   ticketId: string;
   authorId: string;
   body: string;
   visibility: CommentVisibility;
-}): Promise<TicketComment | undefined> {
+}): Promise<CommentResult | undefined> {
   return withDatabase((database) => {
     const ticket = database.tickets.find((item) => item.id === input.ticketId);
 
@@ -291,23 +358,6 @@ export async function addComment(input: {
       createdAt: timestamp
     });
 
-    if (input.visibility === "PUBLIC") {
-      const recipient = ticket.reporterId === input.authorId ? ticket.assigneeId : ticket.reporterId;
-      const recipientEmail = database.users.find((user) => user.id === recipient)?.email;
-
-      if (recipientEmail) {
-        const notification: NotificationLog = {
-          id: id("n"),
-          ticketId: ticket.id,
-          recipientEmail,
-          type: "COMMENT_CREATED",
-          status: "QUEUED",
-          createdAt: timestamp
-        };
-        database.notificationLogs.push(notification);
-      }
-    }
-
-    return comment;
+    return { comment, ticket };
   });
 }
