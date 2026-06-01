@@ -2,6 +2,8 @@
 
 Dokument aktualizowany po kolejnych etapach budowy aplikacji.
 
+Aktualna kolejka pozostalych prac znajduje sie w `remaining-tasks.md`. Sekcje `Do zbudowania` przy starszych etapach maja charakter historyczny i pokazuja, co bylo brakujace w danym momencie budowy.
+
 ## Etap 0 - Przeglad dokumentacji
 
 Status: zrobione.
@@ -75,7 +77,6 @@ Zrobione:
 Do zbudowania:
 
 - Podlaczenie runtime aplikacji do Prisma/PostgreSQL zamiast lokalnego JSON-store.
-- Migracje i seed Prisma uruchamiane w kontenerze.
 - Walidacja `docker compose up` po pobraniu obrazow i zaleznosci.
 
 ## Etap 4 - Widoki MVP
@@ -161,3 +162,19 @@ Zweryfikowano:
 Uwaga operacyjna (merge):
 
 - `main` dostal commit konwertujacy pliki na konce linii CRLF, co wywolalo pozorne konflikty w 13 plikach. Rozwiazane przez `git merge origin/main -Xignore-all-space` - konflikty czysto whitespace'owe zniknely, kod funkcjonalny bez zmian. Po merge: `npm run lint`, `npm run typecheck`, `npm run test` (15), `npm run build` - OK.
+
+## Etap 8 - Prisma w Docker Compose
+
+Status: zrobione (z gałęzi `main`, commit `codex fix2`).
+
+Zrobione:
+
+- Dodano Prisma CLI i `@prisma/client` w kompatybilnej linii 6.x.
+- Dodano startowa migracje Prisma w `prisma/migrations`.
+- Dodano idempotentny seed Prisma w `prisma/seed.mjs`, oparty o te same dane testowe co lokalny JSON-store.
+- Dodano skrypty `db:generate`, `db:migrate:deploy` i `db:seed`.
+- Dodano jednorazowe uslugi `migrate` i `seed` w `docker-compose.yml`, uruchamiane po starcie PostgreSQL i przed aplikacja.
+
+Do zbudowania:
+
+- Zobacz aktualna liste w `remaining_tasks.md` (root) oraz `docs/it-helpdesk-docs/remaining-tasks.md`.

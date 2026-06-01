@@ -38,6 +38,15 @@ postgres:5432
 
 MVP uzywa lokalnego JSON-store w `.data/fixit-db.json`, zapisanego w wolumenie `fixit_data`. Serwis PostgreSQL jest dodany juz teraz, bo docelowy schemat Prisma znajduje sie w `prisma/schema.prisma` i bedzie kolejnym naturalnym etapem.
 
+## Prisma w kontenerze
+
+`docker compose up` uruchamia przed aplikacja dwa jednorazowe joby:
+
+- `migrate` - wykonuje `npm run db:migrate:deploy`,
+- `seed` - wykonuje `npm run db:generate` i `npm run db:seed`.
+
+Te joby przygotowuja baze PostgreSQL pod docelowy runtime Prisma. Aplikacja MVP nadal czyta i zapisuje dane w lokalnym JSON-store do czasu osobnej migracji runtime.
+
 ## Reset danych developerskich
 
 ```bash
