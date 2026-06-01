@@ -50,8 +50,8 @@ Legenda priorytetow: **P0** krytyczne (blokuje produkcje), **P1** wazne, **P2** 
 - **Kryteria akceptacji:** widok filtruje po `assigneeId = current user`; kanban pozwala zmieniac status drag&drop lub akcja.
 
 ### 5. FAQ / baza wiedzy
-- **Kontekst:** Self-service do redukcji liczby ticketow (wspomniane w product-spec).
-- **Kryteria akceptacji:** lista artykulow z wyszukiwarka; CRUD dla ADMIN.
+- **Kontekst:** Self-service do redukcji liczby ticketow (deflekcja powtarzalnych zgloszen - standard w Zendesk/Freshservice/GLPI). Typ `KnowledgeArticle` jest juz w `lib/types.ts`, brak UI i wyszukiwarki.
+- **Kryteria akceptacji:** lista artykulow z wyszukiwarka; CRUD dla ADMIN; powiazanie z kategoria; mierzalna deflekcja (link z artykulu zamiast zakladania ticketu).
 
 ### 6. Raporty / SLA / eksport CSV
 - **Kryteria akceptacji:** metryki (czas reakcji, czas rozwiazania, liczba wg statusu/priorytetu); eksport do CSV.
@@ -59,6 +59,32 @@ Legenda priorytetow: **P0** krytyczne (blokuje produkcje), **P1** wazne, **P2** 
 ### 7. Zalaczniki do ticketow
 - **Kontekst:** `TicketAttachment` jest w schemacie Prisma, brak runtime/UI.
 - **Kryteria akceptacji:** mozna dodac plik do ticketu i go pobrac; walidacja typu/rozmiaru.
+
+---
+
+## P1 - Funkcje z benchmarku rynkowego
+
+Wynik analizy konkurencji (Zendesk, Freshservice, Jira Service Management, Zammad, GLPI). Pelne uzasadnienie i kolejnosc w `propozycja-funkcji.md`. FAQ/baza wiedzy z tej listy jest juz powyzej jako zadanie #5.
+
+### 14. SLA + eskalacje
+- **Kontekst:** Standard w kazdym ITSM. Pole `dueAt` jest juz w modelu `Ticket`, ale brak polityk i logiki. Liczenie powinno uwzgledniac godziny pracy.
+- **Do zrobienia:** polityki czasu reakcji/rozwiazania wg priorytetu; auto-`dueAt` przy tworzeniu; alert/eskalacja przy zblizaniu sie deadline; oznaczenie naruszenia SLA. Fast-track dla `blocksWork=true` (auto-CRITICAL + krotkie SLA).
+- **Kryteria akceptacji:** ticket dostaje `dueAt` wg priorytetu; przekroczenie SLA jest widoczne i raportowane; eskalacja wyzwala powiadomienie.
+
+### 15. Automatyzacje / reguly routingu
+- **Kontekst:** Auto-przypisanie i triage redukuja prace reczna (Freshservice/Zendesk).
+- **Do zrobienia:** reguly auto-assignment wg kategorii/sklepu; auto-priorytet wg kategorii (`Category.defaultPriority` juz istnieje); triggery (np. CRITICAL + `blocksWork` -> natychmiast do dyzurnego); szablony zgloszen dla typowych awarii (kasa nie drukuje, terminal offline) z auto-kategoria/priorytetem.
+- **Kryteria akceptacji:** nowy ticket pasujacy do reguly jest automatycznie kategoryzowany/przypisywany; szablony skracaja czas zgloszenia.
+
+### 16. CSAT - ankieta satysfakcji po rozwiazaniu
+- **Kontekst:** Pomiar jakosci wsparcia (standard rynkowy). Wpinane w istniejacy mail o rozwiazaniu.
+- **Do zrobienia:** w mailu `ticket rozwiazany` link do oceny (1-5 + komentarz); zapis oceny; raport CSAT.
+- **Kryteria akceptacji:** zglaszajacy moze ocenic rozwiazanie; wynik widoczny w raportach.
+
+### 17. Asset management / CMDB per sklep (+ QR)
+- **Kontekst:** Wyroznik dla sieci sklepow (POS, drukarki fiskalne, terminale platnicze, wagi). GLPI/Freshservice maja to wprost.
+- **Do zrobienia:** rejestr urzadzen per sklep (nr seryjny, gwarancja, dostawca); powiazanie ticketu z urzadzeniem; **QR na sprzecie** -> skan otwiera formularz z wypelnionym sklepem i urzadzeniem; eskalacja do serwisu zewnetrznego (status `WAITING_FOR_VENDOR` juz istnieje, dodac kontakty/numer u dostawcy); raport awaryjnosci wg sklepu/urzadzenia.
+- **Kryteria akceptacji:** urzadzenie da sie zarejestrowac i powiazac z ticketem; skan QR preselekcjonuje sklep+urzadzenie; raport pokazuje powtarzalne usterki.
 
 ---
 
