@@ -58,3 +58,8 @@ npm run lint
 npm run typecheck
 npm run test
 ```
+
+## Dokumentacja i plan dalszych prac
+
+- Status wdrozenia po etapach: `docs/it-helpdesk-docs/build-status.md`
+- Otwarte zadania na przyszle sesje (priorytety, kryteria akceptacji): `remaining_tasks.md`

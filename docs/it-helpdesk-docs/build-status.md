@@ -140,3 +140,24 @@ Do zbudowania:
 - Realna weryfikacja domeny nadawcy w Resend i podlaczenie produkcyjnego `RESEND_API_KEY` (przy deployu na Railway).
 - Migracja runtime z JSON-store na Prisma/PostgreSQL (tokeny magic link i notification logs przeniesc do bazy).
 - Rate limit dla wysylki linkow logowania i audit log zmian rol/statusow.
+
+Pelna lista otwartych zadan na przyszle sesje jest w `remaining_tasks.md` (root repo).
+
+## Etap 7 - Testy E2E magic link i powiadomien (na logach)
+
+Status: zrobione.
+
+Testowane lokalnie (`npm run dev`, JSON-store, swieze `.data`). Bez `RESEND_API_KEY` - maile lecialy do logu serwera (fallback z `lib/email.ts`); realna wysylka Resend nie byla testowana w tej sesji (zostaje na deploy na Railway). Wszystkie 5 testow przeszlo, brak bugow.
+
+Zweryfikowano:
+
+- Nowy adres `@bagietka.pl` -> panel "Sprawdz skrzynke", a nie natychmiastowe logowanie. W logu link z tematem "Potwierdz konto FixIT" i `…/auth/verify?token=<64 hex>`.
+- Klikniecie linku -> redirect na `/tickets`, zalogowany jako REPORTER; w DB konto `isActive:true`, token ma `usedAt`.
+- Link jednorazowy: ponowne uzycie -> `/login?status=used`, baner "Ten link zostal juz uzyty…", brak logowania.
+- Restrykcja domeny: `intruder@gmail.com` -> baner bledu, zero wpisow email w logu.
+- Utworzenie ticketu `IT-2026-0004` -> 3 powiadomienia (zglaszajacy + 2x IT) zapisane w `notification_logs` ze statusem `SENT` (nie `QUEUED`).
+- Drugi request linku dla istniejacego konta uzyl tematu "Link do logowania FixIT" (galaz `isNewAccount` dziala).
+
+Uwaga operacyjna (merge):
+
+- `main` dostal commit konwertujacy pliki na konce linii CRLF, co wywolalo pozorne konflikty w 13 plikach. Rozwiazane przez `git merge origin/main -Xignore-all-space` - konflikty czysto whitespace'owe zniknely, kod funkcjonalny bez zmian. Po merge: `npm run lint`, `npm run typecheck`, `npm run test` (15), `npm run build` - OK.
