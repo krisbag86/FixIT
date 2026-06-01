@@ -1,0 +1,6 @@
+- [ ] Prisma schema includes NotificationLog delivery fields needed by runtime (`status`, `sentAt`, optional `error`).
+- [ ] Ticket number allocation uses `TicketCounter` transaction and cannot produce duplicates.
+- [ ] Ticket list and ticket details preserve visibility rules for REPORTER / STORE_MANAGER / AGENT / ADMIN.
+- [ ] Public comments notify the other party; internal notes never notify and never render for reporters.
+- [ ] All of `npm run lint`, `npm run typecheck`, `npm run test`, `npm run build` pass.
+- [ ] `npm run db:migrate:deploy` and `npm run db:seed` succeed against a fresh PostgreSQL database.

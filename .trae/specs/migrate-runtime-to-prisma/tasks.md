@@ -24,10 +24,10 @@
   - [x] Create Prisma migration
   - [x] Validation: Prisma schema validates; `prisma migrate deploy` invocation verified (docker not available here)
 
-- [ ] Task 3: Add Prisma Client runtime utilities
-  - [ ] Add a Prisma client singleton (`lib/prisma.ts` or equivalent pattern in repo)
-  - [ ] Ensure it works in Next.js server runtime without creating too many connections
-  - [ ] Validation: `npm run typecheck` and basic Prisma query works in a minimal test
+- [x] Task 3: Add Prisma Client runtime utilities
+  - [x] Add a Prisma client singleton (`lib/prisma.ts` or equivalent pattern in repo)
+  - [x] Ensure it works in Next.js server runtime without creating too many connections
+  - [x] Validation: `npm run typecheck` and basic Prisma query works in a minimal test
 
 - [ ] Task 4: Implement PostgreSQL-backed reads (non-mutating)
   - [ ] Implement read equivalents for:
