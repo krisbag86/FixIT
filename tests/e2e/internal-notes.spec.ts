@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { loginAs, resetDatabase, createTicketViaUI } from './helpers';
+import { loginAs, resetDatabase } from './helpers';
 
 test.beforeEach(() => {
   resetDatabase();
@@ -46,14 +46,7 @@ test.describe('Internal Notes - Permissions', () => {
 
   test('should NOT allow REPORTER to see internal note option', async ({ page }) => {
     await loginAs(page, 'sklep.waw01@bagietka.pl');
-    
-    // Create a ticket first
-    await createTicketViaUI(
-      page,
-      'Kasa / POS',
-      'Test Ticket for Internal Notes',
-      'This is a test description'
-    );
+    await page.goto('/tickets/t_002');
     
     // Look for visibility select or ensure it's disabled
     const visibilitySelect = page.getByTestId('visibility-select');
@@ -68,25 +61,8 @@ test.describe('Internal Notes - Permissions', () => {
   });
 
   test('AGENT should be able to post internal note', async ({ page }) => {
-    // First reporter creates a ticket so we have a fresh one
-    await loginAs(page, 'sklep.waw01@bagietka.pl');
-    await createTicketViaUI(
-      page,
-      'Kasa / POS',
-      'Ticket for Agent Notes',
-      'Testing if agent can post internal note'
-    );
-    
-    // Get ticket URL so we know where to go back
-    const ticketUrl = page.url();
-    const ticketId = ticketUrl.split('/').pop();
-    
-    // Logout and login as agent
-    const logoutBtn = page.getByTestId('logout-button');
-    await logoutBtn.click();
-    
     await loginAs(page, 'agent@bagietka.pl');
-    await page.goto(`/admin/tickets/${ticketId}`);
+    await page.goto('/admin/tickets/t_001');
       
     // Add internal note
     const commentForm = page.getByTestId('comment-form');
@@ -107,21 +83,8 @@ test.describe('Internal Notes - Permissions', () => {
   });
 
   test('REPORTER should only see PUBLIC comments, not internal notes', async ({ page }) => {
-    // 1. Reporter creates ticket
-    await loginAs(page, 'sklep.waw01@bagietka.pl');
-    await createTicketViaUI(
-      page,
-      'Kasa / POS',
-      'Ticket for Secret Testing',
-      'Long enough body for secret testing'
-    );
-    const ticketUrl = page.url();
-    const ticketId = ticketUrl.split('/').pop();
-    
-    // 2. Agent adds internal note
-    await page.getByTestId('logout-button').click();
     await loginAs(page, 'agent@bagietka.pl');
-    await page.goto(`/admin/tickets/${ticketId}`);
+    await page.goto('/admin/tickets/t_001');
     
     const commentForm = page.getByTestId('comment-form');
     await commentForm.locator('textarea[name="body"]').fill('SECRET_AGENT_NOTE');
@@ -131,10 +94,9 @@ test.describe('Internal Notes - Permissions', () => {
     // Verify agent sees it
     await expect(page.locator('text="SECRET_AGENT_NOTE"')).toBeVisible();
     
-    // 3. Reporter should NOT see it
-    await page.getByTestId('logout-button').click();
-    await loginAs(page, 'sklep.waw01@bagietka.pl');
-    await page.goto(`/tickets/${ticketId}`);
+    // Reporter should NOT see it
+    await loginAs(page, 'kasjer@bagietka.pl');
+    await page.goto('/tickets/t_001');
     
     // Ensure the text is not on page
     await expect(page.locator('text="SECRET_AGENT_NOTE"')).toHaveCount(0);

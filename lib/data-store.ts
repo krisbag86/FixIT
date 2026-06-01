@@ -3,13 +3,16 @@ import "server-only";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { unstable_noStore as noStore } from "next/cache";
+import type { Prisma } from "@prisma/client";
 import { createSeedDatabase } from "@/lib/seed";
 import { generateTicketNumber } from "@/lib/ticket-number";
 import type {
   Category,
   CommentVisibility,
   Database,
+  KnowledgeArticle,
   NotificationLog,
+  Store,
   Ticket,
   TicketComment,
   TicketEvent,
@@ -20,6 +23,23 @@ import type {
 
 const dataDir = path.join(process.cwd(), ".data");
 const dataFile = path.join(dataDir, "fixit-db.json");
+let databaseWriteQueue: Promise<void> = Promise.resolve();
+
+function shouldUsePrisma(): boolean {
+  if (process.env.FIXIT_DATA_PROVIDER === "json") {
+    return false;
+  }
+
+  if (process.env.FIXIT_DATA_PROVIDER === "prisma") {
+    return true;
+  }
+
+  return process.env.NODE_ENV === "production" && Boolean(process.env.DATABASE_URL);
+}
+
+async function getPrisma() {
+  return (await import("@/lib/prisma")).prisma;
+}
 
 function now(): string {
   return new Date().toISOString();
@@ -27,6 +47,121 @@ function now(): string {
 
 function id(prefix: string): string {
   return `${prefix}_${crypto.randomUUID().slice(0, 8)}`;
+}
+
+function iso(value: Date | string | null | undefined): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  return value instanceof Date ? value.toISOString() : value;
+}
+
+function definedString(value: string | null | undefined): string | undefined {
+  return value ?? undefined;
+}
+
+function mapUser(user: Prisma.UserGetPayload<object>): User {
+  return {
+    id: user.id,
+    name: user.name ?? user.email,
+    email: user.email,
+    role: user.role,
+    storeId: definedString(user.storeId),
+    department: definedString(user.department),
+    isActive: user.isActive
+  };
+}
+
+function mapStore(store: Prisma.StoreGetPayload<object>): Store {
+  return {
+    id: store.id,
+    code: store.code,
+    name: store.name,
+    city: definedString(store.city) ?? "",
+    region: definedString(store.region) ?? "",
+    isActive: store.isActive
+  };
+}
+
+function mapCategory(category: Prisma.CategoryGetPayload<object>): Category {
+  return {
+    id: category.id,
+    name: category.name,
+    defaultPriority: category.defaultPriority,
+    isActive: category.isActive
+  };
+}
+
+function mapTicket(ticket: Prisma.TicketGetPayload<object>): Ticket {
+  return {
+    id: ticket.id,
+    number: ticket.number,
+    title: ticket.title,
+    description: ticket.description,
+    status: ticket.status,
+    priority: ticket.priority,
+    blocksWork: ticket.blocksWork,
+    contact: ticket.contact ?? "",
+    categoryId: ticket.categoryId ?? "",
+    storeId: definedString(ticket.storeId),
+    department: definedString(ticket.department),
+    reporterId: ticket.reporterId,
+    assigneeId: definedString(ticket.assigneeId),
+    dueAt: iso(ticket.dueAt),
+    resolvedAt: iso(ticket.resolvedAt),
+    closedAt: iso(ticket.closedAt),
+    createdAt: iso(ticket.createdAt) ?? "",
+    updatedAt: iso(ticket.updatedAt) ?? ""
+  };
+}
+
+function mapComment(comment: Prisma.TicketCommentGetPayload<object>): TicketComment {
+  return {
+    id: comment.id,
+    ticketId: comment.ticketId,
+    authorId: comment.authorId,
+    body: comment.body,
+    visibility: comment.visibility,
+    createdAt: iso(comment.createdAt) ?? ""
+  };
+}
+
+function mapEvent(event: Prisma.TicketEventGetPayload<object>): TicketEvent {
+  const payload = typeof event.payload === "object" && event.payload !== null && !Array.isArray(event.payload) ? event.payload : undefined;
+
+  return {
+    id: event.id,
+    ticketId: event.ticketId,
+    actorId: definedString(event.actorId),
+    type: event.type,
+    payload: payload as Record<string, string> | undefined,
+    createdAt: iso(event.createdAt) ?? ""
+  };
+}
+
+function mapKnowledgeArticle(article: Prisma.KnowledgeArticleGetPayload<object>): KnowledgeArticle {
+  return {
+    id: article.id,
+    title: article.title,
+    slug: article.slug,
+    body: article.body,
+    categoryId: definedString(article.categoryId),
+    isPublished: article.isPublished
+  };
+}
+
+function mapNotificationLog(log: Prisma.NotificationLogGetPayload<object>): NotificationLog {
+  return {
+    id: log.id,
+    ticketId: definedString(log.ticketId),
+    recipientEmail: log.recipientEmail,
+    type: log.type,
+    status: log.status,
+    error: definedString(log.error),
+    createdAt: iso(log.createdAt) ?? "",
+    sentAt: iso(log.sentAt)
+  };
 }
 
 async function ensureDatabase(): Promise<Database> {
@@ -42,6 +177,36 @@ async function ensureDatabase(): Promise<Database> {
 
 export async function readDatabase(): Promise<Database> {
   noStore();
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const [users, stores, categories, tickets, comments, events, knowledgeArticles, notificationLogs, counters] =
+      await Promise.all([
+        db.user.findMany(),
+        db.store.findMany(),
+        db.category.findMany(),
+        db.ticket.findMany(),
+        db.ticketComment.findMany(),
+        db.ticketEvent.findMany(),
+        db.knowledgeArticle.findMany(),
+        db.notificationLog.findMany(),
+        db.ticketCounter.findMany()
+      ]);
+
+    return {
+      meta: {
+        ticketSequences: Object.fromEntries(counters.map((counter) => [String(counter.year), counter.sequence]))
+      },
+      users: users.map(mapUser),
+      stores: stores.map(mapStore),
+      categories: categories.map(mapCategory),
+      tickets: tickets.map(mapTicket),
+      comments: comments.map(mapComment),
+      events: events.map(mapEvent),
+      knowledgeArticles: knowledgeArticles.map(mapKnowledgeArticle),
+      notificationLogs: notificationLogs.map(mapNotificationLog)
+    };
+  }
+
   return ensureDatabase();
 }
 
@@ -51,23 +216,72 @@ export async function writeDatabase(database: Database): Promise<void> {
 }
 
 export async function withDatabase<T>(mutator: (database: Database) => T | Promise<T>): Promise<T> {
-  const database = await ensureDatabase();
-  const result = await mutator(database);
-  await writeDatabase(database);
+  let result!: T;
+  const operation = databaseWriteQueue.then(async () => {
+    const database = await ensureDatabase();
+    result = await mutator(database);
+    await writeDatabase(database);
+  });
+
+  databaseWriteQueue = operation.then(
+    () => undefined,
+    () => undefined
+  );
+
+  await operation;
   return result;
 }
 
 export async function getUsers(): Promise<User[]> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const users = await db.user.findMany({
+      where: { isActive: true },
+      orderBy: [{ role: "asc" }, { name: "asc" }]
+    });
+    return users.map(mapUser);
+  }
+
   const database = await readDatabase();
   return database.users.filter((user) => user.isActive);
 }
 
 export async function getCategories(): Promise<Category[]> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const categories = await db.category.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" }
+    });
+    return categories.map(mapCategory);
+  }
+
   const database = await readDatabase();
   return database.categories.filter((category) => category.isActive);
 }
 
 export async function createOrFindUser(email: string): Promise<User> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const existing = await db.user.findUnique({ where: { email } });
+
+    if (existing) {
+      return mapUser(existing);
+    }
+
+    const created = await db.user.create({
+      data: {
+        name: email.split("@")[0].replace(/[._-]/g, " "),
+        email,
+        role: "REPORTER",
+        department: "Biuro",
+        isActive: true
+      }
+    });
+
+    return mapUser(created);
+  }
+
   return withDatabase((database) => {
     const existing = database.users.find((user) => user.email === email);
 
@@ -90,11 +304,37 @@ export async function createOrFindUser(email: string): Promise<User> {
 }
 
 export async function findUserById(userId: string): Promise<User | undefined> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const user = await db.user.findFirst({ where: { id: userId, isActive: true } });
+    return user ? mapUser(user) : undefined;
+  }
+
   const database = await readDatabase();
   return database.users.find((user) => user.id === userId && user.isActive);
 }
 
 export async function listVisibleTickets(user: User): Promise<Ticket[]> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const where: Prisma.TicketWhereInput =
+      user.role === "AGENT" || user.role === "ADMIN"
+        ? {}
+        : {
+            OR: [
+              { reporterId: user.id },
+              ...(user.role === "STORE_MANAGER" && user.storeId ? [{ storeId: user.storeId }] : [])
+            ]
+          };
+
+    const tickets = await db.ticket.findMany({
+      where,
+      orderBy: { updatedAt: "desc" }
+    });
+
+    return tickets.map(mapTicket);
+  }
+
   const database = await readDatabase();
   const tickets = database.tickets.filter((ticket) => {
     if (user.role === "AGENT" || user.role === "ADMIN") {
@@ -112,11 +352,31 @@ export async function listVisibleTickets(user: User): Promise<Ticket[]> {
 }
 
 export async function findTicket(ticketId: string): Promise<Ticket | undefined> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const ticket = await db.ticket.findFirst({
+      where: { OR: [{ id: ticketId }, { number: ticketId }] }
+    });
+    return ticket ? mapTicket(ticket) : undefined;
+  }
+
   const database = await readDatabase();
   return database.tickets.find((ticket) => ticket.id === ticketId || ticket.number === ticketId);
 }
 
 export async function listComments(ticketId: string, includeInternal: boolean): Promise<TicketComment[]> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const comments = await db.ticketComment.findMany({
+      where: {
+        ticketId,
+        ...(includeInternal ? {} : { visibility: "PUBLIC" })
+      },
+      orderBy: { createdAt: "asc" }
+    });
+    return comments.map(mapComment);
+  }
+
   const database = await readDatabase();
   return database.comments
     .filter((comment) => comment.ticketId === ticketId)
@@ -125,6 +385,15 @@ export async function listComments(ticketId: string, includeInternal: boolean): 
 }
 
 export async function listEvents(ticketId: string): Promise<TicketEvent[]> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const events = await db.ticketEvent.findMany({
+      where: { ticketId },
+      orderBy: { createdAt: "asc" }
+    });
+    return events.map(mapEvent);
+  }
+
   const database = await readDatabase();
   return database.events
     .filter((event) => event.ticketId === ticketId)
@@ -142,6 +411,68 @@ export async function createTicket(input: {
   reporterId: string;
   priority: TicketPriority;
 }): Promise<Ticket> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const year = new Date().getFullYear();
+
+    const ticket = await db.$transaction(async (tx) => {
+      await tx.ticketCounter.upsert({
+        where: { year },
+        create: { year, sequence: 0 },
+        update: {}
+      });
+
+      const counter = await tx.ticketCounter.update({
+        where: { year },
+        data: { sequence: { increment: 1 } }
+      });
+
+      const created = await tx.ticket.create({
+        data: {
+          number: generateTicketNumber(year, counter.sequence),
+          title: input.title,
+          description: input.description,
+          status: "NEW",
+          priority: input.blocksWork ? "CRITICAL" : input.priority,
+          blocksWork: input.blocksWork,
+          contact: input.contact,
+          categoryId: input.categoryId,
+          storeId: input.storeId,
+          department: input.department,
+          reporterId: input.reporterId
+        }
+      });
+
+      await tx.ticketEvent.create({
+        data: {
+          ticketId: created.id,
+          actorId: input.reporterId,
+          type: "TICKET_CREATED"
+        }
+      });
+
+      const reporter = await tx.user.findUnique({
+        where: { id: input.reporterId },
+        select: { email: true }
+      });
+
+      if (reporter?.email) {
+        await tx.notificationLog.create({
+          data: {
+            ticketId: created.id,
+            recipientEmail: reporter.email,
+            type: "TICKET_CREATED",
+            status: "QUEUED"
+          }
+        });
+      }
+
+      return created;
+    });
+
+    return mapTicket(ticket);
+  }
+
   return withDatabase((database) => {
     const year = String(new Date().getFullYear());
     const nextSequence = (database.meta.ticketSequences[year] ?? 0) + 1;
@@ -193,6 +524,105 @@ export async function updateTicket(input: {
   priority: TicketPriority;
   assigneeId?: string;
 }): Promise<Ticket | undefined> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const updated = await db.$transaction(async (tx) => {
+      const ticket = await tx.ticket.findUnique({ where: { id: input.ticketId } });
+
+      if (!ticket) {
+        return undefined;
+      }
+
+      const statusChanged = ticket.status !== input.status;
+      const priorityChanged = ticket.priority !== input.priority;
+      const assigneeChanged = (ticket.assigneeId ?? "") !== (input.assigneeId ?? "");
+      const timestamp = new Date();
+      const events: Prisma.TicketEventCreateManyInput[] = [];
+
+      if (statusChanged) {
+        events.push({
+          ticketId: ticket.id,
+          actorId: input.actorId,
+          type: "STATUS_CHANGED",
+          payload: { from: ticket.status, to: input.status }
+        });
+      }
+
+      if (priorityChanged) {
+        events.push({
+          ticketId: ticket.id,
+          actorId: input.actorId,
+          type: "PRIORITY_CHANGED",
+          payload: { from: ticket.priority, to: input.priority }
+        });
+      }
+
+      if (assigneeChanged) {
+        events.push({
+          ticketId: ticket.id,
+          actorId: input.actorId,
+          type: "ASSIGNEE_CHANGED",
+          payload: { assigneeId: input.assigneeId ?? "" }
+        });
+      }
+
+      const nextTicket = await tx.ticket.update({
+        where: { id: ticket.id },
+        data: {
+          status: input.status,
+          priority: input.priority,
+          assigneeId: input.assigneeId,
+          ...(statusChanged && input.status === "RESOLVED" ? { resolvedAt: timestamp } : {}),
+          ...(statusChanged && input.status === "CLOSED" ? { closedAt: timestamp } : {})
+        }
+      });
+
+      if (events.length > 0) {
+        await tx.ticketEvent.createMany({ data: events });
+      }
+
+      if (statusChanged && input.status === "RESOLVED") {
+        const reporter = await tx.user.findUnique({
+          where: { id: ticket.reporterId },
+          select: { email: true }
+        });
+
+        if (reporter?.email) {
+          await tx.notificationLog.create({
+            data: {
+              ticketId: ticket.id,
+              recipientEmail: reporter.email,
+              type: "TICKET_RESOLVED",
+              status: "QUEUED"
+            }
+          });
+        }
+      }
+
+      if (assigneeChanged && input.assigneeId) {
+        const assignee = await tx.user.findUnique({
+          where: { id: input.assigneeId },
+          select: { email: true }
+        });
+
+        if (assignee?.email) {
+          await tx.notificationLog.create({
+            data: {
+              ticketId: ticket.id,
+              recipientEmail: assignee.email,
+              type: "TICKET_ASSIGNED",
+              status: "QUEUED"
+            }
+          });
+        }
+      }
+
+      return nextTicket;
+    });
+
+    return updated ? mapTicket(updated) : undefined;
+  }
+
   return withDatabase((database) => {
     const ticket = database.tickets.find((item) => item.id === input.ticketId);
 
@@ -287,6 +717,65 @@ export async function addComment(input: {
   body: string;
   visibility: CommentVisibility;
 }): Promise<TicketComment | undefined> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const comment = await db.$transaction(async (tx) => {
+      const ticket = await tx.ticket.findUnique({ where: { id: input.ticketId } });
+
+      if (!ticket) {
+        return undefined;
+      }
+
+      const created = await tx.ticketComment.create({
+        data: {
+          ticketId: ticket.id,
+          authorId: input.authorId,
+          body: input.body,
+          visibility: input.visibility
+        }
+      });
+
+      await tx.ticket.update({
+        where: { id: ticket.id },
+        data: { updatedAt: new Date() }
+      });
+
+      await tx.ticketEvent.create({
+        data: {
+          ticketId: ticket.id,
+          actorId: input.authorId,
+          type: input.visibility === "INTERNAL" ? "INTERNAL_NOTE_CREATED" : "COMMENT_CREATED"
+        }
+      });
+
+      if (input.visibility === "PUBLIC") {
+        const recipient = ticket.reporterId === input.authorId ? ticket.assigneeId : ticket.reporterId;
+
+        if (recipient) {
+          const user = await tx.user.findUnique({
+            where: { id: recipient },
+            select: { email: true }
+          });
+
+          if (user?.email) {
+            await tx.notificationLog.create({
+              data: {
+                ticketId: ticket.id,
+                recipientEmail: user.email,
+                type: "COMMENT_CREATED",
+                status: "QUEUED"
+              }
+            });
+          }
+        }
+      }
+
+      return created;
+    });
+
+    return comment ? mapComment(comment) : undefined;
+  }
+
   return withDatabase((database) => {
     const ticket = database.tickets.find((item) => item.id === input.ticketId);
 
@@ -340,6 +829,19 @@ export async function updateNotificationLog(
   status: "SENT" | "FAILED",
   error?: string
 ): Promise<void> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    await db.notificationLog.update({
+      where: { id: notificationId },
+      data: {
+        status,
+        sentAt: new Date(),
+        error: status === "FAILED" ? error : null
+      }
+    });
+    return;
+  }
+
   return withDatabase((database) => {
     const notification = database.notificationLogs.find((item) => item.id === notificationId);
     if (notification) {
@@ -351,6 +853,12 @@ export async function updateNotificationLog(
 }
 
 export async function getNotificationLog(notificationId: string): Promise<NotificationLog | undefined> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const notification = await db.notificationLog.findUnique({ where: { id: notificationId } });
+    return notification ? mapNotificationLog(notification) : undefined;
+  }
+
   const database = await readDatabase();
   return database.notificationLogs.find((item) => item.id === notificationId);
 }

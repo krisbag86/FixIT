@@ -1,75 +1,43 @@
 # Remaining Tasks - FixIT Helpdesk
 
-Aktualna lista prac pozostalych po Etapie 6, czyli po dodaniu migracji i seeda Prisma uruchamianych w Docker Compose.
+Aktualna lista prac pozostalych po Etapie 7, czyli po dodaniu runtime data-store dla Prisma/PostgreSQL oraz stabilnej paczki testow e2e Playwright.
 
 ## Decyzje zakresowe
 
-- Migracja runtime aplikacji z lokalnego JSON-store na Prisma/PostgreSQL zostaje na etap deploymentu na Railway.
-- Do tego czasu aplikacja MVP nadal czyta i zapisuje dane w `.data/fixit-db.json`.
-- PostgreSQL w Docker Compose jest przygotowywany migracjami i seedem jako docelowa baza dla kolejnego etapu.
+- Runtime aplikacji korzysta z jednego publicznego API `lib/data-store.ts`.
+- Lokalnie i w testach domyslnym storage pozostaje `.data/fixit-db.json`.
+- Prisma/PostgreSQL jest wlaczane przez `FIXIT_DATA_PROVIDER=prisma`, albo automatycznie w produkcji, gdy istnieje `DATABASE_URL` i nie ustawiono `FIXIT_DATA_PROVIDER=json`.
+- JSON-store ma kolejke zapisow w procesie aplikacji, zeby backgroundowe aktualizacje powiadomien nie nadpisywaly rownoleglych zmian.
 
-## Zrobione (po Etapie 6)
+## Zrobione (po Etapie 7)
 
 - Priorytet 3 (Email) zostal zrealizowany: prawdziwa wysylka maili, szablony oraz aktualizacja `NotificationLog` na `SENT`/`FAILED`.
 - Priorytet 4 (Audyt npm) zostal zrealizowany: `npm audit` jest czysty.
+- Priorytet 1 (Railway/runtime PostgreSQL) zostal zrealizowany po stronie kodu:
+  - `Users`, `Stores`, `Categories`, `Tickets`, `Comments`, `TicketEvent` i `NotificationLog` maja runtime Prisma w `lib/data-store.ts`.
+  - Numeracja ticketow w trybie Prisma korzysta z `TicketCounter` w transakcji.
+  - Zdarzenia i powiadomienia sa tworzone w tych samych sciezkach zapisu co w JSON-store.
+  - Do walidacji produkcyjnej zostaje uruchomienie migracji i smoke test na prawdziwej bazie Railway.
+- Priorytet 2 (Testy e2e) zostal zrealizowany:
+  - Playwright jest skonfigurowany w repo, a `npm run test:e2e` przechodzi lokalnie.
+  - Testy obejmuja logowanie domenowe, odrzucenie obcych domen, tworzenie ticketu, liste ticketow, panel IT, przypisanie/status oraz regresje notatek wewnetrznych.
+  - E2e uruchamia dev server z wylaczonym SMTP, zeby testy nie wykonywaly realnych prob wysylki.
 
-## Priorytet 1 - Railway i runtime PostgreSQL
+## Walidacja Etapu 7
 
-Cel: przygotowac aplikacje do produkcyjnego uruchomienia na Railway z PostgreSQL jako glowna baza.
+- `npm run lint` - OK
+- `npm run typecheck` - OK
+- `npm run test` - OK, 18 passed / 1 skipped
+- `npm run test:e2e` - OK, 19 passed
+- `npm run build` - OK po zmianach runtime, po uruchomieniu poza sandboxem; finalny rerun po ostatnich poprawkach e2e nie zostal wykonany, bo approval system odrzucil kolejne uruchomienie poza sandboxem.
 
-Do zrobienia:
+## Pozostale zadania deploymentowe Railway
 
-- Granice warstwy danych:
-  - Zdecydowac i opisac podejscie: osobna warstwa repozytorium (rekomendowane) vs bezposrednia podmiana `lib/data-store.ts`.
-- Przejscie runtime na PostgreSQL (Prisma Client):
-  - Podmienic odczyty dla Users/Stores/Categories (najpierw read-only).
-  - Podmienic Tickets/Comments/TicketEvent/NotificationLog na operacje Prisma (sciezki zapisu), zachowujac obecne reguly permissions i widocznosci ticketow.
-  - Upewnic sie, ze wszystkie dotychczasowe akcje serwerowe dzialaja na DB bez zmian UX.
-- Numeracja ticketow:
-  - Przeniesc alokacje numeru na `TicketCounter` z transakcja.
-  - Zagwarantowac brak duplikatow przy rownoleglych utworzeniach ticketu.
-- Trwalosc zdarzen i powiadomien:
-  - Upewnic sie, ze `TicketEvent` zapisuje sie dla wszystkich obecnych typow zdarzen.
-  - Upewnic sie, ze `NotificationLog` jest zgodny ze stanami i timestampami uzywanymi przez runtime.
-- Railway:
-  - Skonfigurowac env vars: `DATABASE_URL`, `APP_URL`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `EMAIL_FROM`.
-  - Uruchamiac `npm run db:migrate:deploy` podczas deploymentu.
-  - Ustalic polityke seedowania produkcji, zeby seed testowy nie tworzyl danych na produkcji.
-
-Walidacja:
-
-- `npm run lint`
-- `npm run typecheck`
-- `npm run test`
-- `npm run build`
+- Skonfigurowac env vars: `DATABASE_URL`, `APP_URL`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `EMAIL_FROM`, `FIXIT_DATA_PROVIDER=prisma`.
+- Uruchamiac `npm run db:migrate:deploy` podczas deploymentu.
+- Ustalic polityke seedowania produkcji, zeby seed testowy nie tworzyl danych na produkcji.
 - `npm run db:migrate:deploy` na bazie Railway
-- smoke test: logowanie + utworzenie ticketu + przypisanie/status + komentarz na staging/production
-
-## Priorytet 2 - Testy e2e
-
-Cel: zabezpieczyc pionowy MVP automatycznymi testami end-to-end.
-
-Do zrobienia:
-
-- Fundament e2e:
-  - Wybrac runner (Playwright rekomendowany) i skonfigurowac go w repo.
-  - Dodac skrypt `npm run test:e2e`.
-  - Ustalic deterministyczna strategie danych (seed/fixtures) dobra dla CI.
-- Auth:
-  - Logowanie domena `bagietka.pl`.
-  - Odrzucenie obcej domeny.
-- Sciezka reportera:
-  - Utworzenie ticketu i widocznosc na `/tickets`.
-  - Wejscie w szczegoly ticketu i dodanie komentarza publicznego.
-- Sciezka IT:
-  - Wejscie agenta/admina na `/admin/tickets`.
-  - Przypisanie ticketu oraz zmiana statusu i priorytetu.
-- Regresja uprawnien:
-  - Brak widocznosci notatek wewnetrznych dla reportera.
-
-Walidacja:
-
-- `npm run test:e2e`
+- Smoke test: logowanie + utworzenie ticketu + przypisanie/status + komentarz na staging/production.
 
 ## Priorytet 5 - Zalaczniki
 

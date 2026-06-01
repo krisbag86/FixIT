@@ -26,7 +26,7 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: 'npm run dev',
+    command: 'TMPDIR=/tmp SMTP_HOST= SMTP_USER= SMTP_PASSWORD= npm run dev',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
   },

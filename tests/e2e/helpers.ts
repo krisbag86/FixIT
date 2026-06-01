@@ -1,8 +1,9 @@
-import { Page } from '@playwright/test';
+import { expect, Page } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 
 export async function loginAs(page: Page, email: string) {
+  await page.context().clearCookies();
   await page.goto('/login');
   await page.fill('input[name="email"]', email);
   await page.click('button:has-text("Wejdz do FixIT")');
@@ -66,5 +67,9 @@ export async function createTicketViaUI(page: Page, categoryText: string, title:
   await page.selectOption('select[name="priority"]', priority);
   
   await page.click('button:has-text("Utworz zgloszenie")');
-  await page.waitForURL(/\/tickets\/[^/]+$/, { timeout: 10000 });
+  await page.waitForURL(
+    (url) => url.pathname.startsWith('/tickets/') && url.pathname !== '/tickets/new',
+    { timeout: 10000 }
+  );
+  await expect(page.getByTestId('ticket-number')).toBeVisible();
 }
