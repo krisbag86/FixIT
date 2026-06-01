@@ -47,9 +47,9 @@ export function VisibilityBadge({ visibility }: { visibility: CommentVisibility 
   );
 }
 
-function Badge({ children, className }: { children: React.ReactNode; className: string }) {
+function Badge({ children, className, ...props }: React.ComponentProps<"span"> & { className: string }) {
   return (
-    <span className={cn("inline-flex items-center rounded px-2 py-1 text-xs font-semibold ring-1", className)}>
+    <span {...props} className={cn("inline-flex items-center rounded px-2 py-1 text-xs font-semibold ring-1", className)}>
       {children}
     </span>
   );

@@ -55,7 +55,7 @@ Call log:
   - img
   - heading "Komentarze" [level=2]
   - article:
-    - text: Marek Agent 1 cze 2026, 22:09 Wewnetrzny
+    - text: Marek Agent 1 cze 2026, 22:23 Wewnetrzny
     - paragraph: This is a secret internal note
   - textbox "Dodaj odpowiedz..."
   - combobox:
@@ -66,7 +66,7 @@ Call log:
     - text: Dodaj
   - complementary:
     - heading "Informacje" [level=2]
-    - text: Kategoria Kasa / POS Lokalizacja Bagietka Warszawa Centrum Zglaszajacy Kasia Kierownik Prowadzi Nieprzypisane Kontakt test@bagietka.pl Utworzono 1 cze 2026, 22:09 Aktualizacja 1 cze 2026, 22:09 Blokuje prace Nie
+    - text: Kategoria Kasa / POS Lokalizacja Bagietka Warszawa Centrum Zglaszajacy Kasia Kierownik Prowadzi Nieprzypisane Kontakt test@bagietka.pl Utworzono 1 cze 2026, 22:23 Aktualizacja 1 cze 2026, 22:23 Blokuje prace Nie
     - heading "Akcje IT" [level=2]
     - text: Status
     - combobox "Status":
@@ -93,7 +93,7 @@ Call log:
       - img
       - text: Zapisz zmiany
     - heading "Audit log" [level=2]
-    - text: TICKET_CREATED 1 cze 2026, 22:09, Kasia Kierownik INTERNAL_NOTE_CREATED 1 cze 2026, 22:09, Marek Agent
+    - text: TICKET_CREATED 1 cze 2026, 22:23, Kasia Kierownik INTERNAL_NOTE_CREATED 1 cze 2026, 22:23, Marek Agent
 - alert
 ```
 

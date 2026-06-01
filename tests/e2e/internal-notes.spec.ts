@@ -102,8 +102,8 @@ test.describe('Internal Notes - Permissions', () => {
     await expect(page.locator('text="This is a secret internal note"')).toBeVisible();
     
     // And it should have internal badge
-    const internalBadges = page.getByTestId('visibility-badge');
-    await expect(internalBadges.first()).toContainText('Wewnetrzny');
+    const internalNote = page.getByTestId('comment-item').filter({ hasText: 'This is a secret internal note' });
+    await expect(internalNote.getByTestId('visibility-badge')).toContainText('Wewnetrzny');
   });
 
   test('REPORTER should only see PUBLIC comments, not internal notes', async ({ page }) => {
@@ -113,7 +113,7 @@ test.describe('Internal Notes - Permissions', () => {
       page,
       'Kasa / POS',
       'Ticket for Secret Testing',
-      'Body'
+      'Long enough body for secret testing'
     );
     const ticketUrl = page.url();
     const ticketId = ticketUrl.split('/').pop();

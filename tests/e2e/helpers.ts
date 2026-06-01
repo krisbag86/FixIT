@@ -66,5 +66,5 @@ export async function createTicketViaUI(page: Page, categoryText: string, title:
   await page.selectOption('select[name="priority"]', priority);
   
   await page.click('button:has-text("Utworz zgloszenie")');
-  await page.waitForURL(/\/tickets\/t_/, { timeout: 10000 });
+  await page.waitForURL(/\/tickets\/[^/]+$/, { timeout: 10000 });
 }
