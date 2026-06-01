@@ -10,8 +10,10 @@ Dokumentacja startowa dla wewnetrznej aplikacji webowej do obslugi zgloszen IT d
 - `auth-security.md` - wymagania logowania, role, uprawnienia i ograniczenie domeny `bagietka.pl`.
 - `database-schema.md` - proponowany model danych PostgreSQL/Prisma.
 - `deployment-railway.md` - rekomendowany deployment na Railway.
+- `docker-development.md` - lokalny development przez Docker Compose.
 - `ux-flows.md` - glowne przeplywy UX dla uzytkownika i panelu IT.
 - `testing-quality.md` - testy, kryteria akceptacji i eval-first workflow.
+- `build-status.md` - aktualny status budowy aplikacji, rzeczy zrobione i pozostale.
 
 ## Rekomendowany stack
 

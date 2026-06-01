@@ -1,0 +1,221 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  REPORTER
+  STORE_MANAGER
+  AGENT
+  ADMIN
+}
+
+enum TicketStatus {
+  NEW
+  TRIAGED
+  IN_PROGRESS
+  WAITING_FOR_USER
+  WAITING_FOR_VENDOR
+  RESOLVED
+  CLOSED
+  CANCELLED
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  CRITICAL
+}
+
+enum CommentVisibility {
+  PUBLIC
+  INTERNAL
+}
+
+model User {
+  id         String   @id @default(cuid())
+  name       String?
+  email      String   @unique
+  role       UserRole @default(REPORTER)
+  storeId    String?
+  department String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  store           Store?          @relation(fields: [storeId], references: [id])
+  reportedTickets Ticket[]        @relation("TicketReporter")
+  assignedTickets Ticket[]        @relation("TicketAssignee")
+  comments        TicketComment[]
+  events          TicketEvent[]
+  defaultCategories Category[]     @relation("CategoryDefaultAssignee")
+  articlesCreated KnowledgeArticle[] @relation("ArticleCreatedBy")
+  articlesUpdated KnowledgeArticle[] @relation("ArticleUpdatedBy")
+
+  @@index([role])
+  @@index([storeId])
+}
+
+model Store {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  city      String?
+  address   String?
+  region    String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users   User[]
+  tickets Ticket[]
+}
+
+model Category {
+  id                String         @id @default(cuid())
+  name              String
+  parentId          String?
+  defaultPriority   TicketPriority @default(NORMAL)
+  defaultAssigneeId String?
+  isActive          Boolean        @default(true)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  parent            Category?          @relation("CategoryTree", fields: [parentId], references: [id])
+  children          Category[]         @relation("CategoryTree")
+  defaultAssignee   User?              @relation("CategoryDefaultAssignee", fields: [defaultAssigneeId], references: [id])
+  tickets           Ticket[]
+  knowledgeArticles KnowledgeArticle[]
+
+  @@index([parentId])
+  @@index([isActive])
+}
+
+model TicketCounter {
+  year      Int @id
+  sequence  Int
+  updatedAt DateTime @updatedAt
+}
+
+model Ticket {
+  id          String         @id @default(cuid())
+  number      String         @unique
+  title       String
+  description String
+  status      TicketStatus   @default(NEW)
+  priority    TicketPriority @default(NORMAL)
+  impact      String?
+  blocksWork  Boolean        @default(false)
+  contact     String?
+  categoryId  String?
+  storeId     String?
+  department  String?
+  reporterId  String
+  assigneeId  String?
+  dueAt       DateTime?
+  resolvedAt  DateTime?
+  closedAt    DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  category    Category?          @relation(fields: [categoryId], references: [id])
+  store       Store?             @relation(fields: [storeId], references: [id])
+  reporter    User               @relation("TicketReporter", fields: [reporterId], references: [id])
+  assignee    User?              @relation("TicketAssignee", fields: [assigneeId], references: [id])
+  comments    TicketComment[]
+  attachments TicketAttachment[]
+  events      TicketEvent[]
+
+  @@index([status])
+  @@index([priority])
+  @@index([assigneeId])
+  @@index([reporterId])
+  @@index([storeId])
+  @@index([updatedAt])
+  @@index([createdAt])
+}
+
+model TicketComment {
+  id         String            @id @default(cuid())
+  ticketId   String
+  authorId   String
+  body       String
+  visibility CommentVisibility @default(PUBLIC)
+  createdAt  DateTime          @default(now())
+
+  ticket      Ticket             @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author      User               @relation(fields: [authorId], references: [id])
+  attachments TicketAttachment[]
+
+  @@index([ticketId])
+  @@index([visibility])
+}
+
+model TicketAttachment {
+  id         String   @id @default(cuid())
+  ticketId   String
+  commentId  String?
+  filename   String
+  mimeType   String
+  size       Int
+  storageKey String
+  createdAt  DateTime @default(now())
+
+  ticket  Ticket         @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  comment TicketComment? @relation(fields: [commentId], references: [id], onDelete: SetNull)
+}
+
+model TicketEvent {
+  id        String   @id @default(cuid())
+  ticketId  String
+  actorId   String?
+  type      String
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  actor  User?  @relation(fields: [actorId], references: [id])
+
+  @@index([ticketId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model KnowledgeArticle {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  body        String
+  categoryId  String?
+  isPublished Boolean  @default(false)
+  createdById String
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category  Category? @relation(fields: [categoryId], references: [id])
+  createdBy User      @relation("ArticleCreatedBy", fields: [createdById], references: [id])
+  updatedBy User?     @relation("ArticleUpdatedBy", fields: [updatedById], references: [id])
+
+  @@index([isPublished])
+  @@index([categoryId])
+}
+
+model NotificationLog {
+  id             String   @id @default(cuid())
+  ticketId       String?
+  recipientEmail String
+  type           String
+  status         String
+  error          String?
+  createdAt      DateTime @default(now())
+
+  @@index([ticketId])
+  @@index([recipientEmail])
+  @@index([createdAt])
+}
