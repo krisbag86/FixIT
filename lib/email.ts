@@ -41,7 +41,7 @@ export async function sendEmail(payload: EmailPayload): Promise<boolean> {
 
     // Send email with timeout to prevent hanging
     const sendPromise = transporter.sendMail({
-      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      from: process.env.EMAIL_FROM || process.env.SMTP_FROM || process.env.SMTP_USER,
       to: payload.to,
       subject: payload.subject,
       html: payload.html,

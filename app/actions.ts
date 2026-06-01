@@ -4,11 +4,20 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
-import { addComment, createTicket, findTicket, readDatabase, updateTicket } from "@/lib/data-store";
+import { addComment, createTicket, findTicket, readDatabase, updateNotificationLog, updateTicket } from "@/lib/data-store";
 import { can, canViewTicket } from "@/lib/permissions";
-import { sendEmailAsync } from "@/lib/email";
+import { sendEmail } from "@/lib/email";
 import { templateTicketCreated, templateTicketResolved, templateTicketAssigned, templateCommentAdded } from "@/lib/email-templates";
-import type { CommentVisibility, TicketPriority, TicketStatus } from "@/lib/types";
+import type { CommentVisibility, Database, TicketPriority, TicketStatus } from "@/lib/types";
+
+function findLatestQueuedNotification(database: Database, input: { ticketId: string; type: string; recipientEmail: string }) {
+  return database.notificationLogs
+    .filter((log) => log.ticketId === input.ticketId)
+    .filter((log) => log.type === input.type)
+    .filter((log) => log.recipientEmail === input.recipientEmail)
+    .filter((log) => log.status === "QUEUED")
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+}
 
 const ticketSchema = z.object({
   categoryId: z.string().min(1),
@@ -56,14 +65,22 @@ export async function createTicketAction(formData: FormData): Promise<void> {
     const reporter = db.users.find((u) => u.id === user.id);
     if (reporter) {
       const template = templateTicketCreated(ticket, reporter);
-      sendEmailAsync({
-        to: reporter.email,
-        subject: template.subject,
-        html: template.html,
-        text: template.text
-      }).catch((error) => {
-        console.error("Failed to send ticket creation email in background:", error);
+      const notification = findLatestQueuedNotification(db, {
+        ticketId: ticket.id,
+        type: "TICKET_CREATED",
+        recipientEmail: reporter.email
       });
+      void (async () => {
+        const ok = await sendEmail({
+          to: reporter.email,
+          subject: template.subject,
+          html: template.html,
+          text: template.text
+        });
+        if (notification) {
+          await updateNotificationLog(notification.id, ok ? "SENT" : "FAILED");
+        }
+      })();
     }
   } catch (error) {
     console.error("Failed to initiate ticket creation email:", error);
@@ -107,14 +124,22 @@ export async function updateTicketAction(formData: FormData): Promise<void> {
 
         if (resolver && recipient) {
           const template = templateTicketResolved(updatedTicket, resolver);
-          sendEmailAsync({
-            to: recipient.email,
-            subject: template.subject,
-            html: template.html,
-            text: template.text
-          }).catch((error) => {
-            console.error("Failed to send resolved email in background:", error);
+          const notification = findLatestQueuedNotification(db, {
+            ticketId: updatedTicket.id,
+            type: "TICKET_RESOLVED",
+            recipientEmail: recipient.email
           });
+          void (async () => {
+            const ok = await sendEmail({
+              to: recipient.email,
+              subject: template.subject,
+              html: template.html,
+              text: template.text
+            });
+            if (notification) {
+              await updateNotificationLog(notification.id, ok ? "SENT" : "FAILED");
+            }
+          })();
         }
       }
 
@@ -125,14 +150,22 @@ export async function updateTicketAction(formData: FormData): Promise<void> {
 
         if (newAssignee && updatedTicket) {
           const template = templateTicketAssigned(updatedTicket, newAssignee);
-          sendEmailAsync({
-            to: newAssignee.email,
-            subject: template.subject,
-            html: template.html,
-            text: template.text
-          }).catch((error) => {
-            console.error("Failed to send assigned email in background:", error);
+          const notification = findLatestQueuedNotification(db, {
+            ticketId: updatedTicket.id,
+            type: "TICKET_ASSIGNED",
+            recipientEmail: newAssignee.email
           });
+          void (async () => {
+            const ok = await sendEmail({
+              to: newAssignee.email,
+              subject: template.subject,
+              html: template.html,
+              text: template.text
+            });
+            if (notification) {
+              await updateNotificationLog(notification.id, ok ? "SENT" : "FAILED");
+            }
+          })();
         }
       }
     } catch (error) {
@@ -185,14 +218,22 @@ export async function addCommentAction(formData: FormData): Promise<void> {
 
       if (author && recipient) {
         const template = templateCommentAdded(ticket, comment, author);
-        sendEmailAsync({
-          to: recipient.email,
-          subject: template.subject,
-          html: template.html,
-          text: template.text
-        }).catch((error) => {
-          console.error("Failed to send comment email in background:", error);
+        const notification = findLatestQueuedNotification(db, {
+          ticketId: ticket.id,
+          type: "COMMENT_CREATED",
+          recipientEmail: recipient.email
         });
+        void (async () => {
+          const ok = await sendEmail({
+            to: recipient.email,
+            subject: template.subject,
+            html: template.html,
+            text: template.text
+          });
+          if (notification) {
+            await updateNotificationLog(notification.id, ok ? "SENT" : "FAILED");
+          }
+        })();
       }
     } catch (error) {
       console.error("Failed to initiate comment email:", error);

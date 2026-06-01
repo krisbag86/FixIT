@@ -95,7 +95,6 @@ Zrobione:
 
 Do zbudowania:
 
-- Prawdziwa wysylka email przez Resend/SMTP.
 - Zalaczniki do ticketow.
 - FAQ z wyszukiwarka i CRUD admina.
 - CRUD uzytkownikow, sklepow i kategorii.
@@ -120,7 +119,6 @@ Do zbudowania:
 
 - Migracja runtime z JSON-store na Prisma/PostgreSQL.
 - Testy e2e dla loginu, tworzenia ticketu, panelu IT i widocznosci notatek wewnetrznych.
-- Obsluga audytu podatnosci npm. Aktualnie `npm audit` raportuje 7 moderate severity vulnerabilities w zaleznosciach developerskich/runtime; nie zastosowano `npm audit fix --force`, bo mogloby wprowadzic breaking changes.
 
 ## Etap 6 - Prisma w Docker Compose
 

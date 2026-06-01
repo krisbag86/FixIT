@@ -202,8 +202,11 @@ export async function updateTicket(input: {
 
     const timestamp = now();
     const events: TicketEvent[] = [];
+    const statusChanged = ticket.status !== input.status;
+    const priorityChanged = ticket.priority !== input.priority;
+    const assigneeChanged = (ticket.assigneeId ?? "") !== (input.assigneeId ?? "");
 
-    if (ticket.status !== input.status) {
+    if (statusChanged) {
       events.push({
         id: id("e"),
         ticketId: ticket.id,
@@ -217,7 +220,7 @@ export async function updateTicket(input: {
       ticket.closedAt = input.status === "CLOSED" ? timestamp : ticket.closedAt;
     }
 
-    if (ticket.priority !== input.priority) {
+    if (priorityChanged) {
       events.push({
         id: id("e"),
         ticketId: ticket.id,
@@ -229,7 +232,7 @@ export async function updateTicket(input: {
       ticket.priority = input.priority;
     }
 
-    if ((ticket.assigneeId ?? "") !== (input.assigneeId ?? "")) {
+    if (assigneeChanged) {
       events.push({
         id: id("e"),
         ticketId: ticket.id,
@@ -244,14 +247,34 @@ export async function updateTicket(input: {
     if (events.length > 0) {
       ticket.updatedAt = timestamp;
       database.events.push(...events);
-      database.notificationLogs.push({
-        id: id("n"),
-        ticketId: ticket.id,
-        recipientEmail: database.users.find((user) => user.id === ticket.reporterId)?.email ?? "",
-        type: "TICKET_UPDATED",
-        status: "QUEUED",
-        createdAt: timestamp
-      });
+    }
+
+    if (statusChanged && input.status === "RESOLVED") {
+      const recipientEmail = database.users.find((user) => user.id === ticket.reporterId)?.email;
+      if (recipientEmail) {
+        database.notificationLogs.push({
+          id: id("n"),
+          ticketId: ticket.id,
+          recipientEmail,
+          type: "TICKET_RESOLVED",
+          status: "QUEUED",
+          createdAt: timestamp
+        });
+      }
+    }
+
+    if (assigneeChanged && input.assigneeId) {
+      const recipientEmail = database.users.find((user) => user.id === input.assigneeId)?.email;
+      if (recipientEmail) {
+        database.notificationLogs.push({
+          id: id("n"),
+          ticketId: ticket.id,
+          recipientEmail,
+          type: "TICKET_ASSIGNED",
+          status: "QUEUED",
+          createdAt: timestamp
+        });
+      }
     }
 
     return ticket;
@@ -312,12 +335,17 @@ export async function addComment(input: {
   });
 }
 
-export async function updateNotificationLog(notificationId: string, status: "SENT" | "FAILED"): Promise<void> {
+export async function updateNotificationLog(
+  notificationId: string,
+  status: "SENT" | "FAILED",
+  error?: string
+): Promise<void> {
   return withDatabase((database) => {
     const notification = database.notificationLogs.find((item) => item.id === notificationId);
     if (notification) {
       notification.status = status;
       notification.sentAt = new Date().toISOString();
+      notification.error = status === "FAILED" ? error : undefined;
     }
   });
 }
