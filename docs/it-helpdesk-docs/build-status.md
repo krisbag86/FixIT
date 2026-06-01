@@ -2,6 +2,8 @@
 
 Dokument aktualizowany po kolejnych etapach budowy aplikacji.
 
+Aktualna kolejka pozostalych prac znajduje sie w `remaining-tasks.md`. Sekcje `Do zbudowania` przy starszych etapach maja charakter historyczny i pokazuja, co bylo brakujace w danym momencie budowy.
+
 ## Etap 0 - Przeglad dokumentacji
 
 Status: zrobione.
@@ -75,7 +77,6 @@ Zrobione:
 Do zbudowania:
 
 - Podlaczenie runtime aplikacji do Prisma/PostgreSQL zamiast lokalnego JSON-store.
-- Migracje i seed Prisma uruchamiane w kontenerze.
 - Walidacja `docker compose up` po pobraniu obrazow i zaleznosci.
 
 ## Etap 4 - Widoki MVP
@@ -120,3 +121,19 @@ Do zbudowania:
 - Migracja runtime z JSON-store na Prisma/PostgreSQL.
 - Testy e2e dla loginu, tworzenia ticketu, panelu IT i widocznosci notatek wewnetrznych.
 - Obsluga audytu podatnosci npm. Aktualnie `npm audit` raportuje 7 moderate severity vulnerabilities w zaleznosciach developerskich/runtime; nie zastosowano `npm audit fix --force`, bo mogloby wprowadzic breaking changes.
+
+## Etap 6 - Prisma w Docker Compose
+
+Status: zrobione.
+
+Zrobione:
+
+- Dodano Prisma CLI i `@prisma/client` w kompatybilnej linii 6.x.
+- Dodano startowa migracje Prisma w `prisma/migrations`.
+- Dodano idempotentny seed Prisma w `prisma/seed.mjs`, oparty o te same dane testowe co lokalny JSON-store.
+- Dodano skrypty `db:generate`, `db:migrate:deploy` i `db:seed`.
+- Dodano jednorazowe uslugi `migrate` i `seed` w `docker-compose.yml`, uruchamiane po starcie PostgreSQL i przed aplikacja.
+
+Do zbudowania:
+
+- Zobacz aktualna liste w `remaining-tasks.md`.
