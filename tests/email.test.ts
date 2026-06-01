@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { sendEmail, getEmailTransporter } from '@/lib/email';
+import { sendEmail } from '@/lib/email';
 import {
   templateTicketCreated,
   templateTicketAssigned,

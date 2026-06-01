@@ -38,7 +38,7 @@ export function TicketDetail({
         <div className="rounded-md border border-black/10 bg-white/80 p-5 shadow-sm dark:border-white/10 dark:bg-white/10">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
-              <div className="text-sm font-black uppercase text-mint">{ticket.number}</div>
+              <div data-testid="ticket-number" className="text-sm font-black uppercase text-mint">{ticket.number}</div>
               <h1 className="mt-1 text-3xl font-black leading-tight">{ticket.title}</h1>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -58,7 +58,7 @@ export function TicketDetail({
             {comments.map((comment) => {
               const author = users.find((user) => user.id === comment.authorId);
               return (
-                <article key={comment.id} className="rounded-md border border-black/10 bg-paper/70 p-4 dark:border-white/10 dark:bg-white/5">
+                <article key={comment.id} data-testid="comment-item" className="rounded-md border border-black/10 bg-paper/70 p-4 dark:border-white/10 dark:bg-white/5">
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <div className="font-bold">{author?.name ?? "Nieznany"}</div>
@@ -73,7 +73,7 @@ export function TicketDetail({
             {comments.length === 0 ? <p className="text-sm text-ink/60 dark:text-paper/60">Brak komentarzy.</p> : null}
           </div>
 
-          <form action={addCommentAction} className="mt-5 space-y-3">
+          <form action={addCommentAction} className="mt-5 space-y-3" data-testid="comment-form">
             <input type="hidden" name="ticketId" value={ticket.id} />
             <textarea
               name="body"
@@ -87,6 +87,7 @@ export function TicketDetail({
                 name="visibility"
                 className="h-10 rounded-md border border-black/10 bg-white px-3 text-sm dark:border-white/10 dark:bg-white/10"
                 disabled={!canAddInternal}
+                data-testid="visibility-select"
               >
                 <option value="PUBLIC">Komentarz publiczny</option>
                 {canAddInternal ? <option value="INTERNAL">Notatka wewnetrzna</option> : null}
@@ -114,7 +115,7 @@ export function TicketDetail({
         </div>
 
         {canEdit ? (
-          <form action={updateTicketAction} className="rounded-md border border-black/10 bg-white/80 p-5 shadow-sm dark:border-white/10 dark:bg-white/10">
+          <form action={updateTicketAction} data-testid="admin-actions" className="rounded-md border border-black/10 bg-white/80 p-5 shadow-sm dark:border-white/10 dark:bg-white/10">
             <input type="hidden" name="ticketId" value={ticket.id} />
             <h2 className="mb-4 text-lg font-black">Akcje IT</h2>
             <AdminField label="Status">

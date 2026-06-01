@@ -22,6 +22,7 @@ export function TicketCard({
   return (
     <Link
       href={href}
+      data-testid="ticket-card"
       className="group grid gap-3 rounded-md border border-black/10 bg-white/80 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-soft dark:border-white/10 dark:bg-white/10"
     >
       <div className="flex items-start justify-between gap-3">

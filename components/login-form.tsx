@@ -8,7 +8,7 @@ export function LoginForm() {
   const [error, formAction, pending] = useActionState(loginAction, undefined);
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form action={formAction} className="space-y-4" data-testid="login-form">
       <div>
         <label className="mb-2 block text-sm font-semibold" htmlFor="email">
           Email sluzbowy
@@ -22,7 +22,7 @@ export function LoginForm() {
           required
         />
       </div>
-      {error ? <p className="rounded-md bg-red-500/10 p-3 text-sm font-medium text-red-700 dark:text-red-200">{error}</p> : null}
+      {error ? <p data-testid="login-error" className="rounded-md bg-red-500/10 p-3 text-sm font-medium text-red-700 dark:text-red-200">{error}</p> : null}
       <button
         type="submit"
         disabled={pending}

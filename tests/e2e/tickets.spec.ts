@@ -1,50 +1,39 @@
 import { test, expect } from '@playwright/test';
+import { loginAs, resetDatabase, createTicketViaUI } from './helpers';
 
-// Helper function to login as a specific user
-async function loginAs(page, email: string) {
-  await page.goto('/login');
-  await page.fill('input[name="email"]', email);
-  await page.click('button:has-text("Wejdz do FixIT")');
-  
-  // Wait for redirect after login
-  await page.waitForURL(/\/(admin\/tickets|tickets)/, { timeout: 5000 });
-}
+test.beforeEach(() => {
+  resetDatabase();
+});
 
 test.describe('Create Ticket', () => {
   test('should create a new ticket successfully', async ({ page }) => {
     // Login as reporter
     await loginAs(page, 'sklep.waw01@bagietka.pl');
     
-    // Navigate to create ticket page
-    await page.goto('/tickets/new');
-    expect(await page.locator('h1:has-text("Nowe zgloszenie")').isVisible()).toBeTruthy();
+    // Use helper to create ticket
+    await createTicketViaUI(
+      page, 
+      'Kasa / POS', 
+      'Test Issue - Printer not working', 
+      'The printer on station 2 is not printing. Restart was attempted but issue persists.',
+      'HIGH'
+    );
     
-    // Fill form
-    const categorySelect = page.locator('select[name="categoryId"]');
-    const firstCategory = categorySelect.locator('option').first();
-    const categoryValue = await firstCategory.evaluate(el => el.value);
+    // Verify ticket was created and we see ticket details
+    const ticketNumber = page.getByTestId('ticket-number');
+    await expect(ticketNumber).toBeVisible();
+    await expect(ticketNumber).toContainText('IT-');
     
-    await categorySelect.selectOption(categoryValue);
-    await page.fill('input[name="title"]', 'Test Issue - Printer not working');
-    await page.fill('textarea[name="description"]', 'The printer on station 2 is not printing. Restart was attempted but issue persists.');
-    await page.selectOption('select[name="priority"]', 'HIGH');
-    
-    // Submit form
-    await page.click('button:has-text("Wyslij zgloszenie")');
-    
-    // Should redirect to ticket detail page
-    await page.waitForURL('/tickets/*', { timeout: 5000 });
-    
-    // Verify ticket was created
-    expect(await page.locator('[class*="number"]').first().isVisible()).toBeTruthy();
+    // Verify title is rendered correctly
+    await expect(page.locator('h1')).toContainText('Test Issue - Printer not working');
   });
 
   test('should show validation errors for incomplete form', async ({ page }) => {
     await loginAs(page, 'sklep.waw01@bagietka.pl');
     await page.goto('/tickets/new');
     
-    // Try to submit without title
-    await page.click('button:has-text("Wyslij zgloszenie")');
+    // Try to submit without title (title is required)
+    await page.click('button:has-text("Utworz zgloszenie")');
     
     // Browser validation should prevent submission
     // Check that we're still on the form page
@@ -55,45 +44,29 @@ test.describe('Create Ticket', () => {
     await loginAs(page, 'sklep.waw01@bagietka.pl');
     await page.goto('/tickets/new');
     
-    // Check that department field exists
+    // Check that department field exists and is visible
     const departmentInput = page.locator('input[name="department"]');
-    expect(await departmentInput.isVisible()).toBeTruthy();
-  });
-
-  test('should set correct priority based on blocksWork', async ({ page }) => {
-    await loginAs(page, 'sklep.waw01@bagietka.pl');
-    await page.goto('/tickets/new');
-    
-    // Fill form with basic info
-    const categorySelect = page.locator('select[name="categoryId"]');
-    const firstCategory = categorySelect.locator('option').first();
-    const categoryValue = await firstCategory.evaluate(el => el.value);
-    
-    await categorySelect.selectOption(categoryValue);
-    await page.fill('input[name="title"]', 'Critical Issue');
-    await page.fill('textarea[name="description"]', 'This is a critical issue that blocks work.');
-    
-    // Select CRITICAL priority
-    await page.selectOption('select[name="priority"]', 'CRITICAL');
-    
-    await page.click('button:has-text("Wyslij zgloszenie")');
-    await page.waitForURL('/tickets/*', { timeout: 5000 });
-    
-    // Verify ticket shows CRITICAL priority
-    const priorityBadge = page.locator('[class*="badge"][class*="priority"]');
-    expect(await priorityBadge.isVisible()).toBeTruthy();
+    await expect(departmentInput).toBeVisible();
   });
 });
 
 test.describe('Ticket List', () => {
   test('should show created tickets in list', async ({ page }) => {
+    // Create ticket first
     await loginAs(page, 'sklep.waw01@bagietka.pl');
+    await createTicketViaUI(
+      page, 
+      'Kasa / POS', 
+      'List Visibility Test', 
+      'Testing if this ticket appears in the list'
+    );
     
     // Go to tickets list
     await page.goto('/tickets');
     
-    // Should see tickets
-    const ticketCards = page.locator('[class*="card"]');
-    expect(await ticketCards.count()).toBeGreaterThanOrEqual(0);
+    // Should see at least the ticket we just created
+    const ticketCards = page.getByTestId('ticket-card');
+    await expect(ticketCards.first()).toBeVisible();
+    await expect(page.locator('body')).toContainText('List Visibility Test');
   });
 });

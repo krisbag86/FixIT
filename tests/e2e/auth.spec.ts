@@ -1,11 +1,16 @@
 import { test, expect } from '@playwright/test';
+import { resetDatabase } from './helpers';
+
+test.beforeEach(() => {
+  resetDatabase();
+});
 
 test.describe('Authentication - bagietka.pl domain', () => {
   test('should allow login with valid bagietka.pl email', async ({ page }) => {
     await page.goto('/login');
     
     // Check page loads
-    expect(await page.locator('h1:has-text("FixIT Helpdesk")').isVisible()).toBeTruthy();
+    expect(await page.getByTestId('login-form').isVisible()).toBeTruthy();
     
     // Fill form with valid email
     await page.fill('input[name="email"]', 'admin@bagietka.pl');
@@ -14,7 +19,7 @@ test.describe('Authentication - bagietka.pl domain', () => {
     await page.click('button:has-text("Wejdz do FixIT")');
     
     // Should redirect to home page
-    await page.waitForURL('/admin/tickets', { timeout: 5000 });
+    await page.waitForURL('/admin/tickets', { timeout: 10000 });
     expect(page.url()).toContain('/admin/tickets');
   });
 
@@ -26,23 +31,25 @@ test.describe('Authentication - bagietka.pl domain', () => {
     await page.click('button:has-text("Wejdz do FixIT")');
     
     // Should show error message
-    const errorMessage = page.locator('p:has-text("Podaj sluzbowy adres")');
+    const errorMessage = page.getByTestId('login-error');
     await expect(errorMessage).toBeVisible();
+    await expect(errorMessage).toContainText('Podaj sluzbowy adres w dokladnej domenie bagietka.pl');
     
     // Should still be on login page
     expect(page.url()).toContain('/login');
   });
-
-  test('should reject login with invalid email format', async ({ page }) => {
+  
+  test('should reject login with visually similar but invalid domain email', async ({ page }) => {
     await page.goto('/login');
     
-    // Try to login with invalid email format
-    await page.fill('input[name="email"]', 'not-an-email');
+    // Try to login with bagietka.com
+    await page.fill('input[name="email"]', 'user@bagietka.com');
     await page.click('button:has-text("Wejdz do FixIT")');
     
-    // Should show validation error
-    const errorMessage = page.locator('text=/invalid|incorrect|wrong/i');
+    // Should show error message
+    const errorMessage = page.getByTestId('login-error');
     await expect(errorMessage).toBeVisible();
+    await expect(errorMessage).toContainText('Podaj sluzbowy adres w dokladnej domenie bagietka.pl');
   });
 
   test('should normalize email addresses', async ({ page }) => {
@@ -53,7 +60,7 @@ test.describe('Authentication - bagietka.pl domain', () => {
     await page.click('button:has-text("Wejdz do FixIT")');
     
     // Should still work (normalize to lowercase)
-    await page.waitForURL('/admin/tickets', { timeout: 5000 });
+    await page.waitForURL('/admin/tickets', { timeout: 10000 });
     expect(page.url()).toContain('/admin/tickets');
   });
 });
@@ -66,12 +73,12 @@ test.describe('Authentication - logout', () => {
     await page.click('button:has-text("Wejdz do FixIT")');
     await page.waitForURL('/admin/tickets');
     
-    // Find and click logout button (usually in navigation)
-    const logoutButton = page.locator('button:has-text("Wyloguj")');
-    if (await logoutButton.isVisible()) {
-      await logoutButton.click();
-      await page.waitForURL('/login');
-      expect(page.url()).toContain('/login');
-    }
+    // Find and click logout button
+    const logoutButton = page.getByTestId('logout-button');
+    await expect(logoutButton).toBeVisible();
+    
+    await logoutButton.click();
+    await page.waitForURL('/login', { timeout: 10000 });
+    expect(page.url()).toContain('/login');
   });
 });

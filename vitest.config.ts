@@ -3,7 +3,8 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     globals: false,
-    environment: "node"
+    environment: "node",
+    include: ["tests/**/*.test.ts"]
   },
   resolve: {
     alias: {

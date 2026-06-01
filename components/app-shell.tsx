@@ -40,7 +40,7 @@ export function AppShell({ user, children }: { user: User; children: React.React
           <div className="flex items-center gap-2">
             <div className="hidden text-right sm:block">
               <div className="text-sm font-semibold">{user.name}</div>
-              <div className="text-xs text-ink/60 dark:text-paper/60">{user.email}</div>
+              <div data-testid="user-email" className="text-xs text-ink/60 dark:text-paper/60">{user.email}</div>
             </div>
             <RoleBadge role={user.role} />
             <ThemeToggle />
@@ -50,6 +50,7 @@ export function AppShell({ user, children }: { user: User; children: React.React
                 className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-black/10 bg-white/70 text-ink shadow-sm transition hover:bg-white dark:border-white/10 dark:bg-white/10 dark:text-paper dark:hover:bg-white/15"
                 title="Wyloguj"
                 aria-label="Wyloguj"
+                data-testid="logout-button"
               >
                 <LogOut size={18} />
               </button>

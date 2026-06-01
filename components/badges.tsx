@@ -35,6 +35,7 @@ export function RoleBadge({ role }: { role: UserRole }) {
 export function VisibilityBadge({ visibility }: { visibility: CommentVisibility }) {
   return (
     <Badge
+      data-testid="visibility-badge"
       className={
         visibility === "PUBLIC"
           ? "bg-mint/10 text-mint ring-mint/25 dark:text-emerald-200"

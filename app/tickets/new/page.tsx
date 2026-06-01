@@ -18,7 +18,7 @@ export default async function NewTicketPage() {
         <p className="mt-2 text-ink/65 dark:text-paper/65">Krotki formularz dla sklepu i biura. Problem blokujacy prace podnosi priorytet do krytycznego.</p>
       </div>
 
-      <form action={createTicketAction} className="grid gap-5 rounded-md border border-black/10 bg-white/80 p-5 shadow-sm dark:border-white/10 dark:bg-white/10 lg:grid-cols-2">
+      <form action={createTicketAction} data-testid="new-ticket-form" className="grid gap-5 rounded-md border border-black/10 bg-white/80 p-5 shadow-sm dark:border-white/10 dark:bg-white/10 lg:grid-cols-2">
         <Field label="Kategoria">
           <select name="categoryId" className={inputClass} required>
             {categories.map((category) => (

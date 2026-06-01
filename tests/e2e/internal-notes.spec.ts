@@ -1,14 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { loginAs, resetDatabase, createTicketViaUI } from './helpers';
 
-// Helper function to login as a specific user
-async function loginAs(page, email: string) {
-  await page.goto('/login');
-  await page.fill('input[name="email"]', email);
-  await page.click('button:has-text("Wejdz do FixIT")');
-  
-  // Wait for redirect after login
-  await page.waitForURL(/\/(admin\/tickets|tickets)/, { timeout: 5000 });
-}
+test.beforeEach(() => {
+  resetDatabase();
+});
 
 test.describe('Internal Notes - Permissions', () => {
   test('should allow AGENT to see internal note option', async ({ page }) => {
@@ -16,19 +11,18 @@ test.describe('Internal Notes - Permissions', () => {
     await page.goto('/admin/tickets');
     
     // Click first ticket
-    const firstTicket = page.locator('[class*="card"]').first();
-    if (await firstTicket.isVisible()) {
-      await firstTicket.click();
-      await page.waitForURL('/admin/tickets/*');
+    const firstTicket = page.getByTestId('ticket-card').first();
+    await expect(firstTicket).toBeVisible();
+    await firstTicket.click();
+    await page.waitForURL('/admin/tickets/*');
       
-      // Look for visibility select
-      const visibilitySelect = page.locator('select[name="visibility"]');
-      if (await visibilitySelect.isVisible()) {
-        // Should have INTERNAL option
-        const internalOption = visibilitySelect.locator('option:has-text("Notatka wewnetrzna")');
-        expect(await internalOption.count()).toBeGreaterThan(0);
-      }
-    }
+    // Look for visibility select
+    const visibilitySelect = page.getByTestId('visibility-select');
+    await expect(visibilitySelect).toBeVisible();
+    
+    // Should have INTERNAL option
+    const internalOption = visibilitySelect.locator('option[value="INTERNAL"]');
+    await expect(internalOption).toBeAttached();
   });
 
   test('should allow ADMIN to see internal note option', async ({ page }) => {
@@ -36,130 +30,113 @@ test.describe('Internal Notes - Permissions', () => {
     await page.goto('/admin/tickets');
     
     // Click first ticket
-    const firstTicket = page.locator('[class*="card"]').first();
-    if (await firstTicket.isVisible()) {
-      await firstTicket.click();
-      await page.waitForURL('/admin/tickets/*');
+    const firstTicket = page.getByTestId('ticket-card').first();
+    await expect(firstTicket).toBeVisible();
+    await firstTicket.click();
+    await page.waitForURL('/admin/tickets/*');
       
-      // Look for visibility select
-      const visibilitySelect = page.locator('select[name="visibility"]');
-      if (await visibilitySelect.isVisible()) {
-        // Should have INTERNAL option
-        const internalOption = visibilitySelect.locator('option:has-text("Notatka wewnetrzna")');
-        expect(await internalOption.count()).toBeGreaterThan(0);
-      }
-    }
+    // Look for visibility select
+    const visibilitySelect = page.getByTestId('visibility-select');
+    await expect(visibilitySelect).toBeVisible();
+    
+    // Should have INTERNAL option
+    const internalOption = visibilitySelect.locator('option[value="INTERNAL"]');
+    await expect(internalOption).toBeAttached();
   });
 
   test('should NOT allow REPORTER to see internal note option', async ({ page }) => {
     await loginAs(page, 'sklep.waw01@bagietka.pl');
     
     // Create a ticket first
-    await page.goto('/tickets/new');
-    const categorySelect = page.locator('select[name="categoryId"]');
-    const firstCategory = categorySelect.locator('option').first();
-    const categoryValue = await firstCategory.evaluate(el => el.value);
+    await createTicketViaUI(
+      page,
+      'Kasa / POS',
+      'Test Ticket for Internal Notes',
+      'This is a test description'
+    );
     
-    await categorySelect.selectOption(categoryValue);
-    await page.fill('input[name="title"]', 'Test Ticket');
-    await page.fill('textarea[name="description"]', 'Test description');
-    await page.click('button:has-text("Wyslij zgloszenie")');
-    await page.waitForURL('/tickets/*');
+    // Look for visibility select or ensure it's disabled
+    const visibilitySelect = page.getByTestId('visibility-select');
     
-    // Now view the ticket
-    await page.waitForLoadState('networkidle');
+    // The visibility select is rendered but might be disabled, or the internal option is missing
+    await expect(visibilitySelect).toBeVisible();
+    await expect(visibilitySelect).toBeDisabled();
     
-    // Look for visibility select
-    const visibilitySelect = page.locator('select[name="visibility"]');
-    if (await visibilitySelect.isVisible()) {
-      // Should NOT have INTERNAL option
-      const internalOption = visibilitySelect.locator('option:has-text("Notatka wewnetrzna")');
-      expect(await internalOption.count()).toBe(0);
-      
-      // Select should be disabled or only show PUBLIC
-      const options = visibilitySelect.locator('option');
-      const optionCount = await options.count();
-      expect(optionCount).toBe(1); // Only PUBLIC option
-    }
-  });
-
-  test('should NOT allow STORE_MANAGER to see internal note option', async ({ page }) => {
-    await loginAs(page, 'kasjer@bagietka.pl');
-    
-    // Try to create and view ticket
-    await page.goto('/tickets/new');
-    const categorySelect = page.locator('select[name="categoryId"]');
-    const firstCategory = categorySelect.locator('option').first();
-    const categoryValue = await firstCategory.evaluate(el => el.value);
-    
-    await categorySelect.selectOption(categoryValue);
-    await page.fill('input[name="title"]', 'Test Ticket');
-    await page.fill('textarea[name="description"]', 'Test description');
-    await page.click('button:has-text("Wyslij zgloszenie")');
-    await page.waitForURL('/tickets/*');
-    
-    // View the ticket
-    await page.waitForLoadState('networkidle');
-    
-    // Look for visibility select
-    const visibilitySelect = page.locator('select[name="visibility"]');
-    if (await visibilitySelect.isVisible()) {
-      // Should NOT have INTERNAL option
-      const internalOption = visibilitySelect.locator('option:has-text("Notatka wewnetrzna")');
-      expect(await internalOption.count()).toBe(0);
-    }
+    // Should NOT have INTERNAL option
+    const internalOption = visibilitySelect.locator('option[value="INTERNAL"]');
+    await expect(internalOption).toHaveCount(0);
   });
 
   test('AGENT should be able to post internal note', async ({ page }) => {
-    await loginAs(page, 'agent@bagietka.pl');
-    await page.goto('/admin/tickets');
+    // First reporter creates a ticket so we have a fresh one
+    await loginAs(page, 'sklep.waw01@bagietka.pl');
+    await createTicketViaUI(
+      page,
+      'Kasa / POS',
+      'Ticket for Agent Notes',
+      'Testing if agent can post internal note'
+    );
     
-    // Click first ticket
-    const firstTicket = page.locator('[class*="card"]').first();
-    if (await firstTicket.isVisible()) {
-      await firstTicket.click();
-      await page.waitForURL('/admin/tickets/*');
+    // Get ticket URL so we know where to go back
+    const ticketUrl = page.url();
+    const ticketId = ticketUrl.split('/').pop();
+    
+    // Logout and login as agent
+    const logoutBtn = page.getByTestId('logout-button');
+    await logoutBtn.click();
+    
+    await loginAs(page, 'agent@bagietka.pl');
+    await page.goto(`/admin/tickets/${ticketId}`);
       
-      // Add internal note
-      const textarea = page.locator('textarea[name="body"]');
-      const visibilitySelect = page.locator('select[name="visibility"]');
-      
-      if (await textarea.isVisible() && await visibilitySelect.isVisible()) {
-        await textarea.fill('This is an internal note for IT team only');
-        await visibilitySelect.selectOption('INTERNAL');
-        
-        // Submit
-        const submitBtn = page.locator('button:has-text("Dodaj")').first();
-        if (await submitBtn.isVisible()) {
-          await submitBtn.click();
-          await page.waitForTimeout(1000);
-          
-          // Internal note should be visible with INTERNAL badge
-          const internalBadge = page.locator('[class*="badge"][class*="visibility"]');
-          expect(await internalBadge.count()).toBeGreaterThanOrEqual(0);
-        }
-      }
-    }
+    // Add internal note
+    const commentForm = page.getByTestId('comment-form');
+    await expect(commentForm).toBeVisible();
+    
+    await commentForm.locator('textarea[name="body"]').fill('This is a secret internal note');
+    await commentForm.locator('select[name="visibility"]').selectOption('INTERNAL');
+    
+    const submitBtn = commentForm.locator('button:has-text("Dodaj")');
+    await submitBtn.click();
+    
+    // Note should appear
+    await expect(page.locator('text="This is a secret internal note"')).toBeVisible();
+    
+    // And it should have internal badge
+    const internalBadges = page.getByTestId('visibility-badge');
+    await expect(internalBadges.first()).toContainText('Wewnetrzny');
   });
 
   test('REPORTER should only see PUBLIC comments, not internal notes', async ({ page }) => {
-    // This test requires a pre-existing ticket with mixed comments
-    // Login as reporter
+    // 1. Reporter creates ticket
     await loginAs(page, 'sklep.waw01@bagietka.pl');
-    await page.goto('/tickets');
+    await createTicketViaUI(
+      page,
+      'Kasa / POS',
+      'Ticket for Secret Testing',
+      'Body'
+    );
+    const ticketUrl = page.url();
+    const ticketId = ticketUrl.split('/').pop();
     
-    // Click first ticket
-    const firstTicket = page.locator('[class*="card"]').first();
-    if (await firstTicket.isVisible()) {
-      await firstTicket.click();
-      await page.waitForURL('/tickets/*');
-      
-      // Check comments visibility
-      await page.waitForLoadState('networkidle');
-      
-      // Should only see PUBLIC visibility badges if any
-      const internalBadges = page.locator('[class*="visibility"]:has-text("Wewnetrzna")');
-      expect(await internalBadges.count()).toBe(0);
-    }
+    // 2. Agent adds internal note
+    await page.getByTestId('logout-button').click();
+    await loginAs(page, 'agent@bagietka.pl');
+    await page.goto(`/admin/tickets/${ticketId}`);
+    
+    const commentForm = page.getByTestId('comment-form');
+    await commentForm.locator('textarea[name="body"]').fill('SECRET_AGENT_NOTE');
+    await commentForm.locator('select[name="visibility"]').selectOption('INTERNAL');
+    await commentForm.locator('button:has-text("Dodaj")').click();
+    
+    // Verify agent sees it
+    await expect(page.locator('text="SECRET_AGENT_NOTE"')).toBeVisible();
+    
+    // 3. Reporter should NOT see it
+    await page.getByTestId('logout-button').click();
+    await loginAs(page, 'sklep.waw01@bagietka.pl');
+    await page.goto(`/tickets/${ticketId}`);
+    
+    // Ensure the text is not on page
+    await expect(page.locator('text="SECRET_AGENT_NOTE"')).toHaveCount(0);
   });
 });

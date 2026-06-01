@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
-import { addComment, createTicket, findTicket, readDatabase, updateTicket, getNotificationLog, updateNotificationLog, findUserById } from "@/lib/data-store";
+import { addComment, createTicket, findTicket, readDatabase, updateTicket } from "@/lib/data-store";
 import { can, canViewTicket } from "@/lib/permissions";
 import { sendEmailAsync } from "@/lib/email";
 import { templateTicketCreated, templateTicketResolved, templateTicketAssigned, templateCommentAdded } from "@/lib/email-templates";
