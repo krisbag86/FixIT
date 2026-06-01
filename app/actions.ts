@@ -4,8 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
-import { addComment, createTicket, findTicket, readDatabase, updateTicket } from "@/lib/data-store";
+import { addComment, createTicket, findTicket, readDatabase, updateTicket, getNotificationLog, updateNotificationLog, findUserById } from "@/lib/data-store";
 import { can, canViewTicket } from "@/lib/permissions";
+import { sendEmailAsync } from "@/lib/email";
+import { templateTicketCreated, templateTicketResolved, templateTicketAssigned, templateCommentAdded } from "@/lib/email-templates";
 import type { CommentVisibility, TicketPriority, TicketStatus } from "@/lib/types";
 
 const ticketSchema = z.object({
@@ -48,6 +50,26 @@ export async function createTicketAction(formData: FormData): Promise<void> {
     reporterId: user.id
   });
 
+  // Send email notification (in background, don't block)
+  try {
+    const db = await readDatabase();
+    const reporter = db.users.find((u) => u.id === user.id);
+    if (reporter) {
+      const template = templateTicketCreated(ticket, reporter);
+      sendEmailAsync({
+        to: reporter.email,
+        subject: template.subject,
+        html: template.html,
+        text: template.text
+      }).catch((error) => {
+        console.error("Failed to send ticket creation email in background:", error);
+      });
+    }
+  } catch (error) {
+    console.error("Failed to initiate ticket creation email:", error);
+    // Don't throw - ticket was already created
+  }
+
   revalidatePath("/tickets");
   redirect(`/tickets/${ticket.id}`);
 }
@@ -60,13 +82,64 @@ export async function updateTicketAction(formData: FormData): Promise<void> {
   }
 
   const ticketId = String(formData.get("ticketId") ?? "");
-  await updateTicket({
+  const newStatus = String(formData.get("status") ?? "NEW") as TicketStatus;
+  const newPriority = String(formData.get("priority") ?? "NORMAL") as TicketPriority;
+  const newAssigneeId = String(formData.get("assigneeId") || "") || undefined;
+
+  const oldTicket = await findTicket(ticketId);
+
+  const updatedTicket = await updateTicket({
     ticketId,
     actorId: user.id,
-    status: String(formData.get("status") ?? "NEW") as TicketStatus,
-    priority: String(formData.get("priority") ?? "NORMAL") as TicketPriority,
-    assigneeId: String(formData.get("assigneeId") || "") || undefined
+    status: newStatus,
+    priority: newPriority,
+    assigneeId: newAssigneeId
   });
+
+  // Send email notifications for status changes
+  if (updatedTicket && oldTicket) {
+    try {
+      // If status changed to RESOLVED, send email to reporter (in background)
+      if (oldTicket.status !== "RESOLVED" && newStatus === "RESOLVED") {
+        const db = await readDatabase();
+        const resolver = db.users.find((u) => u.id === user.id);
+        const recipient = db.users.find((u) => u.id === oldTicket.reporterId);
+
+        if (resolver && recipient) {
+          const template = templateTicketResolved(updatedTicket, resolver);
+          sendEmailAsync({
+            to: recipient.email,
+            subject: template.subject,
+            html: template.html,
+            text: template.text
+          }).catch((error) => {
+            console.error("Failed to send resolved email in background:", error);
+          });
+        }
+      }
+
+      // If assignee changed, send email to new assignee (in background)
+      if (oldTicket.assigneeId !== newAssigneeId && newAssigneeId) {
+        const db = await readDatabase();
+        const newAssignee = db.users.find((u) => u.id === newAssigneeId);
+
+        if (newAssignee && updatedTicket) {
+          const template = templateTicketAssigned(updatedTicket, newAssignee);
+          sendEmailAsync({
+            to: newAssignee.email,
+            subject: template.subject,
+            html: template.html,
+            text: template.text
+          }).catch((error) => {
+            console.error("Failed to send assigned email in background:", error);
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Failed to send ticket update email:", error);
+      // Don't throw - ticket was already updated
+    }
+  }
 
   revalidatePath("/tickets");
   revalidatePath("/admin/tickets");
@@ -93,12 +166,39 @@ export async function addCommentAction(formData: FormData): Promise<void> {
     throw new Error("Komentarz jest za krotki.");
   }
 
-  await addComment({
+  const comment = await addComment({
     ticketId: ticket.id,
     authorId: user.id,
     body,
     visibility
   });
+
+  // Send email notification for public comments (in background, don't block)
+  if (comment && visibility === "PUBLIC") {
+    try {
+      const db = await readDatabase();
+      const author = db.users.find((u) => u.id === user.id);
+      
+      // Determine recipient: if author is reporter, send to assignee; otherwise send to reporter
+      const recipientId = ticket.reporterId === user.id ? ticket.assigneeId : ticket.reporterId;
+      const recipient = recipientId ? db.users.find((u) => u.id === recipientId) : null;
+
+      if (author && recipient) {
+        const template = templateCommentAdded(ticket, comment, author);
+        sendEmailAsync({
+          to: recipient.email,
+          subject: template.subject,
+          html: template.html,
+          text: template.text
+        }).catch((error) => {
+          console.error("Failed to send comment email in background:", error);
+        });
+      }
+    } catch (error) {
+      console.error("Failed to initiate comment email:", error);
+      // Don't throw - comment was already added
+    }
+  }
 
   revalidatePath(`/tickets/${ticket.id}`);
   revalidatePath(`/admin/tickets/${ticket.id}`);

@@ -311,3 +311,18 @@ export async function addComment(input: {
     return comment;
   });
 }
+
+export async function updateNotificationLog(notificationId: string, status: "SENT" | "FAILED"): Promise<void> {
+  return withDatabase((database) => {
+    const notification = database.notificationLogs.find((item) => item.id === notificationId);
+    if (notification) {
+      notification.status = status;
+      notification.sentAt = new Date().toISOString();
+    }
+  });
+}
+
+export async function getNotificationLog(notificationId: string): Promise<NotificationLog | undefined> {
+  const database = await readDatabase();
+  return database.notificationLogs.find((item) => item.id === notificationId);
+}

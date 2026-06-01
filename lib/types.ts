@@ -96,6 +96,7 @@ export type NotificationLog = {
   status: "QUEUED" | "SENT" | "FAILED";
   error?: string;
   createdAt: string;
+  sentAt?: string;
 };
 
 export type Database = {
