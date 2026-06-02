@@ -19,6 +19,7 @@ import type {
   AdminAuditLog,
   Category,
   CommentVisibility,
+  DashboardData,
   DashboardMetrics,
   Database,
   KnowledgeArticle,
@@ -1972,6 +1973,219 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
     avgResolutionHours: avgResolutionHours !== null ? Math.round(avgResolutionHours * 10) / 10 : null,
     topCategories,
     slaBreached
+  };
+}
+
+export async function getDashboardData(): Promise<DashboardData> {
+  noStore();
+
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const [allTickets, categories, users, events] = await Promise.all([
+      db.ticket.findMany(),
+      db.category.findMany(),
+      db.user.findMany({ where: { isActive: true } }),
+      db.ticketEvent.findMany({ orderBy: { createdAt: "desc" }, take: 20 })
+    ]);
+
+    // KPI
+    const openTickets = allTickets.filter((t) => !resolvedOrClosedStatuses.has(t.status)).length;
+    const criticalTickets = allTickets.filter((t) => t.priority === "CRITICAL" && !resolvedOrClosedStatuses.has(t.status)).length;
+
+    const resolvedTickets = allTickets.filter((t) => t.resolvedAt);
+    const avgResolutionHours =
+      resolvedTickets.length > 0
+        ? resolvedTickets.reduce((sum, t) => {
+            return sum + (t.resolvedAt!.getTime() - t.createdAt.getTime()) / (1000 * 60 * 60);
+          }, 0) / resolvedTickets.length
+        : null;
+
+    const now = new Date();
+    let slaBreachedCount = 0;
+    for (const t of allTickets) {
+      if (resolvedOrClosedStatuses.has(t.status)) continue;
+      const slaHours = slaRules[t.priority];
+      if (!slaHours) continue;
+      const deadline = new Date(t.createdAt.getTime() + slaHours * 60 * 60 * 1000);
+      if (now > deadline) slaBreachedCount++;
+    }
+
+    // Daily ticket counts (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const dailyCounts: Record<string, { created: number; resolved: number }> = {};
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(thirtyDaysAgo);
+      d.setDate(d.getDate() + i);
+      const key = d.toISOString().slice(0, 10);
+      dailyCounts[key] = { created: 0, resolved: 0 };
+    }
+    for (const t of allTickets) {
+      const createdKey = t.createdAt.toISOString().slice(0, 10);
+      if (dailyCounts[createdKey]) dailyCounts[createdKey].created++;
+      if (t.resolvedAt) {
+        const resolvedKey = t.resolvedAt.toISOString().slice(0, 10);
+        if (dailyCounts[resolvedKey]) dailyCounts[resolvedKey].resolved++;
+      }
+    }
+    const dailyTicketCounts = Object.entries(dailyCounts)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, counts]) => ({ date, ...counts }));
+
+    // Top categories (open tickets)
+    const categoryCounts = new Map<string, number>();
+    for (const t of allTickets) {
+      if (!resolvedOrClosedStatuses.has(t.status) && t.categoryId) {
+        categoryCounts.set(t.categoryId, (categoryCounts.get(t.categoryId) ?? 0) + 1);
+      }
+    }
+    const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
+    const topCategories = [...categoryCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([categoryId, count]) => ({
+        categoryId,
+        categoryName: categoryMap.get(categoryId) ?? "Nieznana",
+        count
+      }));
+
+    // Agent workload (open tickets per agent)
+    const workloadMap = new Map<string, number>();
+    for (const t of allTickets) {
+      if (!resolvedOrClosedStatuses.has(t.status) && t.assigneeId) {
+        workloadMap.set(t.assigneeId, (workloadMap.get(t.assigneeId) ?? 0) + 1);
+      }
+    }
+    // Add unassigned
+    const unassignedCount = allTickets.filter(
+      (t) => !resolvedOrClosedStatuses.has(t.status) && !t.assigneeId
+    ).length;
+    const userMap = new Map(users.map((u) => [u.id, u]));
+    const agentWorkload = [...workloadMap.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([agentId, openCount]) => ({
+        agentId,
+        agentName: userMap.get(agentId)?.name ?? "Nieznany",
+        openCount
+      }));
+    if (unassignedCount > 0) {
+      agentWorkload.unshift({ agentId: "_unassigned", agentName: "Nieprzypisane", openCount: unassignedCount });
+    }
+
+    // Recent events
+    const recentEvents = events.map((e) => ({
+      ...mapEvent(e),
+      actorName: userMap.get(e.actorId ?? "")?.name ?? undefined,
+      ticketNumber: allTickets.find((t) => t.id === e.ticketId)?.number
+    }));
+
+    return {
+      kpi: { openTickets, criticalTickets, avgResolutionHours, slaBreachedCount },
+      dailyTicketCounts,
+      topCategories,
+      agentWorkload,
+      recentEvents
+    };
+  }
+
+  // JSON runtime
+  const database = await readDatabase();
+  const allTickets = database.tickets;
+  const currentTime = new Date().toISOString();
+
+  const openTickets = allTickets.filter((t) => !resolvedOrClosedStatuses.has(t.status)).length;
+  const criticalTickets = allTickets.filter((t) => t.priority === "CRITICAL" && !resolvedOrClosedStatuses.has(t.status)).length;
+
+  const resolvedTickets = allTickets.filter((t) => t.resolvedAt);
+  const avgResolutionHours =
+    resolvedTickets.length > 0
+      ? resolvedTickets.reduce((sum, t) => sum + hoursBetween(t.createdAt, t.resolvedAt!), 0) / resolvedTickets.length
+      : null;
+
+  let slaBreachedCount = 0;
+  for (const t of allTickets) {
+    if (resolvedOrClosedStatuses.has(t.status)) continue;
+    const slaHours = slaRules[t.priority];
+    if (!slaHours) continue;
+    const deadline = new Date(new Date(t.createdAt).getTime() + slaHours * 60 * 60 * 1000);
+    if (new Date(currentTime) > deadline) slaBreachedCount++;
+  }
+
+  // Daily ticket counts (last 30 days)
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const dailyCounts: Record<string, { created: number; resolved: number }> = {};
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(thirtyDaysAgo);
+    d.setDate(d.getDate() + i);
+    const key = d.toISOString().slice(0, 10);
+    dailyCounts[key] = { created: 0, resolved: 0 };
+  }
+  for (const t of allTickets) {
+    const createdKey = t.createdAt.slice(0, 10);
+    if (dailyCounts[createdKey]) dailyCounts[createdKey].created++;
+    if (t.resolvedAt) {
+      const resolvedKey = t.resolvedAt.slice(0, 10);
+      if (dailyCounts[resolvedKey]) dailyCounts[resolvedKey].resolved++;
+    }
+  }
+  const dailyTicketCounts = Object.entries(dailyCounts)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, counts]) => ({ date, ...counts }));
+
+  // Top categories (open tickets)
+  const categoryCounts = new Map<string, number>();
+  for (const t of allTickets) {
+    if (!resolvedOrClosedStatuses.has(t.status) && t.categoryId) {
+      categoryCounts.set(t.categoryId, (categoryCounts.get(t.categoryId) ?? 0) + 1);
+    }
+  }
+  const topCategories = [...categoryCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([categoryId, count]) => ({
+      categoryId,
+      categoryName: database.categories.find((c) => c.id === categoryId)?.name ?? "Nieznana",
+      count
+    }));
+
+  // Agent workload
+  const workloadMap = new Map<string, number>();
+  for (const t of allTickets) {
+    if (!resolvedOrClosedStatuses.has(t.status) && t.assigneeId) {
+      workloadMap.set(t.assigneeId, (workloadMap.get(t.assigneeId) ?? 0) + 1);
+    }
+  }
+  const unassignedCount = allTickets.filter(
+    (t) => !resolvedOrClosedStatuses.has(t.status) && !t.assigneeId
+  ).length;
+  const agentWorkload = [...workloadMap.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([agentId, openCount]) => ({
+      agentId,
+      agentName: database.users.find((u) => u.id === agentId)?.name ?? "Nieznany",
+      openCount
+    }));
+  if (unassignedCount > 0) {
+    agentWorkload.unshift({ agentId: "_unassigned", agentName: "Nieprzypisane", openCount: unassignedCount });
+  }
+
+  // Recent events
+  const recentEvents = [...database.events]
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, 20)
+    .map((e) => ({
+      ...e,
+      actorName: database.users.find((u) => u.id === e.actorId)?.name,
+      ticketNumber: database.tickets.find((t) => t.id === e.ticketId)?.number
+    }));
+
+  return {
+    kpi: { openTickets, criticalTickets, avgResolutionHours, slaBreachedCount },
+    dailyTicketCounts,
+    topCategories,
+    agentWorkload,
+    recentEvents
   };
 }
 

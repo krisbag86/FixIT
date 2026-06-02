@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { BarChart3, BookOpen, Building2, ClipboardList, Columns3, Tags, Users } from "lucide-react";
+import { BarChart3, BookOpen, Building2, ClipboardList, Columns3, LayoutDashboard, Tags, Users } from "lucide-react";
 import type { User } from "@/lib/types";
 
 const links = [
+  { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard, adminOnly: false },
   { href: "/admin/tickets", label: "Tickety", icon: ClipboardList, adminOnly: false },
   { href: "/admin/kanban", label: "Kanban", icon: Columns3, adminOnly: false },
   { href: "/admin/reports", label: "Raporty", icon: BarChart3, adminOnly: false },

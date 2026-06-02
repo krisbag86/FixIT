@@ -9,5 +9,5 @@ export default async function HomePage() {
     redirect("/login");
   }
 
-  redirect(canUseAdmin(user) ? "/admin/tickets" : "/tickets");
+  redirect(canUseAdmin(user) ? "/admin/dashboard" : "/tickets");
 }

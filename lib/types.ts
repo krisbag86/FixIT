@@ -137,6 +137,31 @@ export type DashboardMetrics = {
   }[];
 };
 
+export type DailyTicketCount = {
+  date: string;
+  created: number;
+  resolved: number;
+};
+
+export type AgentWorkload = {
+  agentId: string;
+  agentName: string;
+  openCount: number;
+};
+
+export type DashboardData = {
+  kpi: {
+    openTickets: number;
+    criticalTickets: number;
+    avgResolutionHours: number | null;
+    slaBreachedCount: number;
+  };
+  dailyTicketCounts: DailyTicketCount[];
+  topCategories: { categoryId: string; categoryName: string; count: number }[];
+  agentWorkload: AgentWorkload[];
+  recentEvents: (TicketEvent & { actorName?: string; ticketNumber?: string })[];
+};
+
 export type Database = {
   meta: {
     ticketSequences: Record<string, number>;
