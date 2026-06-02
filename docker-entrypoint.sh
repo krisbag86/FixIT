@@ -36,13 +36,10 @@ else
   echo "WARNING: No prisma/migrations directory found. Skipping migrations."
 fi
 
-# --- Optionally seed the database ---
-# Set FIXIT_RUN_SEED=true to seed on first deploy, then remove the env var
-if [ "${FIXIT_RUN_SEED}" = "true" ]; then
-  echo "Seeding database..."
-  npx prisma db seed
-  echo "Seed complete."
-fi
+# --- Seed the database (idempotent — upsert, safe to run every startup) ---
+echo "Seeding database..."
+npx prisma db seed
+echo "Seed complete."
 
 # --- Start the application ---
 echo "Starting application..."
