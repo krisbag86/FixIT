@@ -10,12 +10,13 @@ export function createSeedDatabase(): Database {
     users: [
       {
         id: "usr_admin",
-        name: "Alicja Admin",
-        email: "admin@bagietka.pl",
+        name: "Krzysztof Graczyk",
+        email: "krzysztofgraczyk@bagietka.pl",
         role: "ADMIN",
         department: "IT",
         isActive: true,
-        passwordHash: "bbee40413ae94dfc2d463f51eb1fc703:6c6e44a5d1b3798fa02baa515a3cd85b5a04d195425c807cc5cc235546d02e4257355007fa1ea67e3a1cf8b6af1495828d23232b12aa63dc97fc3935abd35bbe"
+        passwordHash: "a1d23467081c9be78f2d21b46d6b0342:722284589a896330acf291b4cbc73757a040d39ff8526f24f1ae5c30a732a46620b36334c36ded2d54ec43fed36b957e0704c800ba6c145c6913427390a50c91",
+        mustChangePassword: true
       }
     ],
     stores: [

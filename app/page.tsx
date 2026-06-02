@@ -9,5 +9,9 @@ export default async function HomePage() {
     redirect("/login");
   }
 
+  if (user.mustChangePassword) {
+    redirect("/change-password");
+  }
+
   redirect(canUseAdmin(user) ? "/admin/dashboard" : "/tickets");
 }

@@ -14,7 +14,7 @@ vi.mock("@/lib/data-store", () => ({
     Promise.resolve({
       meta: { ticketSequences: {} },
       users: [
-        { id: "usr_admin", name: "Admin", email: "admin@bagietka.pl", role: "ADMIN", isActive: true }
+        { id: "usr_admin", name: "Admin", email: "krzysztofgraczyk@bagietka.pl", role: "ADMIN", isActive: true }
       ],
       stores: [],
       categories: [],
@@ -36,7 +36,7 @@ describe("session store (JSON mode)", () => {
     mockSessions.length = 0; // Reset sessions between tests
     mockFindUserById.mockImplementation((id: string) =>
       id === "usr_admin"
-        ? { id: "usr_admin", name: "Admin", email: "admin@bagietka.pl", role: "ADMIN", isActive: true }
+        ? { id: "usr_admin", name: "Admin", email: "krzysztofgraczyk@bagietka.pl", role: "ADMIN", isActive: true }
         : undefined
     );
   });
@@ -58,7 +58,7 @@ describe("session store (JSON mode)", () => {
 
     expect(user).toBeDefined();
     expect(user?.id).toBe("usr_admin");
-    expect(user?.email).toBe("admin@bagietka.pl");
+    expect(user?.email).toBe("krzysztofgraczyk@bagietka.pl");
   });
 
   it("getSessionUser returns undefined for an invalid session ID", async () => {

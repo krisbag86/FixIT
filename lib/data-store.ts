@@ -76,7 +76,7 @@ function definedString(value: string | null | undefined): string | undefined {
   return value ?? undefined;
 }
 
-function mapUser(user: Prisma.UserGetPayload<object> & { passwordHash?: string | null }): User {
+function mapUser(user: Prisma.UserGetPayload<object> & { passwordHash?: string | null; mustChangePassword?: boolean }): User {
   return {
     id: user.id,
     name: user.name ?? user.email,
@@ -85,7 +85,8 @@ function mapUser(user: Prisma.UserGetPayload<object> & { passwordHash?: string |
     storeId: definedString(user.storeId),
     department: definedString(user.department),
     isActive: user.isActive,
-    passwordHash: definedString((user as { passwordHash?: string | null }).passwordHash)
+    passwordHash: definedString((user as { passwordHash?: string | null }).passwordHash),
+    mustChangePassword: (user as { mustChangePassword?: boolean }).mustChangePassword
   };
 }
 

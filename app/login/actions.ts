@@ -59,6 +59,11 @@ export async function loginAction(_previousState: string | undefined, formData: 
     maxAge: 60 * 60 * 24 * 14
   });
 
+  // If user must change password (first login), redirect to change password page
+  if (user.mustChangePassword) {
+    redirect("/change-password");
+  }
+
   redirect("/");
 }
 

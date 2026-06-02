@@ -32,6 +32,7 @@ export type User = {
   department?: string;
   isActive: boolean;
   passwordHash?: string;
+  mustChangePassword?: boolean;
 };
 
 export type Category = {

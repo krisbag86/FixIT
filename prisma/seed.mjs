@@ -42,49 +42,28 @@ async function main() {
     }
   });
 
-  const users = [
-    {
-      id: "usr_admin",
-      name: "Alicja Admin",
-      email: "admin@bagietka.pl",
+  // Single admin account — all other users must be added manually via admin panel
+  await prisma.user.upsert({
+    where: { email: "krzysztofgraczyk@bagietka.pl" },
+    update: {
+      name: "Krzysztof Graczyk",
       role: "ADMIN",
       department: "IT",
       isActive: true,
-      passwordHash: "bbee40413ae94dfc2d463f51eb1fc703:6c6e44a5d1b3798fa02baa515a3cd85b5a04d195425c807cc5cc235546d02e4257355007fa1ea67e3a1cf8b6af1495828d23232b12aa63dc97fc3935abd35bbe"
+      passwordHash: "a1d23467081c9be78f2d21b46d6b0342:722284589a896330acf291b4cbc73757a040d39ff8526f24f1ae5c30a732a46620b36334c36ded2d54ec43fed36b957e0704c800ba6c145c6913427390a50c91",
+      mustChangePassword: true
     },
-    {
-      id: "usr_agent",
-      name: "Marek Agent",
-      email: "agent@bagietka.pl",
-      role: "AGENT",
+    create: {
+      id: "usr_admin",
+      name: "Krzysztof Graczyk",
+      email: "krzysztofgraczyk@bagietka.pl",
+      role: "ADMIN",
       department: "IT",
-      isActive: true
-    },
-    {
-      id: "usr_manager",
-      name: "Kasia Kierownik",
-      email: "sklep.waw01@bagietka.pl",
-      role: "STORE_MANAGER",
-      storeId: "store_waw01",
-      isActive: true
-    },
-    {
-      id: "usr_reporter",
-      name: "Jan Kasjer",
-      email: "kasjer@bagietka.pl",
-      role: "REPORTER",
-      storeId: "store_waw01",
-      isActive: true
+      isActive: true,
+      passwordHash: "a1d23467081c9be78f2d21b46d6b0342:722284589a896330acf291b4cbc73757a040d39ff8526f24f1ae5c30a732a46620b36334c36ded2d54ec43fed36b957e0704c800ba6c145c6913427390a50c91",
+      mustChangePassword: true
     }
-  ];
-
-  for (const user of users) {
-    await prisma.user.upsert({
-      where: { email: user.email },
-      update: user,
-      create: user
-    });
-  }
+  });
 
   const categories = [
     { id: "cat_pos", name: "Kasa / POS", defaultPriority: "CRITICAL", isActive: true },
@@ -107,104 +86,9 @@ async function main() {
 
   await prisma.ticketCounter.upsert({
     where: { year: 2026 },
-    update: { sequence: 3 },
-    create: { year: 2026, sequence: 3 }
+    update: { sequence: 0 },
+    create: { year: 2026, sequence: 0 }
   });
-
-  const tickets = [
-    {
-      id: "t_001",
-      number: "IT-2026-0001",
-      title: "Terminal nie laczy sie z siecia",
-      description: "Terminal platniczy przy kasie 2 od rana pokazuje brak polaczenia.",
-      status: "IN_PROGRESS",
-      priority: "HIGH",
-      blocksWork: true,
-      contact: "+48 500 100 200",
-      categoryId: "cat_terminal",
-      storeId: "store_waw01",
-      reporterId: "usr_reporter",
-      assigneeId: "usr_agent",
-      createdAt: new Date("2026-06-01T08:12:00.000Z"),
-      updatedAt: new Date("2026-06-01T09:05:00.000Z")
-    },
-    {
-      id: "t_002",
-      number: "IT-2026-0002",
-      title: "Nowy dostep do systemu magazynowego",
-      description: "Prosze o nadanie dostepu dla nowej osoby w biurze.",
-      status: "NEW",
-      priority: "NORMAL",
-      blocksWork: false,
-      contact: "biuro@bagietka.pl",
-      categoryId: "cat_access",
-      department: "Biuro",
-      reporterId: "usr_manager",
-      createdAt: new Date("2026-06-01T09:30:00.000Z"),
-      updatedAt: new Date("2026-06-01T09:30:00.000Z")
-    }
-  ];
-
-  for (const ticket of tickets) {
-    await prisma.ticket.upsert({
-      where: { number: ticket.number },
-      update: ticket,
-      create: ticket
-    });
-  }
-
-  const comments = [
-    {
-      id: "c_001",
-      ticketId: "t_001",
-      authorId: "usr_agent",
-      body: "Sprawdzamy polaczenie operatora i konfiguracje terminala.",
-      visibility: "PUBLIC",
-      createdAt: new Date("2026-06-01T09:05:00.000Z")
-    },
-    {
-      id: "c_002",
-      ticketId: "t_001",
-      authorId: "usr_agent",
-      body: "Jesli restart terminala nie pomoze, eskalowac do dostawcy.",
-      visibility: "INTERNAL",
-      createdAt: new Date("2026-06-01T09:06:00.000Z")
-    }
-  ];
-
-  for (const comment of comments) {
-    await prisma.ticketComment.upsert({
-      where: { id: comment.id },
-      update: comment,
-      create: comment
-    });
-  }
-
-  const events = [
-    {
-      id: "e_001",
-      ticketId: "t_001",
-      actorId: "usr_reporter",
-      type: "TICKET_CREATED",
-      createdAt: new Date("2026-06-01T08:12:00.000Z")
-    },
-    {
-      id: "e_002",
-      ticketId: "t_001",
-      actorId: "usr_agent",
-      type: "ASSIGNEE_CHANGED",
-      payload: { assigneeId: "usr_agent" },
-      createdAt: new Date("2026-06-01T09:00:00.000Z")
-    }
-  ];
-
-  for (const event of events) {
-    await prisma.ticketEvent.upsert({
-      where: { id: event.id },
-      update: event,
-      create: event
-    });
-  }
 
   await prisma.knowledgeArticle.upsert({
     where: { slug: "restart-terminala" },
@@ -226,22 +110,103 @@ async function main() {
     }
   });
 
-  await prisma.notificationLog.upsert({
-    where: { id: "n_001" },
+  await prisma.knowledgeArticle.upsert({
+    where: { slug: "raport-dobowy-kasa" },
     update: {
-      ticketId: "t_001",
-      recipientEmail: "kasjer@bagietka.pl",
-      type: "TICKET_CREATED",
-      status: "QUEUED",
-      createdAt: now
+      title: "Jak wydrukowac raport dobowy na kasie",
+      body: "Na ekranie glownym kasy wybierz 'Raporty' → 'Raport dobowy'. Kasa wydrukuje podsumowanie sprzedazy. Jesli drukarka nie reaguje, sprawdz czy jest wlaczona i czy ma papier.",
+      categoryId: "cat_pos",
+      isPublished: true,
+      createdById: "usr_admin"
     },
     create: {
-      id: "n_001",
-      ticketId: "t_001",
-      recipientEmail: "kasjer@bagietka.pl",
-      type: "TICKET_CREATED",
-      status: "QUEUED",
-      createdAt: now
+      id: "ka_002",
+      title: "Jak wydrukowac raport dobowy na kasie",
+      slug: "raport-dobowy-kasa",
+      body: "Na ekranie glownym kasy wybierz 'Raporty' → 'Raport dobowy'. Kasa wydrukuje podsumowanie sprzedazy. Jesli drukarka nie reaguje, sprawdz czy jest wlaczona i czy ma papier.",
+      categoryId: "cat_pos",
+      isPublished: true,
+      createdById: "usr_admin"
+    }
+  });
+
+  await prisma.knowledgeArticle.upsert({
+    where: { slug: "reset-hasla-poczta" },
+    update: {
+      title: "Reset hasla do poczty sluzbowej",
+      body: "Skontaktuj sie z IT przez FixIT (nowe zgloszenie → kategoria Poczta). Nowe haslo zostanie wyslane na Twoj numer telefonu w systemie HR.",
+      categoryId: "cat_mail",
+      isPublished: true,
+      createdById: "usr_admin"
+    },
+    create: {
+      id: "ka_003",
+      title: "Reset hasla do poczty sluzbowej",
+      slug: "reset-hasla-poczta",
+      body: "Skontaktuj sie z IT przez FixIT (nowe zgloszenie → kategoria Poczta). Nowe haslo zostanie wyslane na Twoj numer telefonu w systemie HR.",
+      categoryId: "cat_mail",
+      isPublished: true,
+      createdById: "usr_admin"
+    }
+  });
+
+  await prisma.knowledgeArticle.upsert({
+    where: { slug: "internet-nie-dziala" },
+    update: {
+      title: "Co zrobic gdy internet nie dziala",
+      body: "1. Sprawdz czy switch/swiatla na routerze sa zielone.\n2. Zrestartuj router (odlacz zasilanie na 30 sekund).\n3. Jesli to nie pomaga, utworz zgloszenie w FixIT z kategoria Internet / siec.",
+      categoryId: "cat_network",
+      isPublished: true,
+      createdById: "usr_admin"
+    },
+    create: {
+      id: "ka_004",
+      title: "Co zrobic gdy internet nie dziala",
+      slug: "internet-nie-dziala",
+      body: "1. Sprawdz czy switch/swiatla na routerze sa zielone.\n2. Zrestartuj router (odlacz zasilanie na 30 sekund).\n3. Jesli to nie pomaga, utworz zgloszenie w FixIT z kategoria Internet / siec.",
+      categoryId: "cat_network",
+      isPublished: true,
+      createdById: "usr_admin"
+    }
+  });
+
+  await prisma.knowledgeArticle.upsert({
+    where: { slug: "zmiana-papieru-drukarka" },
+    update: {
+      title: "Zmiana papieru w drukarce fiskalnej",
+      body: "1. Otworz pokrywe drukarki.\n2. Wloz nowa rolke papieru zgodnie z kierunkiem nadruku na obudowie.\n3. Zamknij pokrywe – drukarka automatycznie przyjmie papier.\n4. Jesli papier sie zacina, otworz ponownie i wyrownaj krawedz.",
+      categoryId: "cat_printer",
+      isPublished: true,
+      createdById: "usr_admin"
+    },
+    create: {
+      id: "ka_005",
+      title: "Zmiana papieru w drukarce fiskalnej",
+      slug: "zmiana-papieru-drukarka",
+      body: "1. Otworz pokrywe drukarki.\n2. Wloz nowa rolke papieru zgodnie z kierunkiem nadruku na obudowie.\n3. Zamknij pokrywe – drukarka automatycznie przyjmie papier.\n4. Jesli papier sie zacina, otworz ponownie i wyrownaj krawedz.",
+      categoryId: "cat_printer",
+      isPublished: true,
+      createdById: "usr_admin"
+    }
+  });
+
+  await prisma.knowledgeArticle.upsert({
+    where: { slug: "zamowienie-sprzetu" },
+    update: {
+      title: "Jak zamowic nowy sprzet IT",
+      body: "Nowy sprzet (komputer, drukarka, terminal) zamawiasz przez zgloszenie w FixIT. Opisz czego potrzebujesz i uzasadnij. Decyzje podejmuje IT w porozumieniu z kierownikiem.",
+      categoryId: "cat_computer",
+      isPublished: false,
+      createdById: "usr_admin"
+    },
+    create: {
+      id: "ka_006",
+      title: "Jak zamowic nowy sprzet IT",
+      slug: "zamowienie-sprzetu",
+      body: "Nowy sprzet (komputer, drukarka, terminal) zamawiasz przez zgloszenie w FixIT. Opisz czego potrzebujesz i uzasadnij. Decyzje podejmuje IT w porozumieniu z kierownikiem.",
+      categoryId: "cat_computer",
+      isPublished: false,
+      createdById: "usr_admin"
     }
   });
 }

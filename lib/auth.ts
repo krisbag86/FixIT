@@ -25,5 +25,10 @@ export async function requireUser(): Promise<User> {
     redirect("/login");
   }
 
+  // Force user to change temporary password on first login
+  if (user.mustChangePassword) {
+    redirect("/change-password");
+  }
+
   return user;
 }
