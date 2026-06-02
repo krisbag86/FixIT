@@ -2234,10 +2234,14 @@ export async function exportTicketsCSV(): Promise<string> {
 }
 
 function escapeCSV(value: string): string {
-  if (value.includes(",") || value.includes('"') || value.includes("\n")) {
-    return `"${value.replace(/"/g, '""')}"`;
+  // Spreadsheet formula injection prevention: neutralize leading = + - @
+  // by prepending a tab character (invisible to the user, blocks formula execution)
+  const sanitized = /^[=+\-@]/.test(value) ? `\t${value}` : value;
+
+  if (sanitized.includes(",") || sanitized.includes('"') || sanitized.includes("\n")) {
+    return `"${sanitized.replace(/"/g, '""')}"`;
   }
-  return value;
+  return sanitized;
 }
 
 export async function getStoreDashboard(storeId: string): Promise<{
