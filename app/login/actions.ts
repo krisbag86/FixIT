@@ -6,7 +6,7 @@ import { findUserByEmail } from "@/lib/data-store";
 import { verifyPassword } from "@/lib/password";
 import { isAllowedBagietkaEmail, normalizeEmail } from "@/lib/email-domain";
 import { sessionCookieName } from "@/lib/auth";
-import { signSessionValue } from "@/lib/cookie-signature";
+import { createSession, deleteSession } from "@/lib/session-store";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter";
 
 export async function loginAction(_previousState: string | undefined, formData: FormData): Promise<string | undefined> {
@@ -48,8 +48,10 @@ export async function loginAction(_previousState: string | undefined, formData: 
     return "Nieprawidłowe hasło.";
   }
 
+  const sessionId = await createSession(user.id);
+
   const cookieStore = await cookies();
-  cookieStore.set(sessionCookieName, signSessionValue(user.id), {
+  cookieStore.set(sessionCookieName, sessionId, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -62,6 +64,13 @@ export async function loginAction(_previousState: string | undefined, formData: 
 
 export async function logoutAction(): Promise<void> {
   const cookieStore = await cookies();
+  const sessionId = cookieStore.get(sessionCookieName)?.value;
+
+  if (sessionId) {
+    // Delete session from server before clearing cookie
+    await deleteSession(sessionId);
+  }
+
   cookieStore.delete(sessionCookieName);
   redirect("/login");
 }

@@ -125,6 +125,13 @@ export type AdminAuditLog = {
   createdAt: string;
 };
 
+export type Session = {
+  id: string;
+  userId: string;
+  createdAt: string;
+  expiresAt: string;
+};
+
 export type DashboardMetrics = {
   totalTickets: number;
   openTickets: number;
@@ -177,4 +184,5 @@ export type Database = {
   knowledgeArticles: KnowledgeArticle[];
   notificationLogs: NotificationLog[];
   adminAuditLogs: AdminAuditLog[];
+  sessions: Session[];
 };

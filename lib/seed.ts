@@ -101,6 +101,7 @@ export function createSeedDatabase(): Database {
       }
     ],
     notificationLogs: [],
-    adminAuditLogs: []
+    adminAuditLogs: [],
+    sessions: []
   };
 }
