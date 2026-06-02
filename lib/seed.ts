@@ -1,7 +1,5 @@
 import type { Database } from "@/lib/types";
 
-const now = new Date("2026-06-01T10:00:00.000Z").toISOString();
-
 export function createSeedDatabase(): Database {
   return {
     meta: {
