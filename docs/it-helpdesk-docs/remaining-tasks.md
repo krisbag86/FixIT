@@ -47,6 +47,18 @@ Aktualna lista prac pozostalych po Etapie 7, czyli po dodaniu runtime data-store
   - `lib/seed.ts`: pusta tablica `attachments: []` (wymagana przez typ `Database`).
   - Bezpieczenstwo: `canViewTicket` wymusza widocznosc ticketu przy upload i download. `isValidStorageKey` chroni przed `..` i path-traversal.
   - Walidacja: `npm run lint` OK, `npm run typecheck` OK, `npm run test` 29 passed / 1 skipped.
+- Priorytet 7 (Admin CRUD) zostal zrealizowany:
+  - `app/admin/users`, `app/admin/stores`, `app/admin/categories` z role gate dla `ADMIN`.
+  - `app/admin/actions.ts`: server actions dla zarzadzania uzytkownikami, sklepami i kategoriami z walidacja Zod.
+  - `components/admin/admin-nav.tsx`: wspolna nawigacja sekcji administracyjnych, podpieta do panelu ticketow i bazy wiedzy.
+  - `lib/data-store.ts`: `listUsersAdmin`, `listStoresAdmin`, `listCategoriesAdmin`, `listAdminAuditLogs`, `updateUserAdmin`, `create/update/deleteStoreAdmin`, `create/update/deleteCategoryAdmin` — oba runtimes (JSON + Prisma).
+  - `lib/admin-utils.ts`: czyste reguly audytu i blokad usuwania slownikow.
+  - `prisma/schema.prisma` + migracja `20260602025819_admin_audit_log`: nowy `AdminAuditLog` dla zmian roli, aktywnosci i CRUD slownikow.
+  - Bezpieczenstwo:
+    - blokada odebrania ostatniego aktywnego administratora,
+    - blokada zdezaktywowania/zmiany roli wlasnego konta admina,
+    - blokada usuniecia sklepu/kategorii, jesli sa powiazane z danymi runtime.
+  - Walidacja: `npm run db:generate` OK, `npm run lint` OK, `npm run typecheck` OK, `npm run test` OK, 32 passed / 1 skipped.
 
 ## Walidacja Etapu 7 + Priorytet 6 + Priorytet 5
 
@@ -102,26 +114,30 @@ Zrealizowane:
 - **Dane:**
   - 6 artykulow seedowych (5 publikowanych, 1 ukryty) w roznych kategoriach.
 
-## Priorytet 7 - Admin CRUD
+## Priorytet 7 - Admin CRUD [ZROBIONE]
 
-Cel: dac adminom zarzadzanie podstawowymi slownikami systemu.
-
-Do zrobienia:
+Zrealizowane:
 
 - Uzytkownicy:
-  - Lista/wyszukiwanie uzytkownikow.
+  - Lista i wyszukiwarka uzytkownikow.
   - Dezaktywacja/reaktywacja.
-  - Przypisywanie rol.
+  - Przypisywanie rol, sklepu i dzialu.
 - Slowniki:
-  - CRUD sklepow.
-  - CRUD kategorii.
+  - CRUD sklepow z blokada usuniecia przy aktywnych powiazaniach.
+  - CRUD kategorii z blokada usuniecia przy aktywnych powiazaniach.
 - Audit:
-  - Audit log zmian roli i uprawnien.
+  - `AdminAuditLog` dla zmian roli, aktywnosci, sklepow i kategorii.
+  - Widok ostatnich zmian w `/admin/users`.
+- Nawigacja:
+  - Wspolna sekcja admina: tickety, baza wiedzy, uzytkownicy, sklepy, kategorie.
 
 Walidacja:
 
 - smoke test: admin-only routing (role gate)
 - testy/regresja: zmiana roli nie psuje `permissions` i widocznosci ticketow
+- `npm run lint` - OK
+- `npm run typecheck` - OK
+- `npm run test` - OK, 32 passed / 1 skipped
 
 ## Priorytet 8 - Raporty i SLA
 
@@ -148,6 +164,7 @@ Walidacja:
 ## Znane ograniczenia srodowiska
 
 - W aktualnym srodowisku Codex nie byl dostepny Docker CLI, wiec `docker compose config` i `docker compose up` po Etapie 6 wymagaja walidacji na maszynie z Dockerem.
-- `npm run build` przechodzi, ale Next.js pokazuje ostrzezenie o braku pluginu Next w konfiguracji ESLint.
+- `npm run build` w tym srodowisku obecnie konczy sie ogolnym komunikatem `Build failed because of webpack errors` bez szczegolow stack trace; `lint`, `typecheck` i testy przechodza, ale build wymaga osobnej diagnozy lokalnej/staging.
 - Prisma 6.x jest celowo uzyta dla zgodnosci z obecnym `schema.prisma`; przy przejsciu na Prisma 7 trzeba przeniesc konfiguracje seeda z `package.json#prisma` do `prisma.config.ts`.
 - **Po Priorytecie 5** dodano pole `uploadedById` do `TicketAttachment` w Prisma schema. Wdrozenie na Railway wymaga migracji `prisma migrate deploy` przed startem aplikacji.
+- **Po Priorytecie 7** doszedl model `AdminAuditLog` w Prisma schema. Wdrozenie na Railway wymaga migracji `prisma migrate deploy` przed startem aplikacji.

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { Filter, LayoutDashboard } from "lucide-react";
+import { AdminNav } from "@/components/admin/admin-nav";
 import { AppShell } from "@/components/app-shell";
 import { TicketCard } from "@/components/ticket-card";
 import { requireUser } from "@/lib/auth";
@@ -47,6 +48,8 @@ export default async function AdminTicketsPage({
           <Metric label="W filtrze" value={tickets.length} />
         </div>
       </div>
+
+      <AdminNav user={user} currentPath="/admin/tickets" />
 
       <form className="mb-5 flex flex-wrap items-center gap-2 rounded-md border border-black/10 bg-white/70 p-3 dark:border-white/10 dark:bg-white/10">
         <Filter size={18} className="text-ink/50 dark:text-paper/50" />

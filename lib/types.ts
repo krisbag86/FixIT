@@ -113,6 +113,17 @@ export type NotificationLog = {
   sentAt?: string;
 };
 
+export type AdminAuditLog = {
+  id: string;
+  actorId?: string;
+  action: string;
+  entityType: "USER" | "STORE" | "CATEGORY";
+  entityId: string;
+  summary: string;
+  payload?: Record<string, string>;
+  createdAt: string;
+};
+
 export type Database = {
   meta: {
     ticketSequences: Record<string, number>;
@@ -126,4 +137,5 @@ export type Database = {
   events: TicketEvent[];
   knowledgeArticles: KnowledgeArticle[];
   notificationLogs: NotificationLog[];
+  adminAuditLogs: AdminAuditLog[];
 };

@@ -50,4 +50,19 @@ describe("permissions", () => {
     expect(canViewTicket(manager, ticket)).toBe(true);
     expect(canViewTicket(otherManager, ticket)).toBe(false);
   });
+
+  it("recomputes permissions and visibility correctly after a role change", () => {
+    const promotedAgent: User = { ...baseUser, id: "agent-2", role: "AGENT" };
+    const demotedReporter: User = { ...promotedAgent, role: "REPORTER" };
+    const managerInStore: User = { ...baseUser, id: "manager-2", role: "STORE_MANAGER", storeId: "store1" };
+
+    expect(can(promotedAgent, "ticket:update")).toBe(true);
+    expect(canViewTicket(promotedAgent, ticket)).toBe(true);
+
+    expect(can(demotedReporter, "ticket:update")).toBe(false);
+    expect(canViewTicket(demotedReporter, ticket)).toBe(false);
+
+    expect(can(managerInStore, "ticket:view-store")).toBe(true);
+    expect(canViewTicket(managerInStore, ticket)).toBe(true);
+  });
 });

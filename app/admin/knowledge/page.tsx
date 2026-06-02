@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { BookOpen, Edit, Eye, EyeOff, Plus, Trash2 } from "lucide-react";
+import { AdminNav } from "@/components/admin/admin-nav";
 import { AppShell } from "@/components/app-shell";
 import { requireUser } from "@/lib/auth";
 import { deleteKnowledgeArticleAction } from "@/app/actions";
@@ -39,6 +40,8 @@ export default async function AdminKnowledgePage() {
           </Link>
         ) : null}
       </div>
+
+      <AdminNav user={user} currentPath="/admin/knowledge" />
 
       {articles.length > 0 ? (
         <div className="overflow-hidden rounded-md border border-black/10 dark:border-white/10">
@@ -93,9 +96,6 @@ export default async function AdminKnowledgePage() {
                               type="submit"
                               className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-500/20 bg-red-500/5 text-red-600 transition hover:bg-red-500/10 dark:text-red-400"
                               title="Usun"
-                              onClick={(e) => {
-                                if (!confirm("Na pewno usunac ten artykul?")) e.preventDefault();
-                              }}
                             >
                               <Trash2 size={15} />
                             </button>

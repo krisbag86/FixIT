@@ -63,6 +63,7 @@ model User {
   defaultCategories Category[]         @relation("CategoryDefaultAssignee")
   articlesCreated   KnowledgeArticle[] @relation("ArticleCreatedBy")
   articlesUpdated   KnowledgeArticle[] @relation("ArticleUpdatedBy")
+  adminAuditLogs    AdminAuditLog[]
 
   @@index([role])
   @@index([storeId])
@@ -230,5 +231,22 @@ model NotificationLog {
 
   @@index([ticketId])
   @@index([recipientEmail])
+  @@index([createdAt])
+}
+
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String
+  summary    String
+  payload    Json?
+  createdAt  DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+  @@index([entityType, entityId])
   @@index([createdAt])
 }

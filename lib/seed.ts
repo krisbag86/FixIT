@@ -199,6 +199,7 @@ export function createSeedDatabase(): Database {
         status: "QUEUED",
         createdAt: now
       }
-    ]
+    ],
+    adminAuditLogs: []
   };
 }

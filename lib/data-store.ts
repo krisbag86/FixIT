@@ -4,9 +4,19 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { unstable_noStore as noStore } from "next/cache";
 import type { Prisma } from "@prisma/client";
+import {
+  buildAuditPayload,
+  describeAuditChanges,
+  getCategoryAuditChanges,
+  getCategoryUsageSummary,
+  getStoreAuditChanges,
+  getStoreUsageSummary,
+  getUserAuditChanges
+} from "@/lib/admin-utils";
 import { createSeedDatabase } from "@/lib/seed";
 import { generateTicketNumber } from "@/lib/ticket-number";
 import type {
+  AdminAuditLog,
   Category,
   CommentVisibility,
   Database,
@@ -19,7 +29,8 @@ import type {
   TicketEvent,
   TicketPriority,
   TicketStatus,
-  User
+  User,
+  UserRole
 } from "@/lib/types";
 
 const dataDir = path.join(process.cwd(), ".data");
@@ -181,12 +192,33 @@ function mapNotificationLog(log: Prisma.NotificationLogGetPayload<object>): Noti
   };
 }
 
+function mapAdminAuditLog(log: Prisma.AdminAuditLogGetPayload<object>): AdminAuditLog {
+  const payload =
+    typeof log.payload === "object" && log.payload !== null && !Array.isArray(log.payload)
+      ? Object.fromEntries(Object.entries(log.payload).map(([key, value]) => [key, String(value)]))
+      : undefined;
+
+  return {
+    id: log.id,
+    actorId: definedString(log.actorId),
+    action: log.action,
+    entityType: log.entityType as AdminAuditLog["entityType"],
+    entityId: log.entityId,
+    summary: log.summary,
+    payload,
+    createdAt: iso(log.createdAt) ?? ""
+  };
+}
+
 async function ensureDatabase(): Promise<Database> {
   try {
     const raw = await readFile(dataFile, "utf8");
     const parsed = JSON.parse(raw) as Partial<Database>;
     if (!Array.isArray(parsed.attachments)) {
       parsed.attachments = [];
+    }
+    if (!Array.isArray(parsed.adminAuditLogs)) {
+      parsed.adminAuditLogs = [];
     }
     return parsed as Database;
   } catch {
@@ -200,7 +232,7 @@ export async function readDatabase(): Promise<Database> {
   noStore();
   if (shouldUsePrisma()) {
     const db = await getPrisma();
-    const [users, stores, categories, tickets, comments, attachments, events, knowledgeArticles, notificationLogs, counters] =
+    const [users, stores, categories, tickets, comments, attachments, events, knowledgeArticles, notificationLogs, adminAuditLogs, counters] =
       await Promise.all([
         db.user.findMany(),
         db.store.findMany(),
@@ -211,6 +243,7 @@ export async function readDatabase(): Promise<Database> {
         db.ticketEvent.findMany(),
         db.knowledgeArticle.findMany(),
         db.notificationLog.findMany(),
+        db.adminAuditLog.findMany(),
         db.ticketCounter.findMany()
       ]);
 
@@ -226,7 +259,8 @@ export async function readDatabase(): Promise<Database> {
       attachments: attachments.map(mapAttachment),
       events: events.map(mapEvent),
       knowledgeArticles: knowledgeArticles.map(mapKnowledgeArticle),
-      notificationLogs: notificationLogs.map(mapNotificationLog)
+      notificationLogs: notificationLogs.map(mapNotificationLog),
+      adminAuditLogs: adminAuditLogs.map(mapAdminAuditLog)
     };
   }
 
@@ -255,6 +289,61 @@ export async function withDatabase<T>(mutator: (database: Database) => T | Promi
   return result;
 }
 
+function appendAdminAuditLog(
+  database: Database,
+  input: {
+    actorId?: string;
+    action: string;
+    entityType: AdminAuditLog["entityType"];
+    entityId: string;
+    summary: string;
+    payload?: Record<string, string>;
+  }
+): AdminAuditLog {
+  const log: AdminAuditLog = {
+    id: id("audit"),
+    actorId: input.actorId,
+    action: input.action,
+    entityType: input.entityType,
+    entityId: input.entityId,
+    summary: input.summary,
+    payload: input.payload,
+    createdAt: now()
+  };
+  database.adminAuditLogs.push(log);
+  return log;
+}
+
+async function ensureActiveAdminRemains(userId: string, nextRole: UserRole, nextIsActive: boolean): Promise<void> {
+  if (nextRole === "ADMIN" && nextIsActive) {
+    return;
+  }
+
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const activeAdminCount = await db.user.count({
+      where: {
+        role: "ADMIN",
+        isActive: true,
+        NOT: { id: userId }
+      }
+    });
+
+    if (activeAdminCount === 0) {
+      throw new Error("Nie mozna odebrac ostatniego aktywnego administratora.");
+    }
+
+    return;
+  }
+
+  const database = await readDatabase();
+  const activeAdminCount = database.users.filter((user) => user.role === "ADMIN" && user.isActive && user.id !== userId).length;
+
+  if (activeAdminCount === 0) {
+    throw new Error("Nie mozna odebrac ostatniego aktywnego administratora.");
+  }
+}
+
 export async function getUsers(): Promise<User[]> {
   if (shouldUsePrisma()) {
     const db = await getPrisma();
@@ -281,6 +370,110 @@ export async function getCategories(): Promise<Category[]> {
 
   const database = await readDatabase();
   return database.categories.filter((category) => category.isActive);
+}
+
+export async function listUsersAdmin(options?: { includeInactive?: boolean; query?: string }): Promise<User[]> {
+  const query = options?.query?.trim().toLowerCase();
+
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const users = await db.user.findMany({
+      where: {
+        ...(options?.includeInactive ? {} : { isActive: true }),
+        ...(query
+          ? {
+              OR: [
+                { name: { contains: query, mode: "insensitive" } },
+                { email: { contains: query, mode: "insensitive" } },
+                { department: { contains: query, mode: "insensitive" } }
+              ]
+            }
+          : {})
+      },
+      orderBy: [{ isActive: "desc" }, { role: "asc" }, { name: "asc" }, { email: "asc" }]
+    });
+    return users.map(mapUser);
+  }
+
+  const database = await readDatabase();
+  return database.users
+    .filter((user) => options?.includeInactive || user.isActive)
+    .filter((user) => {
+      if (!query) {
+        return true;
+      }
+
+      return [user.name, user.email, user.department]
+        .filter(Boolean)
+        .some((value) => value?.toLowerCase().includes(query));
+    })
+    .sort((a, b) => {
+      if (a.isActive !== b.isActive) {
+        return a.isActive ? -1 : 1;
+      }
+
+      return `${a.role}-${a.name}-${a.email}`.localeCompare(`${b.role}-${b.name}-${b.email}`);
+    });
+}
+
+export async function listStoresAdmin(options?: { includeInactive?: boolean }): Promise<Store[]> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const stores = await db.store.findMany({
+      where: options?.includeInactive ? undefined : { isActive: true },
+      orderBy: [{ isActive: "desc" }, { code: "asc" }]
+    });
+    return stores.map(mapStore);
+  }
+
+  const database = await readDatabase();
+  return database.stores
+    .filter((store) => options?.includeInactive || store.isActive)
+    .sort((a, b) => {
+      if (a.isActive !== b.isActive) {
+        return a.isActive ? -1 : 1;
+      }
+
+      return a.code.localeCompare(b.code);
+    });
+}
+
+export async function listCategoriesAdmin(options?: { includeInactive?: boolean }): Promise<Category[]> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const categories = await db.category.findMany({
+      where: options?.includeInactive ? undefined : { isActive: true },
+      orderBy: [{ isActive: "desc" }, { name: "asc" }]
+    });
+    return categories.map(mapCategory);
+  }
+
+  const database = await readDatabase();
+  return database.categories
+    .filter((category) => options?.includeInactive || category.isActive)
+    .sort((a, b) => {
+      if (a.isActive !== b.isActive) {
+        return a.isActive ? -1 : 1;
+      }
+
+      return a.name.localeCompare(b.name);
+    });
+}
+
+export async function listAdminAuditLogs(limit = 20): Promise<AdminAuditLog[]> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const logs = await db.adminAuditLog.findMany({
+      orderBy: { createdAt: "desc" },
+      take: limit
+    });
+    return logs.map(mapAdminAuditLog);
+  }
+
+  const database = await readDatabase();
+  return [...database.adminAuditLogs]
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, limit);
 }
 
 export async function createOrFindUser(email: string): Promise<User> {
@@ -335,6 +528,537 @@ export async function findUserById(userId: string): Promise<User | undefined> {
 
   const database = await readDatabase();
   return database.users.find((user) => user.id === userId && user.isActive);
+}
+
+export async function updateUserAdmin(input: {
+  userId: string;
+  role: UserRole;
+  storeId?: string;
+  department?: string;
+  isActive: boolean;
+  actorId: string;
+}): Promise<User | undefined> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const existing = await db.user.findUnique({ where: { id: input.userId } });
+
+    if (!existing) {
+      return undefined;
+    }
+
+    if (existing.role === "ADMIN" && (!input.isActive || input.role !== "ADMIN")) {
+      await ensureActiveAdminRemains(existing.id, input.role, input.isActive);
+    }
+
+    const updated = await db.$transaction(async (tx) => {
+      const nextUser = await tx.user.update({
+        where: { id: input.userId },
+        data: {
+          role: input.role,
+          storeId: input.storeId,
+          department: input.department,
+          isActive: input.isActive
+        }
+      });
+
+      const changes = getUserAuditChanges(mapUser(existing), {
+        role: nextUser.role,
+        storeId: definedString(nextUser.storeId),
+        department: definedString(nextUser.department),
+        isActive: nextUser.isActive
+      });
+
+      if (changes.length > 0) {
+        await tx.adminAuditLog.create({
+          data: {
+            actorId: input.actorId,
+            action: "USER_UPDATED",
+            entityType: "USER",
+            entityId: nextUser.id,
+            summary: describeAuditChanges("Uzytkownik", nextUser.email, changes),
+            payload: buildAuditPayload(changes)
+          }
+        });
+      }
+
+      return nextUser;
+    });
+
+    return mapUser(updated);
+  }
+
+  return withDatabase((database) => {
+    const user = database.users.find((item) => item.id === input.userId);
+
+    if (!user) {
+      return undefined;
+    }
+
+    if (user.role === "ADMIN" && (!input.isActive || input.role !== "ADMIN")) {
+      const activeAdminCount = database.users.filter((item) => item.role === "ADMIN" && item.isActive && item.id !== user.id).length;
+
+      if (activeAdminCount === 0) {
+        throw new Error("Nie mozna odebrac ostatniego aktywnego administratora.");
+      }
+    }
+
+    const changes = getUserAuditChanges(user, input);
+    user.role = input.role;
+    user.storeId = input.storeId;
+    user.department = input.department;
+    user.isActive = input.isActive;
+
+    if (changes.length > 0) {
+      appendAdminAuditLog(database, {
+        actorId: input.actorId,
+        action: "USER_UPDATED",
+        entityType: "USER",
+        entityId: user.id,
+        summary: describeAuditChanges("Uzytkownik", user.email, changes),
+        payload: buildAuditPayload(changes)
+      });
+    }
+
+    return user;
+  });
+}
+
+export async function createStoreAdmin(input: {
+  code: string;
+  name: string;
+  city: string;
+  region: string;
+  isActive: boolean;
+  actorId: string;
+}): Promise<Store> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const duplicate = await db.store.findUnique({ where: { code: input.code } });
+
+    if (duplicate) {
+      throw new Error("Sklep o takim kodzie juz istnieje.");
+    }
+
+    const created = await db.$transaction(async (tx) => {
+      const store = await tx.store.create({
+        data: {
+          code: input.code,
+          name: input.name,
+          city: input.city,
+          region: input.region,
+          isActive: input.isActive
+        }
+      });
+
+      await tx.adminAuditLog.create({
+        data: {
+          actorId: input.actorId,
+          action: "STORE_CREATED",
+          entityType: "STORE",
+          entityId: store.id,
+          summary: `Sklep ${store.code}: utworzono ${store.name}`,
+          payload: { code: store.code, name: store.name }
+        }
+      });
+
+      return store;
+    });
+
+    return mapStore(created);
+  }
+
+  return withDatabase((database) => {
+    if (database.stores.some((store) => store.code === input.code)) {
+      throw new Error("Sklep o takim kodzie juz istnieje.");
+    }
+
+    const store: Store = {
+      id: id("store"),
+      code: input.code,
+      name: input.name,
+      city: input.city,
+      region: input.region,
+      isActive: input.isActive
+    };
+
+    database.stores.push(store);
+    appendAdminAuditLog(database, {
+      actorId: input.actorId,
+      action: "STORE_CREATED",
+      entityType: "STORE",
+      entityId: store.id,
+      summary: `Sklep ${store.code}: utworzono ${store.name}`,
+      payload: { code: store.code, name: store.name }
+    });
+    return store;
+  });
+}
+
+export async function updateStoreAdmin(input: {
+  id: string;
+  code: string;
+  name: string;
+  city: string;
+  region: string;
+  isActive: boolean;
+  actorId: string;
+}): Promise<Store | undefined> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const existing = await db.store.findUnique({ where: { id: input.id } });
+
+    if (!existing) {
+      return undefined;
+    }
+
+    const duplicate = await db.store.findFirst({
+      where: {
+        code: input.code,
+        NOT: { id: input.id }
+      }
+    });
+
+    if (duplicate) {
+      throw new Error("Sklep o takim kodzie juz istnieje.");
+    }
+
+    const updated = await db.$transaction(async (tx) => {
+      const store = await tx.store.update({
+        where: { id: input.id },
+        data: {
+          code: input.code,
+          name: input.name,
+          city: input.city,
+          region: input.region,
+          isActive: input.isActive
+        }
+      });
+
+      const changes = getStoreAuditChanges(mapStore(existing), mapStore(store));
+      if (changes.length > 0) {
+        await tx.adminAuditLog.create({
+          data: {
+            actorId: input.actorId,
+            action: "STORE_UPDATED",
+            entityType: "STORE",
+            entityId: store.id,
+            summary: describeAuditChanges("Sklep", store.code, changes),
+            payload: buildAuditPayload(changes)
+          }
+        });
+      }
+
+      return store;
+    });
+
+    return mapStore(updated);
+  }
+
+  return withDatabase((database) => {
+    const store = database.stores.find((item) => item.id === input.id);
+
+    if (!store) {
+      return undefined;
+    }
+
+    if (database.stores.some((item) => item.code === input.code && item.id !== input.id)) {
+      throw new Error("Sklep o takim kodzie juz istnieje.");
+    }
+
+    const changes = getStoreAuditChanges(store, input);
+    store.code = input.code;
+    store.name = input.name;
+    store.city = input.city;
+    store.region = input.region;
+    store.isActive = input.isActive;
+
+    if (changes.length > 0) {
+      appendAdminAuditLog(database, {
+        actorId: input.actorId,
+        action: "STORE_UPDATED",
+        entityType: "STORE",
+        entityId: store.id,
+        summary: describeAuditChanges("Sklep", store.code, changes),
+        payload: buildAuditPayload(changes)
+      });
+    }
+
+    return store;
+  });
+}
+
+export async function deleteStoreAdmin(id: string, actorId: string): Promise<boolean> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const store = await db.store.findUnique({ where: { id } });
+
+    if (!store) {
+      return false;
+    }
+
+    const [userCount, ticketCount] = await Promise.all([
+      db.user.count({ where: { storeId: id } }),
+      db.ticket.count({ where: { storeId: id } })
+    ]);
+
+    if (userCount > 0 || ticketCount > 0) {
+      throw new Error("Nie mozna usunac sklepu, bo jest powiazany z uzytkownikami lub ticketami.");
+    }
+
+    await db.$transaction(async (tx) => {
+      await tx.store.delete({ where: { id } });
+      await tx.adminAuditLog.create({
+        data: {
+          actorId,
+          action: "STORE_DELETED",
+          entityType: "STORE",
+          entityId: id,
+          summary: `Sklep ${store.code}: usunieto ${store.name}`,
+          payload: { code: store.code, name: store.name }
+        }
+      });
+    });
+
+    return true;
+  }
+
+  return withDatabase((database) => {
+    const storeIndex = database.stores.findIndex((item) => item.id === id);
+
+    if (storeIndex === -1) {
+      return false;
+    }
+
+    const usage = getStoreUsageSummary(database, id);
+    if (usage.userCount > 0 || usage.ticketCount > 0) {
+      throw new Error("Nie mozna usunac sklepu, bo jest powiazany z uzytkownikami lub ticketami.");
+    }
+
+    const [store] = database.stores.splice(storeIndex, 1);
+    appendAdminAuditLog(database, {
+      actorId,
+      action: "STORE_DELETED",
+      entityType: "STORE",
+      entityId: id,
+      summary: `Sklep ${store.code}: usunieto ${store.name}`,
+      payload: { code: store.code, name: store.name }
+    });
+    return true;
+  });
+}
+
+export async function createCategoryAdmin(input: {
+  name: string;
+  defaultPriority: TicketPriority;
+  isActive: boolean;
+  actorId: string;
+}): Promise<Category> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const duplicate = await db.category.findFirst({
+      where: { name: { equals: input.name, mode: "insensitive" } }
+    });
+
+    if (duplicate) {
+      throw new Error("Kategoria o takiej nazwie juz istnieje.");
+    }
+
+    const created = await db.$transaction(async (tx) => {
+      const category = await tx.category.create({
+        data: {
+          name: input.name,
+          defaultPriority: input.defaultPriority,
+          isActive: input.isActive
+        }
+      });
+
+      await tx.adminAuditLog.create({
+        data: {
+          actorId: input.actorId,
+          action: "CATEGORY_CREATED",
+          entityType: "CATEGORY",
+          entityId: category.id,
+          summary: `Kategoria ${category.name}: utworzono`,
+          payload: { name: category.name, defaultPriority: category.defaultPriority }
+        }
+      });
+
+      return category;
+    });
+
+    return mapCategory(created);
+  }
+
+  return withDatabase((database) => {
+    if (database.categories.some((category) => category.name.toLowerCase() === input.name.toLowerCase())) {
+      throw new Error("Kategoria o takiej nazwie juz istnieje.");
+    }
+
+    const category: Category = {
+      id: id("cat"),
+      name: input.name,
+      defaultPriority: input.defaultPriority,
+      isActive: input.isActive
+    };
+
+    database.categories.push(category);
+    appendAdminAuditLog(database, {
+      actorId: input.actorId,
+      action: "CATEGORY_CREATED",
+      entityType: "CATEGORY",
+      entityId: category.id,
+      summary: `Kategoria ${category.name}: utworzono`,
+      payload: { name: category.name, defaultPriority: category.defaultPriority }
+    });
+    return category;
+  });
+}
+
+export async function updateCategoryAdmin(input: {
+  id: string;
+  name: string;
+  defaultPriority: TicketPriority;
+  isActive: boolean;
+  actorId: string;
+}): Promise<Category | undefined> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const existing = await db.category.findUnique({ where: { id: input.id } });
+
+    if (!existing) {
+      return undefined;
+    }
+
+    const duplicate = await db.category.findFirst({
+      where: {
+        name: { equals: input.name, mode: "insensitive" },
+        NOT: { id: input.id }
+      }
+    });
+
+    if (duplicate) {
+      throw new Error("Kategoria o takiej nazwie juz istnieje.");
+    }
+
+    const updated = await db.$transaction(async (tx) => {
+      const category = await tx.category.update({
+        where: { id: input.id },
+        data: {
+          name: input.name,
+          defaultPriority: input.defaultPriority,
+          isActive: input.isActive
+        }
+      });
+
+      const changes = getCategoryAuditChanges(mapCategory(existing), mapCategory(category));
+      if (changes.length > 0) {
+        await tx.adminAuditLog.create({
+          data: {
+            actorId: input.actorId,
+            action: "CATEGORY_UPDATED",
+            entityType: "CATEGORY",
+            entityId: category.id,
+            summary: describeAuditChanges("Kategoria", category.name, changes),
+            payload: buildAuditPayload(changes)
+          }
+        });
+      }
+
+      return category;
+    });
+
+    return mapCategory(updated);
+  }
+
+  return withDatabase((database) => {
+    const category = database.categories.find((item) => item.id === input.id);
+
+    if (!category) {
+      return undefined;
+    }
+
+    if (database.categories.some((item) => item.id !== input.id && item.name.toLowerCase() === input.name.toLowerCase())) {
+      throw new Error("Kategoria o takiej nazwie juz istnieje.");
+    }
+
+    const changes = getCategoryAuditChanges(category, input);
+    category.name = input.name;
+    category.defaultPriority = input.defaultPriority;
+    category.isActive = input.isActive;
+
+    if (changes.length > 0) {
+      appendAdminAuditLog(database, {
+        actorId: input.actorId,
+        action: "CATEGORY_UPDATED",
+        entityType: "CATEGORY",
+        entityId: category.id,
+        summary: describeAuditChanges("Kategoria", category.name, changes),
+        payload: buildAuditPayload(changes)
+      });
+    }
+
+    return category;
+  });
+}
+
+export async function deleteCategoryAdmin(id: string, actorId: string): Promise<boolean> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const category = await db.category.findUnique({ where: { id } });
+
+    if (!category) {
+      return false;
+    }
+
+    const [ticketCount, articleCount] = await Promise.all([
+      db.ticket.count({ where: { categoryId: id } }),
+      db.knowledgeArticle.count({ where: { categoryId: id } })
+    ]);
+
+    if (ticketCount > 0 || articleCount > 0) {
+      throw new Error("Nie mozna usunac kategorii, bo jest powiazana z ticketami lub baza wiedzy.");
+    }
+
+    await db.$transaction(async (tx) => {
+      await tx.category.delete({ where: { id } });
+      await tx.adminAuditLog.create({
+        data: {
+          actorId,
+          action: "CATEGORY_DELETED",
+          entityType: "CATEGORY",
+          entityId: id,
+          summary: `Kategoria ${category.name}: usunieto`,
+          payload: { name: category.name }
+        }
+      });
+    });
+
+    return true;
+  }
+
+  return withDatabase((database) => {
+    const categoryIndex = database.categories.findIndex((item) => item.id === id);
+
+    if (categoryIndex === -1) {
+      return false;
+    }
+
+    const usage = getCategoryUsageSummary(database, id);
+    if (usage.ticketCount > 0 || usage.articleCount > 0) {
+      throw new Error("Nie mozna usunac kategorii, bo jest powiazana z ticketami lub baza wiedzy.");
+    }
+
+    const [category] = database.categories.splice(categoryIndex, 1);
+    appendAdminAuditLog(database, {
+      actorId,
+      action: "CATEGORY_DELETED",
+      entityType: "CATEGORY",
+      entityId: id,
+      summary: `Kategoria ${category.name}: usunieto`,
+      payload: { name: category.name }
+    });
+    return true;
+  });
 }
 
 export async function listVisibleTickets(user: User): Promise<Ticket[]> {
