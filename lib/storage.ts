@@ -21,9 +21,7 @@ export {
   UploadValidationError
 } from "@/lib/storage-utils";
 
-function useS3(): boolean {
-  return isS3Configured();
-}
+
 
 export async function saveAttachmentFile(
   data: Uint8Array,
@@ -45,7 +43,7 @@ export async function saveAttachmentFile(
 
   const safeName = sanitizeFilename(filename);
 
-  if (useS3()) {
+  if (isS3Configured()) {
     return saveAttachmentFileS3(data, safeName, mimeType);
   }
 
@@ -64,7 +62,7 @@ export async function readAttachmentFile(storageKey: string): Promise<Buffer> {
     throw new UploadValidationError("Nieprawidlowy klucz pliku.");
   }
 
-  if (useS3()) {
+  if (isS3Configured()) {
     return readAttachmentFileS3(storageKey);
   }
 
@@ -77,7 +75,7 @@ export async function deleteAttachmentFile(storageKey: string): Promise<void> {
     return;
   }
 
-  if (useS3()) {
+  if (isS3Configured()) {
     return deleteAttachmentFileS3(storageKey);
   }
 

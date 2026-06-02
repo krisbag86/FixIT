@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -10,8 +9,9 @@ export async function GET() {
     uptime: process.uptime()
   };
 
-  // Check database connectivity
+  // Check database connectivity (lazy import to avoid module-level initialization issues)
   try {
+    const { prisma } = await import("@/lib/prisma");
     await prisma.$queryRaw`SELECT 1`;
     checks.database = "connected";
   } catch (error) {
