@@ -124,6 +124,19 @@ export type AdminAuditLog = {
   createdAt: string;
 };
 
+export type DashboardMetrics = {
+  totalTickets: number;
+  openTickets: number;
+  criticalTickets: number;
+  avgResolutionHours: number | null;
+  topCategories: { categoryId: string; categoryName: string; count: number }[];
+  slaBreached: {
+    ticket: Ticket;
+    slaDeadline: string;
+    hoursOverdue: number;
+  }[];
+};
+
 export type Database = {
   meta: {
     ticketSequences: Record<string, number>;

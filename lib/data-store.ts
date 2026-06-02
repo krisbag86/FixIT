@@ -19,6 +19,7 @@ import type {
   AdminAuditLog,
   Category,
   CommentVisibility,
+  DashboardMetrics,
   Database,
   KnowledgeArticle,
   NotificationLog,
@@ -1828,6 +1829,290 @@ export async function createAttachment(input: {
     database.attachments.push(attachment);
     return attachment;
   });
+}
+
+// --- SLA Rules (hours) ---
+
+export const slaRules: Record<TicketPriority, number> = {
+  CRITICAL: 4,
+  HIGH: 8,
+  NORMAL: 24,
+  LOW: 48
+};
+
+const resolvedOrClosedStatuses = new Set(["RESOLVED", "CLOSED", "CANCELLED"] as TicketStatus[]);
+
+function hoursBetween(start: string, end: string): number {
+  return (new Date(end).getTime() - new Date(start).getTime()) / (1000 * 60 * 60);
+}
+
+function isTicketOpen(status: TicketStatus): boolean {
+  return !resolvedOrClosedStatuses.has(status);
+}
+
+export async function getDashboardMetrics(): Promise<DashboardMetrics> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const [allTickets, categories] = await Promise.all([
+      db.ticket.findMany(),
+      db.category.findMany()
+    ]);
+
+    const totalTickets = allTickets.length;
+    const openTickets = allTickets.filter((t) => isTicketOpen(t.status)).length;
+    const criticalTickets = allTickets.filter((t) => t.priority === "CRITICAL").length;
+
+    const resolvedTickets = allTickets.filter((t) => t.resolvedAt);
+    const avgResolutionHours =
+      resolvedTickets.length > 0
+        ? resolvedTickets.reduce((sum, t) => {
+            const start = t.createdAt;
+            const end = t.resolvedAt!;
+            return sum + hoursBetween(start.toISOString(), end.toISOString());
+          }, 0) / resolvedTickets.length
+        : null;
+
+    // Top categories
+    const categoryCounts = new Map<string, number>();
+    for (const t of allTickets) {
+      if (t.categoryId) {
+        categoryCounts.set(t.categoryId, (categoryCounts.get(t.categoryId) ?? 0) + 1);
+      }
+    }
+    const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
+    const topCategories = [...categoryCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([categoryId, count]) => ({
+        categoryId,
+        categoryName: categoryMap.get(categoryId) ?? "Nieznana",
+        count
+      }));
+
+    // SLA breaches
+    const now = new Date();
+    const slaBreached: DashboardMetrics["slaBreached"] = [];
+    for (const t of allTickets) {
+      if (!isTicketOpen(t.status)) continue;
+      const slaHours = slaRules[t.priority];
+      if (!slaHours) continue;
+      const deadline = new Date(t.createdAt.getTime() + slaHours * 60 * 60 * 1000);
+      if (now > deadline) {
+        slaBreached.push({
+          ticket: mapTicket(t),
+          slaDeadline: deadline.toISOString(),
+          hoursOverdue: Math.round(hoursBetween(deadline.toISOString(), now.toISOString()) * 10) / 10
+        });
+      }
+    }
+    slaBreached.sort((a, b) => b.hoursOverdue - a.hoursOverdue);
+
+    return {
+      totalTickets,
+      openTickets,
+      criticalTickets,
+      avgResolutionHours: avgResolutionHours !== null ? Math.round(avgResolutionHours * 10) / 10 : null,
+      topCategories,
+      slaBreached
+    };
+  }
+
+  const database = await readDatabase();
+  const allTickets = database.tickets;
+  const currentTime = new Date().toISOString();
+
+  const totalTickets = allTickets.length;
+  const openTickets = allTickets.filter((t) => isTicketOpen(t.status)).length;
+  const criticalTickets = allTickets.filter((t) => t.priority === "CRITICAL").length;
+
+  const resolvedTickets = allTickets.filter((t) => t.resolvedAt);
+  const avgResolutionHours =
+    resolvedTickets.length > 0
+      ? resolvedTickets.reduce((sum, t) => sum + hoursBetween(t.createdAt, t.resolvedAt!), 0) / resolvedTickets.length
+      : null;
+
+  // Top categories
+  const categoryCounts = new Map<string, number>();
+  for (const t of allTickets) {
+    if (t.categoryId) {
+      categoryCounts.set(t.categoryId, (categoryCounts.get(t.categoryId) ?? 0) + 1);
+    }
+  }
+  const topCategories = [...categoryCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([categoryId, count]) => ({
+      categoryId,
+      categoryName: database.categories.find((c) => c.id === categoryId)?.name ?? "Nieznana",
+      count
+    }));
+
+  // SLA breaches
+  const slaBreached: DashboardMetrics["slaBreached"] = [];
+  for (const t of allTickets) {
+    if (!isTicketOpen(t.status)) continue;
+    const slaHours = slaRules[t.priority];
+    if (!slaHours) continue;
+    const createdAt = t.createdAt;
+    const deadline = new Date(new Date(createdAt).getTime() + slaHours * 60 * 60 * 1000);
+    if (new Date(currentTime) > deadline) {
+      slaBreached.push({
+        ticket: t,
+        slaDeadline: deadline.toISOString(),
+        hoursOverdue: Math.round(hoursBetween(deadline.toISOString(), currentTime) * 10) / 10
+      });
+    }
+  }
+  slaBreached.sort((a, b) => b.hoursOverdue - a.hoursOverdue);
+
+  return {
+    totalTickets,
+    openTickets,
+    criticalTickets,
+    avgResolutionHours: avgResolutionHours !== null ? Math.round(avgResolutionHours * 10) / 10 : null,
+    topCategories,
+    slaBreached
+  };
+}
+
+export async function exportTicketsCSV(): Promise<string> {
+  const headers = [
+    "Numer",
+    "Tytul",
+    "Status",
+    "Priorytet",
+    "Blokuje prace",
+    "Kategoria",
+    "Sklep",
+    "Zglaszajacy",
+    "Wykonawca",
+    "Utworzono",
+    "Zaktualizowano",
+    "Rozwiazano",
+    "Zamknieto"
+  ];
+
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const tickets = await db.ticket.findMany({
+      orderBy: { createdAt: "desc" }
+    });
+    const users = await db.user.findMany();
+    const stores = await db.store.findMany();
+    const categories = await db.category.findMany();
+
+    const userMap = new Map(users.map((u) => [u.id, u]));
+    const storeMap = new Map(stores.map((s) => [s.id, s]));
+    const categoryMap = new Map(categories.map((c) => [c.id, c]));
+
+    const rows = tickets.map((t) => [
+      escapeCSV(t.number),
+      escapeCSV(t.title),
+      t.status,
+      t.priority,
+      t.blocksWork ? "Tak" : "Nie",
+      escapeCSV(categoryMap.get(t.categoryId ?? "")?.name ?? ""),
+      escapeCSV(storeMap.get(t.storeId ?? "")?.name ?? ""),
+      escapeCSV(userMap.get(t.reporterId)?.email ?? ""),
+      escapeCSV(userMap.get(t.assigneeId ?? "")?.email ?? ""),
+      t.createdAt.toISOString(),
+      t.updatedAt.toISOString(),
+      t.resolvedAt?.toISOString() ?? "",
+      t.closedAt?.toISOString() ?? ""
+    ]);
+
+    return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+  }
+
+  const database = await readDatabase();
+  const userMap = new Map(database.users.map((u) => [u.id, u]));
+  const storeMap = new Map(database.stores.map((s) => [s.id, s]));
+  const categoryMap = new Map(database.categories.map((c) => [c.id, c]));
+
+  const rows = database.tickets
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .map((t) => [
+      escapeCSV(t.number),
+      escapeCSV(t.title),
+      t.status,
+      t.priority,
+      t.blocksWork ? "Tak" : "Nie",
+      escapeCSV(categoryMap.get(t.categoryId)?.name ?? ""),
+      escapeCSV(storeMap.get(t.storeId ?? "")?.name ?? ""),
+      escapeCSV(userMap.get(t.reporterId)?.email ?? ""),
+      escapeCSV(userMap.get(t.assigneeId ?? "")?.email ?? ""),
+      t.createdAt,
+      t.updatedAt,
+      t.resolvedAt ?? "",
+      t.closedAt ?? ""
+    ]);
+
+  return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+}
+
+function escapeCSV(value: string): string {
+  if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+export async function getStoreDashboard(storeId: string): Promise<{
+  openTickets: number;
+  criticalTickets: number;
+  blockingTickets: number;
+  resolvedToday: number;
+  recentEvents: (TicketEvent & { ticketNumber?: string })[];
+}> {
+  const today = new Date().toISOString().slice(0, 10);
+
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const storeTickets = await db.ticket.findMany({ where: { storeId } });
+    const storeTicketIds = storeTickets.map((t) => t.id);
+
+    const openTickets = storeTickets.filter((t) => isTicketOpen(t.status)).length;
+    const criticalTickets = storeTickets.filter((t) => t.priority === "CRITICAL").length;
+    const blockingTickets = storeTickets.filter((t) => t.blocksWork).length;
+    const resolvedToday = storeTickets.filter(
+      (t) => t.resolvedAt && t.resolvedAt.toISOString().slice(0, 10) === today
+    ).length;
+
+    const recentEventsRaw = await db.ticketEvent.findMany({
+      where: { ticketId: { in: storeTicketIds } },
+      orderBy: { createdAt: "desc" },
+      take: 5
+    });
+    const ticketMap = new Map(storeTickets.map((t) => [t.id, t.number]));
+    const recentEvents = recentEventsRaw.map((e) => ({
+      ...mapEvent(e),
+      ticketNumber: ticketMap.get(e.ticketId) ?? undefined
+    }));
+
+    return { openTickets, criticalTickets, blockingTickets, resolvedToday, recentEvents };
+  }
+
+  const database = await readDatabase();
+  const storeTickets = database.tickets.filter((t) => t.storeId === storeId);
+  const storeTicketIds = new Set(storeTickets.map((t) => t.id));
+
+  const openTickets = storeTickets.filter((t) => isTicketOpen(t.status)).length;
+  const criticalTickets = storeTickets.filter((t) => t.priority === "CRITICAL").length;
+  const blockingTickets = storeTickets.filter((t) => t.blocksWork).length;
+  const resolvedToday = storeTickets.filter(
+    (t) => t.resolvedAt && t.resolvedAt.slice(0, 10) === today
+  ).length;
+
+  const recentEvents = database.events
+    .filter((e) => storeTicketIds.has(e.ticketId))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, 5)
+    .map((e) => ({
+      ...e,
+      ticketNumber: storeTickets.find((t) => t.id === e.ticketId)?.number
+    }));
+
+  return { openTickets, criticalTickets, blockingTickets, resolvedToday, recentEvents };
 }
 
 export async function deleteAttachment(id: string): Promise<TicketAttachment | undefined> {

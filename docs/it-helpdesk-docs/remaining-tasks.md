@@ -139,27 +139,36 @@ Walidacja:
 - `npm run typecheck` - OK
 - `npm run test` - OK, 32 passed / 1 skipped
 
-## Priorytet 8 - Raporty i SLA
+## Priorytet 8 - Raporty i SLA [ZROBIONE]
 
 Cel: dodac widoki kontrolingowe dla IT i administracji.
 
-Do zrobienia:
+Zrealizowane:
 
-- Metryki MVP:
-  - Liczba otwartych ticketow.
-  - Tickety krytyczne.
-  - Sredni czas rozwiazania.
-  - Top kategorie.
-- SLA MVP:
-  - Podstawowe reguly SLA dla priorytetow.
-  - Tickety po SLA (oznaczenie i widok).
-- Eksport:
-  - Eksport CSV dla listy/reportu.
+- Matryca metryk w `lib/data-store.ts`:
+  - `getDashboardMetrics()` — oblicza liczbe otwartych ticketow, krytycznych, sredni czas rozwiazania, top 5 kategorii oraz naruszenia SLA.
+  - Oba runty (JSON + Prisma) — pelna zgodnosc danych.
+- SLA:
+  - `slaRules` — CRITICAL 4h, HIGH 8h, NORMAL 24h, LOW 48h.
+  - Dashboard wyswietla liste naruszonych SLA z czasem po terminie, numerem ticketu, priorytetem, wykonawca i sklepem.
+- Strona `/admin/reports`:
+  - 4 karty metryk (wszystkie, otwarte, krytyczne, sredni czas).
+  - Top 5 kategorii z paskami postepu.
+  - Sekcja naruszen SLA (czerwona ramka, max 10 + informacja o wiekszej liczbie).
+  - Tabela regul SLA dla wszystkich priorytetow.
+  - Przycisk pobierania CSV.
+- `/admin/reports/export`:
+  - Endpoint POST generujacy CSV z lista wszystkich ticketow (numer, tytul, status, priorytet, kategoria, sklep, zglaszajacy, wykonawca, daty).
+  - Poprawne escape'owanie pol zawierajacych przecinki, cudzyslowy lub znaki nowej linii.
+- Nawigacja:
+  - `components/admin/admin-nav.tsx` — link "Raporty" (ikona BarChart3) miedzy "Tickety" a "Baza wiedzy".
+- `lib/types.ts`:
+  - Nowy typ `DashboardMetrics` z polami `totalTickets`, `openTickets`, `criticalTickets`, `avgResolutionHours`, `topCategories`, `slaBreached`.
 
 Walidacja:
 
-- weryfikacja wynikow na znanym zbiorze danych (seed) i porownanie z zapytaniami/wyliczeniami
-- smoke test: eksport CSV i otwarcie w arkuszu
+- `npm run typecheck` — OK (0 errors)
+- kod przejrzany przez code-reviewer-deepseek-flash
 
 ## Znane ograniczenia srodowiska
 

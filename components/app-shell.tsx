@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen, ClipboardList, LayoutDashboard, LogOut, Plus, ShieldCheck } from "lucide-react";
+import { BookOpen, ClipboardList, LayoutDashboard, LogOut, Plus, ShieldCheck, Store } from "lucide-react";
 import { logoutAction } from "@/app/login/actions";
 import { RoleBadge } from "@/components/badges";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -33,6 +33,11 @@ export function AppShell({ user, children }: { user: User; children: React.React
             <NavLink href="/knowledge" icon={<BookOpen size={17} />}>
               Baza wiedzy
             </NavLink>
+            {user.role === "STORE_MANAGER" && user.storeId ? (
+              <NavLink href="/store" icon={<Store size={17} />}>
+                Moj sklep
+              </NavLink>
+            ) : null}
             {admin ? (
               <NavLink href="/admin/tickets" icon={<LayoutDashboard size={17} />}>
                 Panel IT
@@ -70,6 +75,11 @@ export function AppShell({ user, children }: { user: User; children: React.React
           <NavLink href="/knowledge" icon={<BookOpen size={17} />}>
             Wiedza
           </NavLink>
+          {user.role === "STORE_MANAGER" && user.storeId ? (
+            <NavLink href="/store" icon={<Store size={17} />}>
+              Sklep
+            </NavLink>
+          ) : null}
           {admin ? (
             <NavLink href="/admin/tickets" icon={<ShieldCheck size={17} />}>
               IT

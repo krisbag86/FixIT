@@ -2,7 +2,7 @@
 
 import { Paperclip, Upload, X } from "lucide-react";
 import { useRef, useState } from "react";
-import { formatFileSize } from "@/lib/storage";
+import { formatFileSize } from "@/lib/storage-utils";
 import type { TicketAttachment } from "@/lib/types";
 
 type PendingFile = {
