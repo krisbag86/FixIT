@@ -58,6 +58,7 @@ model User {
   reportedTickets   Ticket[]           @relation("TicketReporter")
   assignedTickets   Ticket[]           @relation("TicketAssignee")
   comments          TicketComment[]
+  attachments       TicketAttachment[] @relation("AttachmentUploadedBy")
   events            TicketEvent[]
   defaultCategories Category[]         @relation("CategoryDefaultAssignee")
   articlesCreated   KnowledgeArticle[] @relation("ArticleCreatedBy")
@@ -163,17 +164,22 @@ model TicketComment {
 }
 
 model TicketAttachment {
-  id         String   @id @default(cuid())
-  ticketId   String
-  commentId  String?
-  filename   String
-  mimeType   String
-  size       Int
-  storageKey String
-  createdAt  DateTime @default(now())
+  id           String   @id @default(cuid())
+  ticketId     String
+  commentId    String?
+  filename     String
+  mimeType     String
+  size         Int
+  storageKey   String
+  uploadedById String?
+  createdAt    DateTime @default(now())
 
-  ticket  Ticket         @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  comment TicketComment? @relation(fields: [commentId], references: [id], onDelete: SetNull)
+  ticket      Ticket         @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  comment     TicketComment? @relation(fields: [commentId], references: [id], onDelete: SetNull)
+  uploadedBy  User?          @relation("AttachmentUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([ticketId])
+  @@index([commentId])
 }
 
 model TicketEvent {

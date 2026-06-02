@@ -70,6 +70,18 @@ export type TicketComment = {
   createdAt: string;
 };
 
+export type TicketAttachment = {
+  id: string;
+  ticketId: string;
+  commentId?: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  storageKey: string;
+  uploadedById?: string;
+  createdAt: string;
+};
+
 export type TicketEvent = {
   id: string;
   ticketId: string;
@@ -110,6 +122,7 @@ export type Database = {
   categories: Category[];
   tickets: Ticket[];
   comments: TicketComment[];
+  attachments: TicketAttachment[];
   events: TicketEvent[];
   knowledgeArticles: KnowledgeArticle[];
   notificationLogs: NotificationLog[];

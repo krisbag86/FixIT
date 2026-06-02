@@ -14,6 +14,7 @@ import type {
   NotificationLog,
   Store,
   Ticket,
+  TicketAttachment,
   TicketComment,
   TicketEvent,
   TicketPriority,
@@ -127,6 +128,20 @@ function mapComment(comment: Prisma.TicketCommentGetPayload<object>): TicketComm
   };
 }
 
+function mapAttachment(attachment: Prisma.TicketAttachmentGetPayload<object>): TicketAttachment {
+  return {
+    id: attachment.id,
+    ticketId: attachment.ticketId,
+    commentId: definedString(attachment.commentId),
+    filename: attachment.filename,
+    mimeType: attachment.mimeType,
+    size: attachment.size,
+    storageKey: attachment.storageKey,
+    uploadedById: definedString(attachment.uploadedById),
+    createdAt: iso(attachment.createdAt) ?? ""
+  };
+}
+
 function mapEvent(event: Prisma.TicketEventGetPayload<object>): TicketEvent {
   const payload = typeof event.payload === "object" && event.payload !== null && !Array.isArray(event.payload) ? event.payload : undefined;
 
@@ -169,7 +184,11 @@ function mapNotificationLog(log: Prisma.NotificationLogGetPayload<object>): Noti
 async function ensureDatabase(): Promise<Database> {
   try {
     const raw = await readFile(dataFile, "utf8");
-    return JSON.parse(raw) as Database;
+    const parsed = JSON.parse(raw) as Partial<Database>;
+    if (!Array.isArray(parsed.attachments)) {
+      parsed.attachments = [];
+    }
+    return parsed as Database;
   } catch {
     const seed = createSeedDatabase();
     await writeDatabase(seed);
@@ -181,13 +200,14 @@ export async function readDatabase(): Promise<Database> {
   noStore();
   if (shouldUsePrisma()) {
     const db = await getPrisma();
-    const [users, stores, categories, tickets, comments, events, knowledgeArticles, notificationLogs, counters] =
+    const [users, stores, categories, tickets, comments, attachments, events, knowledgeArticles, notificationLogs, counters] =
       await Promise.all([
         db.user.findMany(),
         db.store.findMany(),
         db.category.findMany(),
         db.ticket.findMany(),
         db.ticketComment.findMany(),
+        db.ticketAttachment.findMany(),
         db.ticketEvent.findMany(),
         db.knowledgeArticle.findMany(),
         db.notificationLog.findMany(),
@@ -203,6 +223,7 @@ export async function readDatabase(): Promise<Database> {
       categories: categories.map(mapCategory),
       tickets: tickets.map(mapTicket),
       comments: comments.map(mapComment),
+      attachments: attachments.map(mapAttachment),
       events: events.map(mapEvent),
       knowledgeArticles: knowledgeArticles.map(mapKnowledgeArticle),
       notificationLogs: notificationLogs.map(mapNotificationLog)
@@ -1013,5 +1034,91 @@ export async function deleteKnowledgeArticle(id: string): Promise<boolean> {
     if (idx === -1) return false;
     database.knowledgeArticles.splice(idx, 1);
     return true;
+  });
+}
+
+export async function listAttachments(ticketId: string): Promise<TicketAttachment[]> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const attachments = await db.ticketAttachment.findMany({
+      where: { ticketId },
+      orderBy: { createdAt: "asc" }
+    });
+    return attachments.map(mapAttachment);
+  }
+
+  const database = await readDatabase();
+  return database.attachments
+    .filter((a) => a.ticketId === ticketId)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+
+export async function findAttachment(id: string): Promise<TicketAttachment | undefined> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const attachment = await db.ticketAttachment.findUnique({ where: { id } });
+    return attachment ? mapAttachment(attachment) : undefined;
+  }
+
+  const database = await readDatabase();
+  return database.attachments.find((a) => a.id === id);
+}
+
+export async function createAttachment(input: {
+  ticketId: string;
+  commentId?: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  storageKey: string;
+  uploadedById: string;
+}): Promise<TicketAttachment> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const attachment = await db.ticketAttachment.create({
+      data: {
+        ticketId: input.ticketId,
+        commentId: input.commentId,
+        filename: input.filename,
+        mimeType: input.mimeType,
+        size: input.size,
+        storageKey: input.storageKey,
+        uploadedById: input.uploadedById
+      }
+    });
+    return mapAttachment(attachment);
+  }
+
+  return withDatabase((database) => {
+    const attachment: TicketAttachment = {
+      id: id("att"),
+      ticketId: input.ticketId,
+      commentId: input.commentId,
+      filename: input.filename,
+      mimeType: input.mimeType,
+      size: input.size,
+      storageKey: input.storageKey,
+      uploadedById: input.uploadedById,
+      createdAt: now()
+    };
+    database.attachments.push(attachment);
+    return attachment;
+  });
+}
+
+export async function deleteAttachment(id: string): Promise<TicketAttachment | undefined> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const attachment = await db.ticketAttachment.findUnique({ where: { id } });
+    if (!attachment) return undefined;
+    await db.ticketAttachment.delete({ where: { id } });
+    return mapAttachment(attachment);
+  }
+
+  return withDatabase((database) => {
+    const idx = database.attachments.findIndex((a) => a.id === id);
+    if (idx === -1) return undefined;
+    const [removed] = database.attachments.splice(idx, 1);
+    return removed;
   });
 }

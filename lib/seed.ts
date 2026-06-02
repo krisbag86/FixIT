@@ -122,6 +122,7 @@ export function createSeedDatabase(): Database {
         createdAt: "2026-06-01T09:06:00.000Z"
       }
     ],
+    attachments: [],
     events: [
       {
         id: "e_001",

@@ -1,16 +1,18 @@
 import { MessageSquare, Save } from "lucide-react";
 import { addCommentAction, updateTicketAction } from "@/app/actions";
 import { PriorityBadge, StatusBadge, VisibilityBadge } from "@/components/badges";
+import { AttachmentUpload } from "@/components/tickets/attachment-upload";
 import { formatDateTime } from "@/lib/format";
 import { priorityLabels, statusLabels, ticketPriorities, ticketStatuses } from "@/lib/labels";
 import { can, isAgent } from "@/lib/permissions";
-import type { Category, Store, Ticket, TicketComment, TicketEvent, User } from "@/lib/types";
+import type { Category, Store, Ticket, TicketAttachment, TicketComment, TicketEvent, User } from "@/lib/types";
 
 export function TicketDetail({
   currentUser,
   ticket,
   comments,
   events,
+  attachments = [],
   users,
   categories,
   stores,
@@ -20,6 +22,7 @@ export function TicketDetail({
   ticket: Ticket;
   comments: TicketComment[];
   events: TicketEvent[];
+  attachments?: TicketAttachment[];
   users: User[];
   categories: Category[];
   stores: Store[];
@@ -47,6 +50,9 @@ export function TicketDetail({
             </div>
           </div>
           <p className="whitespace-pre-wrap leading-7 text-ink/80 dark:text-paper/80">{ticket.description}</p>
+          <div className="mt-4">
+            <AttachmentUpload ticketId={ticket.id} initialAttachments={attachments} />
+          </div>
         </div>
 
         <div className="rounded-md border border-black/10 bg-white/80 p-5 shadow-sm dark:border-white/10 dark:bg-white/10">
