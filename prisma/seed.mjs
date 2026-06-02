@@ -49,7 +49,8 @@ async function main() {
       email: "admin@bagietka.pl",
       role: "ADMIN",
       department: "IT",
-      isActive: true
+      isActive: true,
+      passwordHash: "bbee40413ae94dfc2d463f51eb1fc703:6c6e44a5d1b3798fa02baa515a3cd85b5a04d195425c807cc5cc235546d02e4257355007fa1ea67e3a1cf8b6af1495828d23232b12aa63dc97fc3935abd35bbe"
     },
     {
       id: "usr_agent",

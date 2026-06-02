@@ -50,9 +50,10 @@ model User {
   role       UserRole @default(REPORTER)
   storeId    String?
   department String?
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  isActive     Boolean  @default(true)
+  passwordHash String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   store             Store?             @relation(fields: [storeId], references: [id])
   reportedTickets   Ticket[]           @relation("TicketReporter")

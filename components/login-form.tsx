@@ -26,6 +26,23 @@ export function LoginForm() {
         </div>
       </div>
 
+      <div>
+        <label className="mb-2 block text-sm font-semibold tracking-wide text-ink/80 dark:text-paper/80" htmlFor="password">
+          Hasło
+        </label>
+        <div className="relative">
+          <LogIn size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink/40 dark:text-paper/40" />
+          <input
+            id="password"
+            name="password"
+            type="password"
+            placeholder="Twoje hasło"
+            className="h-13 w-full rounded-xl border border-white/20 bg-white/80 py-3 pl-11 pr-4 text-ink outline-none ring-mint/20 transition-all duration-300 focus:border-mint focus:ring-4 focus:shadow-lg focus:shadow-mint/10 dark:border-white/5 dark:bg-white/5 dark:text-paper dark:focus:shadow-mint/5"
+            required
+          />
+        </div>
+      </div>
+
       {error ? (
         <div className="flex items-start gap-2.5 rounded-xl bg-red-500/10 p-3.5 text-sm font-medium text-red-600 shadow-sm dark:text-red-300">
           <AlertCircle size={18} className="mt-0.5 shrink-0" />
@@ -40,7 +57,7 @@ export function LoginForm() {
       >
         <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
         <LogIn size={18} className="transition-transform duration-300 group-hover:translate-x-0.5" />
-        <span className="relative">{pending ? "Logowanie…" : "Wejdź do FixIT"}</span>
+        <span className="relative">{pending ? "Logowanie…" : "Zaloguj się"}</span>
       </button>
     </form>
   );

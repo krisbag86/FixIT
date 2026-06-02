@@ -31,6 +31,7 @@ export type User = {
   storeId?: string;
   department?: string;
   isActive: boolean;
+  passwordHash?: string;
 };
 
 export type Category = {

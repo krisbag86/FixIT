@@ -2,19 +2,38 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { createOrFindUser } from "@/lib/data-store";
+import { findUserByEmail } from "@/lib/data-store";
+import { verifyPassword } from "@/lib/password";
 import { isAllowedBagietkaEmail, normalizeEmail } from "@/lib/email-domain";
 import { sessionCookieName } from "@/lib/auth";
 import { signSessionValue } from "@/lib/cookie-signature";
 
 export async function loginAction(_previousState: string | undefined, formData: FormData): Promise<string | undefined> {
   const email = normalizeEmail(String(formData.get("email") ?? ""));
+  const password = String(formData.get("password") ?? "");
 
   if (!isAllowedBagietkaEmail(email)) {
-    return "Podaj sluzbowy adres w dokladnej domenie bagietka.pl.";
+    return "Podaj służbowy adres w domenie bagietka.pl.";
   }
 
-  const user = await createOrFindUser(email);
+  if (!password) {
+    return "Podaj hasło.";
+  }
+
+  const user = await findUserByEmail(email);
+
+  if (!user) {
+    return "Nie znaleziono użytkownika o podanym adresie. Skontaktuj się z administratorem.";
+  }
+
+  if (!user.passwordHash) {
+    return "Konto nie ma ustawionego hasła. Skontaktuj się z administratorem.";
+  }
+
+  if (!verifyPassword(password, user.passwordHash)) {
+    return "Nieprawidłowe hasło.";
+  }
+
   const cookieStore = await cookies();
   cookieStore.set(sessionCookieName, signSessionValue(user.id), {
     httpOnly: true,

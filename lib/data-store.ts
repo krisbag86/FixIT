@@ -75,7 +75,7 @@ function definedString(value: string | null | undefined): string | undefined {
   return value ?? undefined;
 }
 
-function mapUser(user: Prisma.UserGetPayload<object>): User {
+function mapUser(user: Prisma.UserGetPayload<object> & { passwordHash?: string | null }): User {
   return {
     id: user.id,
     name: user.name ?? user.email,
@@ -83,7 +83,8 @@ function mapUser(user: Prisma.UserGetPayload<object>): User {
     role: user.role,
     storeId: definedString(user.storeId),
     department: definedString(user.department),
-    isActive: user.isActive
+    isActive: user.isActive,
+    passwordHash: definedString((user as any).passwordHash)
   };
 }
 
@@ -478,47 +479,15 @@ export async function listAdminAuditLogs(limit = 20): Promise<AdminAuditLog[]> {
     .slice(0, limit);
 }
 
-export async function createOrFindUser(email: string): Promise<User> {
+export async function findUserByEmail(email: string): Promise<User | undefined> {
   if (shouldUsePrisma()) {
     const db = await getPrisma();
-    const existing = await db.user.findUnique({ where: { email } });
-
-    if (existing) {
-      return mapUser(existing);
-    }
-
-    const created = await db.user.create({
-      data: {
-        name: email.split("@")[0].replace(/[._-]/g, " "),
-        email,
-        role: "REPORTER",
-        department: "Biuro",
-        isActive: true
-      }
-    });
-
-    return mapUser(created);
+    const user = await db.user.findUnique({ where: { email } });
+    return user ? mapUser(user) : undefined;
   }
 
-  return withDatabase((database) => {
-    const existing = database.users.find((user) => user.email === email);
-
-    if (existing) {
-      return existing;
-    }
-
-    const user: User = {
-      id: id("usr"),
-      name: email.split("@")[0].replace(/[._-]/g, " "),
-      email,
-      role: "REPORTER",
-      department: "Biuro",
-      isActive: true
-    };
-
-    database.users.push(user);
-    return user;
-  });
+  const database = await readDatabase();
+  return database.users.find((user) => user.email === email && user.isActive);
 }
 
 export async function findUserById(userId: string): Promise<User | undefined> {
