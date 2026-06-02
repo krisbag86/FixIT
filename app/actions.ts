@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
-import { addComment, createTicket, findTicket, readDatabase, updateNotificationLog, updateTicket } from "@/lib/data-store";
+import { addComment, createKnowledgeArticle, createTicket, deleteKnowledgeArticle, findTicket, readDatabase, updateKnowledgeArticle, updateNotificationLog, updateTicket } from "@/lib/data-store";
 import { can, canViewTicket } from "@/lib/permissions";
 import { sendEmail } from "@/lib/email";
 import { templateTicketCreated, templateTicketResolved, templateTicketAssigned, templateCommentAdded } from "@/lib/email-templates";
@@ -243,4 +243,72 @@ export async function addCommentAction(formData: FormData): Promise<void> {
 
   revalidatePath(`/tickets/${ticket.id}`);
   revalidatePath(`/admin/tickets/${ticket.id}`);
+}
+
+const knowledgeSchema = z.object({
+  title: z.string().min(3).max(200),
+  slug: z.string().min(3).max(200).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  body: z.string().min(10).max(10000),
+  categoryId: z.string().optional(),
+  isPublished: z.boolean()
+});
+
+export async function createKnowledgeArticleAction(formData: FormData): Promise<void> {
+  const user = await requireUser();
+
+  if (!can(user, "admin:manage-faq")) {
+    throw new Error("Brak uprawnien do zarzadzania baza wiedzy.");
+  }
+
+  const input = knowledgeSchema.parse({
+    title: String(formData.get("title") ?? ""),
+    slug: String(formData.get("slug") ?? ""),
+    body: String(formData.get("body") ?? ""),
+    categoryId: String(formData.get("categoryId") || "") || undefined,
+    isPublished: formData.get("isPublished") === "on"
+  });
+
+  await createKnowledgeArticle({ ...input, createdById: user.id });
+
+  revalidatePath("/knowledge");
+  revalidatePath("/admin/knowledge");
+  redirect("/admin/knowledge");
+}
+
+export async function updateKnowledgeArticleAction(formData: FormData): Promise<void> {
+  const user = await requireUser();
+
+  if (!can(user, "admin:manage-faq")) {
+    throw new Error("Brak uprawnien do zarzadzania baza wiedzy.");
+  }
+
+  const id = String(formData.get("id") ?? "");
+
+  const input = knowledgeSchema.parse({
+    title: String(formData.get("title") ?? ""),
+    slug: String(formData.get("slug") ?? ""),
+    body: String(formData.get("body") ?? ""),
+    categoryId: String(formData.get("categoryId") || "") || undefined,
+    isPublished: formData.get("isPublished") === "on"
+  });
+
+  await updateKnowledgeArticle({ ...input, id, updatedById: user.id });
+
+  revalidatePath("/knowledge");
+  revalidatePath("/admin/knowledge");
+  redirect("/admin/knowledge");
+}
+
+export async function deleteKnowledgeArticleAction(formData: FormData): Promise<void> {
+  const user = await requireUser();
+
+  if (!can(user, "admin:manage-faq")) {
+    throw new Error("Brak uprawnien do zarzadzania baza wiedzy.");
+  }
+
+  const id = String(formData.get("id") ?? "");
+  await deleteKnowledgeArticle(id);
+
+  revalidatePath("/knowledge");
+  revalidatePath("/admin/knowledge");
 }

@@ -147,7 +147,9 @@ function mapKnowledgeArticle(article: Prisma.KnowledgeArticleGetPayload<object>)
     slug: article.slug,
     body: article.body,
     categoryId: definedString(article.categoryId),
-    isPublished: article.isPublished
+    isPublished: article.isPublished,
+    createdById: definedString(article.createdById),
+    updatedById: definedString(article.updatedById)
   };
 }
 
@@ -861,4 +863,155 @@ export async function getNotificationLog(notificationId: string): Promise<Notifi
 
   const database = await readDatabase();
   return database.notificationLogs.find((item) => item.id === notificationId);
+}
+
+export async function listPublishedKnowledgeArticles(options?: { categoryId?: string; query?: string }): Promise<KnowledgeArticle[]> {
+  const categoryId = options?.categoryId;
+  const query = options?.query?.toLowerCase().trim();
+
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const where: Record<string, unknown> = { isPublished: true };
+    if (categoryId) where.categoryId = categoryId;
+    if (query) {
+      where.OR = [
+        { title: { contains: query, mode: "insensitive" } },
+        { body: { contains: query, mode: "insensitive" } }
+      ];
+    }
+    const articles = await db.knowledgeArticle.findMany({
+      where,
+      orderBy: { title: "asc" }
+    });
+    return articles.map(mapKnowledgeArticle);
+  }
+
+  const database = await readDatabase();
+  return database.knowledgeArticles
+    .filter((a) => a.isPublished)
+    .filter((a) => !categoryId || a.categoryId === categoryId)
+    .filter((a) => !query || a.title.toLowerCase().includes(query) || a.body.toLowerCase().includes(query))
+    .sort((a, b) => a.title.localeCompare(b.title));
+}
+
+export async function listKnowledgeArticles(): Promise<KnowledgeArticle[]> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const articles = await db.knowledgeArticle.findMany({ orderBy: { title: "asc" } });
+    return articles.map(mapKnowledgeArticle);
+  }
+
+  const database = await readDatabase();
+  return [...database.knowledgeArticles].sort((a, b) => a.title.localeCompare(b.title));
+}
+
+export async function findKnowledgeArticleBySlug(slug: string): Promise<KnowledgeArticle | undefined> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const article = await db.knowledgeArticle.findUnique({ where: { slug } });
+    return article ? mapKnowledgeArticle(article) : undefined;
+  }
+
+  const database = await readDatabase();
+  return database.knowledgeArticles.find((a) => a.slug === slug);
+}
+
+export async function findKnowledgeArticleById(id: string): Promise<KnowledgeArticle | undefined> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const article = await db.knowledgeArticle.findUnique({ where: { id } });
+    return article ? mapKnowledgeArticle(article) : undefined;
+  }
+
+  const database = await readDatabase();
+  return database.knowledgeArticles.find((a) => a.id === id);
+}
+
+export async function createKnowledgeArticle(input: {
+  title: string;
+  slug: string;
+  body: string;
+  categoryId?: string;
+  isPublished: boolean;
+  createdById: string;
+}): Promise<KnowledgeArticle> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const article = await db.knowledgeArticle.create({
+      data: {
+        title: input.title,
+        slug: input.slug,
+        body: input.body,
+        categoryId: input.categoryId,
+        isPublished: input.isPublished,
+        createdById: input.createdById
+      }
+    });
+    return mapKnowledgeArticle(article);
+  }
+
+  return withDatabase((database) => {
+    const article: KnowledgeArticle = {
+      id: id("ka"),
+      title: input.title,
+      slug: input.slug,
+      body: input.body,
+      categoryId: input.categoryId,
+      isPublished: input.isPublished
+    };
+    database.knowledgeArticles.push(article);
+    return article;
+  });
+}
+
+export async function updateKnowledgeArticle(input: {
+  id: string;
+  title: string;
+  slug: string;
+  body: string;
+  categoryId?: string;
+  isPublished: boolean;
+  updatedById: string;
+}): Promise<KnowledgeArticle | undefined> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const article = await db.knowledgeArticle.update({
+      where: { id: input.id },
+      data: {
+        title: input.title,
+        slug: input.slug,
+        body: input.body,
+        categoryId: input.categoryId,
+        isPublished: input.isPublished,
+        updatedById: input.updatedById
+      }
+    });
+    return mapKnowledgeArticle(article);
+  }
+
+  return withDatabase((database) => {
+    const article = database.knowledgeArticles.find((a) => a.id === input.id);
+    if (!article) return undefined;
+    article.title = input.title;
+    article.slug = input.slug;
+    article.body = input.body;
+    article.categoryId = input.categoryId;
+    article.isPublished = input.isPublished;
+    return article;
+  });
+}
+
+export async function deleteKnowledgeArticle(id: string): Promise<boolean> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    await db.knowledgeArticle.delete({ where: { id } });
+    return true;
+  }
+
+  return withDatabase((database) => {
+    const idx = database.knowledgeArticles.findIndex((a) => a.id === id);
+    if (idx === -1) return false;
+    database.knowledgeArticles.splice(idx, 1);
+    return true;
+  });
 }

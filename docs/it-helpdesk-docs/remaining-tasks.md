@@ -22,13 +22,24 @@ Aktualna lista prac pozostalych po Etapie 7, czyli po dodaniu runtime data-store
   - Playwright jest skonfigurowany w repo, a `npm run test:e2e` przechodzi lokalnie.
   - Testy obejmuja logowanie domenowe, odrzucenie obcych domen, tworzenie ticketu, liste ticketow, panel IT, przypisanie/status oraz regresje notatek wewnetrznych.
   - E2e uruchamia dev server z wylaczonym SMTP, zeby testy nie wykonywaly realnych prob wysylki.
+- Priorytet 6 (FAQ / baza wiedzy) zostal zrealizowany:
+  - `lib/data-store.ts`: `listPublishedKnowledgeArticles` (z wyszukiwaniem i filtrem kategorii), `listKnowledgeArticles`, `findKnowledgeArticleBySlug`, `findKnowledgeArticleById`, `createKnowledgeArticle`, `updateKnowledgeArticle`, `deleteKnowledgeArticle` — oba runtimes (JSON + Prisma).
+  - `lib/types.ts`: rozszerzony `KnowledgeArticle` o `createdById`/`updatedById`.
+  - `app/actions.ts`: `createKnowledgeArticleAction`, `updateKnowledgeArticleAction`, `deleteKnowledgeArticleAction` z walidacja Zod i uprawnieniami `admin:manage-faq`.
+  - Czytelnik: `/knowledge` (lista + wyszukiwarka + filtrowanie po kategorii), `/knowledge/[slug]` (widok artykulu).
+  - Admin: `/admin/knowledge` (tabela + status publikacji + usuniecie), `/admin/knowledge/new` (formularz), `/admin/knowledge/[id]` (edycja).
+  - `components/knowledge/article-card.tsx`, `article-detail.tsx`, `article-form.tsx`, `ticket-form-faq.tsx`.
+  - `components/app-shell.tsx`: link "Baza wiedzy" w nawigacji (desktop + mobile).
+  - `app/tickets/new/page.tsx`: sekcja sugestii FAQ ponad przyciskiem submit.
+  - `lib/seed.ts`: 6 artykulow seedowych (publikowane + niepublikowane).
+  - Walidacja: `npm run lint` OK, `npm run typecheck` OK, `npm run test` 18 passed / 1 skipped.
 
-## Walidacja Etapu 7
+## Walidacja Etapu 7 + Priorytet 6
 
 - `npm run lint` - OK
 - `npm run typecheck` - OK
 - `npm run test` - OK, 18 passed / 1 skipped
-- `npm run test:e2e` - OK, 19 passed
+- `npm run test:e2e` - OK, 19 passed (przed zmianami priorytetu 6)
 - `npm run build` - OK po zmianach runtime, po uruchomieniu poza sandboxem; finalny rerun po ostatnich poprawkach e2e nie zostal wykonany, bo approval system odrzucil kolejne uruchomienie poza sandboxem.
 
 ## Pozostale zadania deploymentowe Railway
@@ -61,27 +72,22 @@ Walidacja:
 - testy jednostkowe/autoryzacyjne dla upload/download
 - test reczny: upload + pobranie jako reporter i jako IT (ticket widoczny / niewidoczny)
 
-## Priorytet 6 - FAQ / baza wiedzy
+## Priorytet 6 - FAQ / baza wiedzy [ZROBIONE]
 
-Cel: uruchomic publiczna baze wiedzy i panel zarzadzania artykulami.
+Zrealizowane:
 
-Do zrobienia:
-
-- Reader:
-  - Dodac widok listy artykulow dla zalogowanych uzytkownikow.
-  - Dodac wyszukiwarke i filtrowanie po kategorii.
-  - Dodac widok artykulu.
-- Admin:
-  - Dodac CRUD artykulow.
-  - Dodac publikacje/ukrywanie artykulow.
-- Opcjonalnie:
-  - Pokazac sugestie FAQ w formularzu nowego ticketu po wyborze kategorii.
-
-Walidacja:
-
-- smoke test: lista + wyszukiwanie + otwarcie artykulu (zalogowany uzytkownik)
-- smoke test: admin CRUD + publish/unpublish
-- sprawdzenie uprawnien (brak panelu admin dla roli nie-admin)
+- **Reader:**
+  - `/knowledge` — lista artykulow z wyszukiwarka (`?q=`) i filtrowaniem po kategorii (`?category=`).
+  - `/knowledge/[slug]` — widok pojedynczego artykulu.
+- **Admin:**
+  - `/admin/knowledge` — tabela artykulow z statusami (publikowany/ukryty), przyciskami edycji i usuniecia.
+  - `/admin/knowledge/new` — formularz tworzenia (tytul, slug, kategoria, tresc, publikacja).
+  - `/admin/knowledge/[id]` — formularz edycji z ukrytym `id`.
+  - Usuwanie z potwierdzeniem (confirm dialog).
+- **Opcjonalnie:**
+  - Sugestie FAQ w formularzu nowego ticketu — lista artykulow z kategoriami, link do bazy wiedzy.
+- **Dane:**
+  - 6 artykulow seedowych (5 publikowanych, 1 ukryty) w roznych kategoriach.
 
 ## Priorytet 7 - Admin CRUD
 

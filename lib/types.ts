@@ -86,6 +86,8 @@ export type KnowledgeArticle = {
   body: string;
   categoryId?: string;
   isPublished: boolean;
+  createdById?: string;
+  updatedById?: string;
 };
 
 export type NotificationLog = {

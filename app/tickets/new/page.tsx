@@ -1,13 +1,14 @@
 import { Send } from "lucide-react";
 import { createTicketAction } from "@/app/actions";
 import { AppShell } from "@/components/app-shell";
+import { TicketFormFaq } from "@/components/knowledge/ticket-form-faq";
 import { requireUser } from "@/lib/auth";
-import { readDatabase } from "@/lib/data-store";
+import { listPublishedKnowledgeArticles, readDatabase } from "@/lib/data-store";
 import { priorityLabels, ticketPriorities } from "@/lib/labels";
 
 export default async function NewTicketPage() {
   const user = await requireUser();
-  const database = await readDatabase();
+  const [database, articles] = await Promise.all([readDatabase(), listPublishedKnowledgeArticles()]);
   const stores = database.stores.filter((store) => store.isActive);
   const categories = database.categories.filter((category) => category.isActive);
 
@@ -67,6 +68,7 @@ export default async function NewTicketPage() {
           <input name="blocksWork" type="checkbox" className="h-5 w-5 accent-mint" />
           Blokuje sprzedaz lub prace
         </label>
+        <TicketFormFaq articles={articles} categories={categories} />
         <div className="lg:col-span-2">
           <button type="submit" className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-mint px-5 font-black text-white transition hover:bg-mint/90 sm:w-auto">
             <Send size={18} />

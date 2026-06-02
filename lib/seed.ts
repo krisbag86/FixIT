@@ -147,6 +147,46 @@ export function createSeedDatabase(): Database {
         body: "Odlacz terminal od zasilania na 20 sekund, wlacz ponownie i sprawdz polaczenie.",
         categoryId: "cat_terminal",
         isPublished: true
+      },
+      {
+        id: "ka_002",
+        title: "Jak wydrukowac raport dobowy na kasie",
+        slug: "raport-dobowy-kasa",
+        body: "Na ekranie glownym kasy wybierz 'Raporty' → 'Raport dobowy'. Kasa wydrukuje podsumowanie sprzedazy. Jesli drukarka nie reaguje, sprawdz czy jest wlaczona i czy ma papier.",
+        categoryId: "cat_pos",
+        isPublished: true
+      },
+      {
+        id: "ka_003",
+        title: "Reset hasla do poczty sluzbowej",
+        slug: "reset-hasla-poczta",
+        body: "Skontaktuj sie z IT przez FixIT (nowe zgloszenie → kategoria Poczta). Nowe haslo zostanie wyslane na Twoj numer telefonu w systemie HR.",
+        categoryId: "cat_mail",
+        isPublished: true
+      },
+      {
+        id: "ka_004",
+        title: "Co zrobic gdy internet nie dziala",
+        slug: "internet-nie-dziala",
+        body: "1. Sprawdz czy switch/swiatla na routerze sa zielone.\n2. Restartuj router (odlacz zasilanie na 30 sekund).\n3. Jesli to nie pomaga, utworz zgloszenie w FixIT z kategoria Internet / siec.",
+        categoryId: "cat_network",
+        isPublished: true
+      },
+      {
+        id: "ka_005",
+        title: "Zmiana papieru w drukarce fiskalnej",
+        slug: "zmiana-papieru-drukarka",
+        body: "1. Otworz pokrywe drukarki.\n2. Wloz nowa role papieru zgodnie z kierunkiem nadruku na obudowie.\n3. Zamknij pokrywe – drukarka automatycznie przyjmie papier.\n4. Jesli papier sie zacina, otworz ponownie i wyrownaj krawedz.",
+        categoryId: "cat_printer",
+        isPublished: true
+      },
+      {
+        id: "ka_006",
+        title: "Jak zamowic nowy sprzet IT",
+        slug: "zamowienie-sprzetu",
+        body: "Nowy sprzet (komputer, drukarka, terminal) zamawiasz przez zgloszenie w FixIT. Opisz czego potrzebujesz i uzasadnij. Decyzje podejmuje IT w porozumieniu z kierownikiem.",
+        categoryId: "cat_computer",
+        isPublished: false
       }
     ],
     notificationLogs: [

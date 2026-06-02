@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ClipboardList, LayoutDashboard, LogOut, Plus, ShieldCheck } from "lucide-react";
+import { BookOpen, ClipboardList, LayoutDashboard, LogOut, Plus, ShieldCheck } from "lucide-react";
 import { logoutAction } from "@/app/login/actions";
 import { RoleBadge } from "@/components/badges";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -29,6 +29,9 @@ export function AppShell({ user, children }: { user: User; children: React.React
             </NavLink>
             <NavLink href="/tickets/new" icon={<Plus size={17} />}>
               Nowe
+            </NavLink>
+            <NavLink href="/knowledge" icon={<BookOpen size={17} />}>
+              Baza wiedzy
             </NavLink>
             {admin ? (
               <NavLink href="/admin/tickets" icon={<LayoutDashboard size={17} />}>
@@ -63,6 +66,9 @@ export function AppShell({ user, children }: { user: User; children: React.React
           </NavLink>
           <NavLink href="/tickets/new" icon={<Plus size={17} />}>
             Nowe
+          </NavLink>
+          <NavLink href="/knowledge" icon={<BookOpen size={17} />}>
+            Wiedza
           </NavLink>
           {admin ? (
             <NavLink href="/admin/tickets" icon={<ShieldCheck size={17} />}>
