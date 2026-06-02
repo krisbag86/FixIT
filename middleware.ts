@@ -78,10 +78,17 @@ function isCSRFProtected(request: NextRequest): boolean {
 export function middleware(request: NextRequest): NextResponse | undefined {
   // CSRF check for API routes
   if (!isCSRFProtected(request)) {
-    return NextResponse.json(
+    const response = NextResponse.json(
       { error: "CSRF validation failed: nieprawidłowe źródło żądania." },
       { status: 403 }
     );
+
+    // Apply security headers even on failed CSRF responses
+    Object.entries(securityHeaders).forEach(([key, value]) => {
+      response.headers.set(key, value);
+    });
+
+    return response;
   }
 
   const response = NextResponse.next();
