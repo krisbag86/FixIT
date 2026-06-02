@@ -10,7 +10,7 @@ export function AppShell({ user, children }: { user: User; children: React.React
   const admin = canUseAdmin(user);
 
   return (
-    <div className="min-h-screen">
+    <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-20 border-b border-black/8 bg-paper/85 shadow-sm backdrop-blur-xl dark:border-white/8 dark:bg-ink/85">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <Link href="/" className="flex items-center gap-3">
@@ -87,7 +87,23 @@ export function AppShell({ user, children }: { user: User; children: React.React
           ) : null}
         </div>
       </header>
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">{children}</main>
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:py-8">{children}</main>
+
+        {/* Stopka */}
+        <footer className="border-t border-black/8 dark:border-white/8">
+          <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6">
+            <p className="text-center text-xs text-ink/40 dark:text-paper/40">
+              &copy; 2026 Krzysztof Graczyk. Wszelkie prawa zastrzeżone.
+            </p>
+          </div>
+        </footer>
+      <footer className="border-t border-black/8 dark:border-white/8">
+          <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6">
+            <p className="text-center text-xs text-ink/40 dark:text-paper/40">
+              &copy; 2026 Krzysztof Graczyk. Wszelkie prawa zastrzeżone.
+            </p>
+          </div>
+        </footer>
     </div>
   );
 }

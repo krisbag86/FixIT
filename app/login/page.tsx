@@ -40,6 +40,11 @@ export default async function LoginPage() {
             <ThemeToggle />
           </div>
           <LoginForm />
+
+          {/* Stopka */}
+          <p className="mt-6 text-center text-xs text-ink/40 dark:text-paper/40">
+            &copy; 2026 Krzysztof Graczyk. Wszelkie prawa zastrzeżone.
+          </p>
         </div>
       </section>
     </main>

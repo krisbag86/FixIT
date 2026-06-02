@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { findAttachment, findTicket } from "@/lib/data-store";
 import { canViewTicket } from "@/lib/permissions";
 import { isValidStorageKey, readAttachmentFile } from "@/lib/storage";
+import { reportError } from "@/lib/sentry";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +52,7 @@ export async function GET(
     });
   } catch (error) {
     console.error("Attachment read failed:", error);
+    reportError(error, { context: "attachmentDownload", attachmentId: id });
     return NextResponse.json({ error: "Nie udało się odczytać pliku." }, { status: 500 });
   }
 }
