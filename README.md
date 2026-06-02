@@ -170,3 +170,4 @@ npm run test:e2e
 ## 📄 Licencja
 
 Projekt wewnętrzny — **Bagietka Sp. z o.o.**
+
