@@ -3,25 +3,21 @@ import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const checks: Record<string, unknown> = {
-    status: "ok",
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime()
-  };
+  // Minimal health check — no operational details exposed to potential attackers
+  let database = "unknown";
 
-  // Check database connectivity (lazy import to avoid module-level initialization issues)
   try {
     const { prisma } = await import("@/lib/prisma");
     await prisma.$queryRaw`SELECT 1`;
-    checks.database = "connected";
-  } catch (error) {
-    checks.database = "disconnected";
-    checks.status = "degraded";
-    const message = error instanceof Error ? error.message : "Unknown database error";
-    checks.databaseError = message;
+    database = "connected";
+  } catch {
+    database = "disconnected";
   }
 
-  const statusCode = checks.status === "ok" ? 200 : 503;
+  const isHealthy = database === "connected";
 
-  return NextResponse.json(checks, { status: statusCode });
+  return NextResponse.json(
+    { status: isHealthy ? "ok" : "degraded" },
+    { status: isHealthy ? 200 : 503 }
+  );
 }

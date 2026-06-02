@@ -44,7 +44,8 @@ export async function GET(
       headers: {
         "Content-Type": attachment.mimeType,
         "Content-Length": String(attachment.size),
-        "Content-Disposition": `inline; filename="${safeName}"`,
+        "Content-Disposition": `attachment; filename="${safeName}"`,
+        "X-Content-Type-Options": "nosniff",
         "Cache-Control": "private, max-age=0, must-revalidate"
       }
     });
