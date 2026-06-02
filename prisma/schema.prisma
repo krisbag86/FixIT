@@ -64,6 +64,7 @@ model User {
   defaultCategories Category[]         @relation("CategoryDefaultAssignee")
   articlesCreated   KnowledgeArticle[] @relation("ArticleCreatedBy")
   articlesUpdated   KnowledgeArticle[] @relation("ArticleUpdatedBy")
+  sessions          Session[]
   adminAuditLogs    AdminAuditLog[]
 
   @@index([role])
@@ -233,6 +234,18 @@ model NotificationLog {
   @@index([ticketId])
   @@index([recipientEmail])
   @@index([createdAt])
+}
+
+model Session {
+  id        String   @id
+  userId    String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model AdminAuditLog {

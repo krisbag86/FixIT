@@ -116,6 +116,57 @@ describe('Email Templates', () => {
       expect(template.html).toContain(mockAgent.email);
     });
   });
+
+  describe('HTML escaping', () => {
+    const maliciousTicket: Ticket = {
+      ...mockTicket,
+      id: 't_hack',
+      title: '<script>alert("xss")</script>',
+      description: '<img src=x onerror=alert(1)>',
+    };
+
+    const maliciousComment: TicketComment = {
+      ...mockComment,
+      body: '<a href="javascript:alert(\'xss\')">click me</a>',
+    };
+
+    it('should escape HTML in ticket title (TicketCreated)', () => {
+      const template = templateTicketCreated(maliciousTicket, mockUser);
+      expect(template.html).toContain('&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;');
+      expect(template.html).not.toContain('<script>');
+    });
+
+    it('should escape HTML in ticket description (TicketCreated)', () => {
+      const template = templateTicketCreated(maliciousTicket, mockUser);
+      expect(template.html).toContain('&lt;img src=x onerror=alert(1)&gt;');
+      expect(template.html).not.toContain('<img');
+    });
+
+    it('should escape HTML in comment body (CommentAdded)', () => {
+      const template = templateCommentAdded(mockTicket, maliciousComment, mockAgent);
+      // User input in comment body should be HTML-escaped
+      expect(template.html).toContain("&lt;a href=&quot;javascript:");
+      expect(template.html).toContain("&gt;click me&lt;/a&gt;");
+      expect(template.html).toContain("alert(&#39;xss&#39;)"); // single quotes escaped to &#39;
+      // The template's own <a href> for the ticket link is legitimate
+    });
+
+    it('should escape HTML in ticket title (CommentAdded subject)', () => {
+      const template = templateCommentAdded(maliciousTicket, mockComment, mockAgent);
+      expect(template.subject).toContain('&lt;script&gt;');
+      expect(template.subject).not.toContain('<script>');
+    });
+
+    it('should escape email in HTML body', () => {
+      const maliciousUser: User = {
+        ...mockUser,
+        email: 'test<script>alert(1)</script>@bagietka.pl',
+      };
+      const template = templateTicketCreated(mockTicket, maliciousUser);
+      expect(template.html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;@bagietka.pl');
+      expect(template.html).not.toContain('<script>alert(1)</script>@bagietka.pl');
+    });
+  });
 });
 
 describe('Email Sending', () => {

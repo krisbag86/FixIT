@@ -1,4 +1,5 @@
 import { Ticket, TicketComment, User } from './types';
+import { escapeHtml } from './escape-html';
 
 const baseUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
@@ -14,7 +15,7 @@ export interface EmailTemplate {
 
 export function templateTicketCreated(ticket: Ticket, reporter: User): EmailTemplate {
   const ticketUrl = getTicketUrl(ticket.id);
-  const subject = `[FixIT] Nowy ticket: ${ticket.title} (${ticket.id})`;
+  const subject = `[FixIT] Nowy ticket: ${escapeHtml(ticket.title)} (${ticket.id})`;
 
   const html = `
     <!DOCTYPE html>
@@ -38,16 +39,16 @@ export function templateTicketCreated(ticket: Ticket, reporter: User): EmailTemp
             <p>Nowy ticket został utworzony</p>
           </div>
 
-          <p>Cześć ${reporter.email},</p>
+          <p>Cześć ${escapeHtml(reporter.email)},</p>
           <p>Twój ticket został pomyślnie utworzony w systemie FixIT.</p>
 
           <div class="ticket-details">
-            <p><strong>ID Ticketu:</strong> ${ticket.id}</p>
-            <p><strong>Tytuł:</strong> ${ticket.title}</p>
-            <p><strong>Opis:</strong> ${ticket.description}</p>
-            <p><strong>Kategoria:</strong> ${ticket.categoryId}</p>
-            <p><strong>Priorytet:</strong> ${ticket.priority}</p>
-            <p><strong>Status:</strong> ${ticket.status}</p>
+            <p><strong>ID Ticketu:</strong> ${escapeHtml(ticket.id)}</p>
+            <p><strong>Tytuł:</strong> ${escapeHtml(ticket.title)}</p>
+            <p><strong>Opis:</strong> ${escapeHtml(ticket.description)}</p>
+            <p><strong>Kategoria:</strong> ${escapeHtml(ticket.categoryId)}</p>
+            <p><strong>Priorytet:</strong> ${escapeHtml(ticket.priority)}</p>
+            <p><strong>Status:</strong> ${escapeHtml(ticket.status)}</p>
           </div>
 
           <p>
@@ -87,7 +88,7 @@ To jest automatyczna wiadomość z systemu FixIT Helpdesk. Proszę nie odpowiada
 
 export function templateTicketAssigned(ticket: Ticket, assignedTo: User): EmailTemplate {
   const ticketUrl = getTicketUrl(ticket.id);
-  const subject = `[FixIT] Ticket przypisany do Ciebie: ${ticket.title} (${ticket.id})`;
+  const subject = `[FixIT] Ticket przypisany do Ciebie: ${escapeHtml(ticket.title)} (${ticket.id})`;
 
   const html = `
     <!DOCTYPE html>
@@ -110,14 +111,14 @@ export function templateTicketAssigned(ticket: Ticket, assignedTo: User): EmailT
             <p>Masz nowy ticket przypisany</p>
           </div>
 
-          <p>Cześć ${assignedTo.email},</p>
+          <p>Cześć ${escapeHtml(assignedTo.email)},</p>
           <p>Ticket został Ci przypisany i czeka na obsługę.</p>
 
           <div class="ticket-details">
-            <p><strong>ID Ticketu:</strong> ${ticket.id}</p>
-            <p><strong>Tytuł:</strong> ${ticket.title}</p>
-            <p><strong>Opis:</strong> ${ticket.description}</p>
-            <p><strong>Priorytet:</strong> ${ticket.priority}</p>
+            <p><strong>ID Ticketu:</strong> ${escapeHtml(ticket.id)}</p>
+            <p><strong>Tytuł:</strong> ${escapeHtml(ticket.title)}</p>
+            <p><strong>Opis:</strong> ${escapeHtml(ticket.description)}</p>
+            <p><strong>Priorytet:</strong> ${escapeHtml(ticket.priority)}</p>
           </div>
 
           <p>
@@ -155,7 +156,7 @@ To jest automatyczna wiadomość z systemu FixIT Helpdesk. Proszę nie odpowiada
 
 export function templateCommentAdded(ticket: Ticket, comment: TicketComment, author: User): EmailTemplate {
   const ticketUrl = getTicketUrl(ticket.id);
-  const subject = `[FixIT] Nowy komentarz do ticketu: ${ticket.title} (${ticket.id})`;
+  const subject = `[FixIT] Nowy komentarz do ticketu: ${escapeHtml(ticket.title)} (${ticket.id})`;
 
   const html = `
     <!DOCTYPE html>
@@ -179,11 +180,11 @@ export function templateCommentAdded(ticket: Ticket, comment: TicketComment, aut
           </div>
 
           <p>Cześć,</p>
-          <p><strong>${author.email}</strong> dodał komentarz do ticketu.</p>
+          <p><strong>${escapeHtml(author.email)}</strong> dodał komentarz do ticketu.</p>
 
           <div class="comment">
             <p><strong>Komentarz:</strong></p>
-            <p>${comment.body}</p>
+            <p>${escapeHtml(comment.body)}</p>
           </div>
 
           <p>
@@ -219,7 +220,7 @@ To jest automatyczna wiadomość z systemu FixIT Helpdesk. Proszę nie odpowiada
 
 export function templateTicketResolved(ticket: Ticket, resolver: User): EmailTemplate {
   const ticketUrl = getTicketUrl(ticket.id);
-  const subject = `[FixIT] Ticket rozwiązany: ${ticket.title} (${ticket.id})`;
+  const subject = `[FixIT] Ticket rozwiązany: ${escapeHtml(ticket.title)} (${ticket.id})`;
 
   const html = `
     <!DOCTYPE html>
@@ -243,11 +244,11 @@ export function templateTicketResolved(ticket: Ticket, resolver: User): EmailTem
           </div>
 
           <p>Cześć,</p>
-          <p>Twój ticket został oznaczony jako <strong>ROZWIĄZANY</strong> przez <strong>${resolver.email}</strong>.</p>
+          <p>Twój ticket został oznaczony jako <strong>ROZWIĄZANY</strong> przez <strong>${escapeHtml(resolver.email)}</strong>.</p>
 
           <div class="status">
             <p><strong>Status:</strong> ${ticket.status}</p>
-            <p><strong>Rozwiązane przez:</strong> ${resolver.email}</p>
+            <p><strong>Rozwiązane przez:</strong> ${escapeHtml(resolver.email)}</p>
           </div>
 
           <p>

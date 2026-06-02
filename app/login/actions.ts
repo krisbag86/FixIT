@@ -1,12 +1,13 @@
 "use server";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { findUserByEmail } from "@/lib/data-store";
 import { verifyPassword } from "@/lib/password";
 import { isAllowedBagietkaEmail, normalizeEmail } from "@/lib/email-domain";
 import { sessionCookieName } from "@/lib/auth";
-import { signSessionValue } from "@/lib/cookie-signature";
+import { createSession, deleteSession } from "@/lib/session-store";
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter";
 
 export async function loginAction(_previousState: string | undefined, formData: FormData): Promise<string | undefined> {
   const email = normalizeEmail(String(formData.get("email") ?? ""));
@@ -18,6 +19,19 @@ export async function loginAction(_previousState: string | undefined, formData: 
 
   if (!password) {
     return "Podaj hasło.";
+  }
+
+  // Rate limit: 5 attempts per 15 minutes per email
+  const headersList = await headers();
+  const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim()
+    || headersList.get("x-real-ip")
+    || "unknown";
+  const rateLimitKey = `login:${email}:${ip}`;
+  const rateCheck = checkRateLimit(rateLimitKey, RATE_LIMITS.LOGIN.windowMs, RATE_LIMITS.LOGIN.maxAttempts);
+
+  if (!rateCheck.allowed) {
+    const minutes = Math.ceil(rateCheck.resetInSeconds / 60);
+    return `Zbyt wiele prób logowania. Spróbuj ponownie za ${minutes} min.`;
   }
 
   const user = await findUserByEmail(email);
@@ -34,8 +48,10 @@ export async function loginAction(_previousState: string | undefined, formData: 
     return "Nieprawidłowe hasło.";
   }
 
+  const sessionId = await createSession(user.id);
+
   const cookieStore = await cookies();
-  cookieStore.set(sessionCookieName, signSessionValue(user.id), {
+  cookieStore.set(sessionCookieName, sessionId, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -48,6 +64,13 @@ export async function loginAction(_previousState: string | undefined, formData: 
 
 export async function logoutAction(): Promise<void> {
   const cookieStore = await cookies();
+  const sessionId = cookieStore.get(sessionCookieName)?.value;
+
+  if (sessionId) {
+    // Delete session from server before clearing cookie
+    await deleteSession(sessionId);
+  }
+
   cookieStore.delete(sessionCookieName);
   redirect("/login");
 }

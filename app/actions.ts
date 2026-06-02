@@ -9,6 +9,14 @@ import { can, canViewTicket } from "@/lib/permissions";
 import { sendEmail } from "@/lib/email";
 import { templateTicketCreated, templateTicketResolved, templateTicketAssigned, templateCommentAdded } from "@/lib/email-templates";
 import type { CommentVisibility, Database, TicketPriority, TicketStatus } from "@/lib/types";
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter";
+
+function enforceMutationRateLimit(userId: string): void {
+  const rateCheck = checkRateLimit(`mutation:${userId}`, RATE_LIMITS.MUTATION.windowMs, RATE_LIMITS.MUTATION.maxAttempts);
+  if (!rateCheck.allowed) {
+    throw new Error("Zbyt wiele żądań. Spróbuj ponownie za kilka sekund.");
+  }
+}
 
 function findLatestQueuedNotification(database: Database, input: { ticketId: string; type: string; recipientEmail: string }) {
   return database.notificationLogs
@@ -32,6 +40,7 @@ const ticketSchema = z.object({
 
 export async function createTicketAction(formData: FormData): Promise<void> {
   const user = await requireUser();
+  enforceMutationRateLimit(user.id);
 
   if (!can(user, "ticket:create")) {
     throw new Error("Brak uprawnień do tworzenia zgłoszeń.");
@@ -93,6 +102,7 @@ export async function createTicketAction(formData: FormData): Promise<void> {
 
 export async function updateTicketAction(formData: FormData): Promise<void> {
   const user = await requireUser();
+  enforceMutationRateLimit(user.id);
 
   if (!can(user, "ticket:update")) {
     throw new Error("Brak uprawnień do aktualizacji ticketu.");
@@ -180,6 +190,7 @@ export async function updateTicketAction(formData: FormData): Promise<void> {
 
 export async function addCommentAction(formData: FormData): Promise<void> {
   const user = await requireUser();
+  enforceMutationRateLimit(user.id);
   const ticketId = String(formData.get("ticketId") ?? "");
   const ticket = await findTicket(ticketId);
 
@@ -255,6 +266,7 @@ const knowledgeSchema = z.object({
 
 export async function createKnowledgeArticleAction(formData: FormData): Promise<void> {
   const user = await requireUser();
+  enforceMutationRateLimit(user.id);
 
   if (!can(user, "admin:manage-faq")) {
     throw new Error("Brak uprawnień do zarządzania bazą wiedzy.");
@@ -277,6 +289,7 @@ export async function createKnowledgeArticleAction(formData: FormData): Promise<
 
 export async function updateKnowledgeArticleAction(formData: FormData): Promise<void> {
   const user = await requireUser();
+  enforceMutationRateLimit(user.id);
 
   if (!can(user, "admin:manage-faq")) {
     throw new Error("Brak uprawnień do zarządzania bazą wiedzy.");
@@ -301,6 +314,7 @@ export async function updateKnowledgeArticleAction(formData: FormData): Promise<
 
 export async function deleteKnowledgeArticleAction(formData: FormData): Promise<void> {
   const user = await requireUser();
+  enforceMutationRateLimit(user.id);
 
   if (!can(user, "admin:manage-faq")) {
     throw new Error("Brak uprawnień do zarządzania bazą wiedzy.");

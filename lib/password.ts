@@ -1,5 +1,3 @@
-import "server-only";
-
 import { randomBytes, pbkdf2Sync, timingSafeEqual } from "node:crypto";
 
 const ITERATIONS = 100_000;

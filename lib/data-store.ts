@@ -24,6 +24,7 @@ import type {
   Database,
   KnowledgeArticle,
   NotificationLog,
+  Session,
   Store,
   Ticket,
   TicketAttachment,
@@ -182,6 +183,15 @@ function mapKnowledgeArticle(article: Prisma.KnowledgeArticleGetPayload<object>)
   };
 }
 
+function mapSession(session: Prisma.SessionGetPayload<object>): Session {
+  return {
+    id: session.id,
+    userId: session.userId,
+    createdAt: iso(session.createdAt) ?? "",
+    expiresAt: iso(session.expiresAt) ?? ""
+  };
+}
+
 function mapNotificationLog(log: Prisma.NotificationLogGetPayload<object>): NotificationLog {
   return {
     id: log.id,
@@ -235,7 +245,7 @@ export async function readDatabase(): Promise<Database> {
   noStore();
   if (shouldUsePrisma()) {
     const db = await getPrisma();
-    const [users, stores, categories, tickets, comments, attachments, events, knowledgeArticles, notificationLogs, adminAuditLogs, counters] =
+    const [users, stores, categories, tickets, comments, attachments, events, knowledgeArticles, notificationLogs, adminAuditLogs, counters, sessions] =
       await Promise.all([
         db.user.findMany(),
         db.store.findMany(),
@@ -247,7 +257,8 @@ export async function readDatabase(): Promise<Database> {
         db.knowledgeArticle.findMany(),
         db.notificationLog.findMany(),
         db.adminAuditLog.findMany(),
-        db.ticketCounter.findMany()
+        db.ticketCounter.findMany(),
+        db.session.findMany()
       ]);
 
     return {
@@ -263,7 +274,8 @@ export async function readDatabase(): Promise<Database> {
       events: events.map(mapEvent),
       knowledgeArticles: knowledgeArticles.map(mapKnowledgeArticle),
       notificationLogs: notificationLogs.map(mapNotificationLog),
-      adminAuditLogs: adminAuditLogs.map(mapAdminAuditLog)
+      adminAuditLogs: adminAuditLogs.map(mapAdminAuditLog),
+      sessions: sessions.map(mapSession)
     };
   }
 
@@ -2234,10 +2246,14 @@ export async function exportTicketsCSV(): Promise<string> {
 }
 
 function escapeCSV(value: string): string {
-  if (value.includes(",") || value.includes('"') || value.includes("\n")) {
-    return `"${value.replace(/"/g, '""')}"`;
+  // Spreadsheet formula injection prevention: neutralize leading = + - @
+  // by prepending a tab character (invisible to the user, blocks formula execution)
+  const sanitized = /^[=+\-@]/.test(value) ? `\t${value}` : value;
+
+  if (sanitized.includes(",") || sanitized.includes('"') || sanitized.includes("\n")) {
+    return `"${sanitized.replace(/"/g, '""')}"`;
   }
-  return value;
+  return sanitized;
 }
 
 export async function getStoreDashboard(storeId: string): Promise<{
