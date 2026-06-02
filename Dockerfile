@@ -2,6 +2,7 @@ FROM node:20-bookworm-slim AS base
 
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 FROM base AS deps
 COPY package.json package-lock.json* ./
@@ -10,7 +11,7 @@ RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm run build
+RUN npm run db:generate && npm run build
 
 FROM base AS runner
 ENV NODE_ENV=production
