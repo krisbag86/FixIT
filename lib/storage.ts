@@ -5,10 +5,12 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import {
   isAllowedMimeType,
+  isValidStorageKey,
   MAX_FILE_SIZE,
   sanitizeFilename,
   UploadValidationError
 } from "@/lib/storage-utils";
+import { isS3Configured, saveAttachmentFileS3, readAttachmentFileS3, deleteAttachmentFileS3 } from "@/lib/s3-storage";
 
 const storageRoot = path.join(process.cwd(), ".data", "attachments");
 
@@ -18,6 +20,10 @@ export {
   isValidStorageKey,
   UploadValidationError
 } from "@/lib/storage-utils";
+
+function useS3(): boolean {
+  return isS3Configured();
+}
 
 export async function saveAttachmentFile(
   data: Uint8Array,
@@ -38,6 +44,11 @@ export async function saveAttachmentFile(
   }
 
   const safeName = sanitizeFilename(filename);
+
+  if (useS3()) {
+    return saveAttachmentFileS3(data, safeName, mimeType);
+  }
+
   const id = randomUUID();
   const storageKey = id;
   const fullPath = path.join(storageRoot, storageKey);
@@ -49,19 +60,27 @@ export async function saveAttachmentFile(
 }
 
 export async function readAttachmentFile(storageKey: string): Promise<Buffer> {
-  const { isValidStorageKey } = await import("@/lib/storage-utils");
   if (!isValidStorageKey(storageKey)) {
     throw new UploadValidationError("Nieprawidlowy klucz pliku.");
   }
+
+  if (useS3()) {
+    return readAttachmentFileS3(storageKey);
+  }
+
   const fullPath = path.join(storageRoot, storageKey);
   return readFile(fullPath);
 }
 
 export async function deleteAttachmentFile(storageKey: string): Promise<void> {
-  const { isValidStorageKey } = await import("@/lib/storage-utils");
   if (!isValidStorageKey(storageKey)) {
     return;
   }
+
+  if (useS3()) {
+    return deleteAttachmentFileS3(storageKey);
+  }
+
   const fullPath = path.join(storageRoot, storageKey);
   try {
     await unlink(fullPath);
