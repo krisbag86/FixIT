@@ -85,7 +85,7 @@ function mapUser(user: Prisma.UserGetPayload<object> & { passwordHash?: string |
     storeId: definedString(user.storeId),
     department: definedString(user.department),
     isActive: user.isActive,
-    passwordHash: definedString((user as any).passwordHash)
+    passwordHash: definedString((user as { passwordHash?: string | null }).passwordHash)
   };
 }
 

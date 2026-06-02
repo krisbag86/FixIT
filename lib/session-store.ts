@@ -2,7 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 
 import { findUserById } from "@/lib/data-store";
-import type { Session, User } from "@/lib/types";
+import type { User } from "@/lib/types";
 
 const SESSION_DURATION_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
 
