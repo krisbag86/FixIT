@@ -30,7 +30,7 @@ export default async function DashboardPage() {
         </div>
         <h1 className="text-3xl font-black">Dashboard</h1>
         <p className="mt-2 text-ink/65 dark:text-paper/65">
-          Przeglad stanu zgloszen i obciazenia zespolu IT.
+          Przegląd stanu zgłoszeń i obciążenia zespołu IT.
         </p>
       </div>
 

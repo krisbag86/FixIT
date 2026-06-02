@@ -39,8 +39,8 @@ export default async function AdminTicketsPage({
             <LayoutDashboard size={20} />
             <span className="text-sm font-black uppercase">Panel IT</span>
           </div>
-          <h1 className="text-3xl font-black">Kolejka zgloszen</h1>
-          <p className="mt-2 text-ink/65 dark:text-paper/65">Wspolna kolejka dla agentow i administratorow.</p>
+          <h1 className="text-3xl font-black">Kolejka zgłoszeń</h1>
+          <p className="mt-2 text-ink/65 dark:text-paper/65">Wspólna kolejka dla agentów i administratorów.</p>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <Metric label="Otwarte" value={openTickets} />

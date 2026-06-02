@@ -38,7 +38,7 @@ export default async function AdminReportsPage() {
       <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
         <MetricCard
           icon={<FileText size={22} />}
-          label="Wszystkie zgloszenia"
+          label="Wszystkie zgłoszenia"
           value={metrics.totalTickets}
           color="text-blue-600 dark:text-blue-400"
         />
@@ -56,7 +56,7 @@ export default async function AdminReportsPage() {
         />
         <MetricCard
           icon={<TrendingDown size={22} />}
-          label="Sredni czas rozwiazania"
+          label="Średni czas rozwiązania"
           value={metrics.avgResolutionHours !== null ? `${metrics.avgResolutionHours}h` : "---"}
           color="text-emerald-600 dark:text-emerald-400"
         />
@@ -107,7 +107,7 @@ export default async function AdminReportsPage() {
             Naruszenia SLA ({metrics.slaBreached.length})
           </h2>
           {metrics.slaBreached.length === 0 ? (
-            <p className="text-sm text-ink/55 dark:text-paper/55">Brak naruszen SLA. Wszystkie otwarte zgloszenia mieszcza sie w terminie.</p>
+            <p className="text-sm text-ink/55 dark:text-paper/55">Brak naruszeń SLA. Wszystkie otwarte zgłoszenia mieszczą się w terminie.</p>
           ) : (
             <div className="space-y-3">
               {metrics.slaBreached.slice(0, 10).map((item) => {
@@ -174,7 +174,7 @@ export default async function AdminReportsPage() {
           Eksport danych
         </h2>
         <p className="mb-4 text-sm text-ink/65 dark:text-paper/65">
-          Pobierz liste wszystkich zgloszen w formacie CSV. Plik otworzysz w arkuszu kalkulacyjnym (Excel, Google Sheets, LibreOffice).
+          Pobierz listę wszystkich zgłoszeń w formacie CSV. Plik otworzysz w arkuszu kalkulacyjnym (Excel, Google Sheets, LibreOffice).
         </p>
         <form action="/admin/reports/export" method="POST" target="_blank">
           <button

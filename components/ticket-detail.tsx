@@ -84,7 +84,7 @@ export function TicketDetail({
             <textarea
               name="body"
               className="min-h-28 w-full rounded-md border border-black/10 bg-white px-3 py-3 text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper"
-              placeholder="Dodaj odpowiedz..."
+              placeholder="Dodaj odpowiedź..."
               minLength={2}
               required
             />
@@ -96,7 +96,7 @@ export function TicketDetail({
                 data-testid="visibility-select"
               >
                 <option value="PUBLIC">Komentarz publiczny</option>
-                {canAddInternal ? <option value="INTERNAL">Notatka wewnetrzna</option> : null}
+                {canAddInternal ?                <option value="INTERNAL">Notatka wewnętrzna</option> : null}
               </select>
               <button type="submit" className="inline-flex h-10 items-center gap-2 rounded-md bg-mint px-4 text-sm font-black text-white hover:bg-mint/90">
                 <MessageSquare size={16} />
@@ -111,8 +111,7 @@ export function TicketDetail({
         <div className="rounded-md border border-black/10 bg-white/80 p-5 shadow-sm dark:border-white/10 dark:bg-white/10">
           <h2 className="mb-4 text-lg font-black">Informacje</h2>
           <Info label="Kategoria" value={category?.name ?? "Brak"} />
-          <Info label="Lokalizacja" value={store?.name ?? ticket.department ?? "Brak"} />
-          <Info label="Zglaszajacy" value={reporter?.name ?? "Nieznany"} />
+          <Info label="Lokalizacja" value={store?.name ?? ticket.department ?? "Brak"} />            <Info label="Zgłaszający" value={reporter?.name ?? "Nieznany"} />
           <Info label="Prowadzi" value={assignee?.name ?? "Nieprzypisane"} />
           <Info label="Kontakt" value={ticket.contact} />
           <Info label="Utworzono" value={formatDateTime(ticket.createdAt)} />

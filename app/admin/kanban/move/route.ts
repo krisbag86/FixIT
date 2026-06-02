@@ -8,7 +8,7 @@ export async function POST(request: Request): Promise<Response> {
   const user = await requireUser();
 
   if (!can(user, "ticket:update")) {
-    return new Response("Brak uprawnien.", { status: 403 });
+    return new Response("Brak uprawnień.", { status: 403 });
   }
 
   const fd = await request.formData();
@@ -31,7 +31,7 @@ export async function POST(request: Request): Promise<Response> {
   ];
 
   if (!validStatuses.includes(newStatus)) {
-    return new Response("Nieprawidlowy status.", { status: 400 });
+    return new Response("Nieprawidłowy status.", { status: 400 });
   }
 
   const ticket = await findTicket(ticketId);

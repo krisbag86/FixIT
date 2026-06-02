@@ -18,7 +18,7 @@ export default async function TicketsPage({ searchParams }: { searchParams: Prom
     <AppShell user={user}>
       <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <h1 className="text-3xl font-black">Moje zgloszenia</h1>
+          <h1 className="text-3xl font-black">Moje zgłoszenia</h1>
           <p className="mt-2 text-ink/65 dark:text-paper/65">
             Lista spraw, ktore mozesz sledzic zgodnie ze swoja rola.
           </p>
@@ -60,9 +60,9 @@ export default async function TicketsPage({ searchParams }: { searchParams: Prom
       ) : (
         <EmptyState
           variant="tickets"
-          description={status ? "Brak zgloszen w tym statusie. Zmien filtr lub utworz nowe zgloszenie." : "Zmien filtr albo utworz pierwsze zgloszenie."}
+          description={status ? "Brak zgłoszeń w tym statusie. Zmień filtr lub utwórz nowe zgłoszenie." : "Zmień filtr albo utwórz pierwsze zgłoszenie."}
           actionHref="/tickets/new"
-          actionLabel="Zglos awarie"
+          actionLabel="Zgłoś awarię"
         />
       )}
     </AppShell>

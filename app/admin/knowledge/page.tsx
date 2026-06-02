@@ -28,7 +28,7 @@ export default async function AdminKnowledgePage() {
             <span className="text-sm font-black uppercase">Panel IT</span>
           </div>
           <h1 className="text-3xl font-black">Baza wiedzy</h1>
-          <p className="mt-2 text-ink/65 dark:text-paper/65">Zarzadzanie artykulami bazy wiedzy.</p>
+          <p className="mt-2 text-ink/65 dark:text-paper/65">Zarządzanie artykułami bazy wiedzy.</p>
         </div>
         {canManageFaq ? (
           <Link
@@ -48,7 +48,7 @@ export default async function AdminKnowledgePage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-white/70 text-left dark:bg-white/10">
-                <th className="px-4 py-3 font-bold">Tytul</th>
+                <th className="px-4 py-3 font-bold">Tytuł</th>
                 <th className="hidden px-4 py-3 font-bold md:table-cell">Slug</th>
                 <th className="px-4 py-3 font-bold">Kategoria</th>
                 <th className="px-4 py-3 font-bold">Status</th>
@@ -110,9 +110,8 @@ export default async function AdminKnowledgePage() {
           </table>
         </div>
       ) : (
-        <div className="rounded-md border border-dashed border-black/20 bg-white/60 p-10 text-center dark:border-white/20 dark:bg-white/10">
-          <h2 className="text-xl font-black">Brak artykulow</h2>
-          <p className="mt-2 text-ink/65 dark:text-paper/65">Dodaj pierwszy artykul do bazy wiedzy.</p>
+        <div className="rounded-md border border-dashed border-black/20 bg-white/60 p-10 text-center dark:border-white/20 dark:bg-white/10">            <h2 className="text-xl font-black">Brak artykułów</h2>
+          <p className="mt-2 text-ink/65 dark:text-paper/65">Dodaj pierwszy artykuł do bazy wiedzy.</p>
         </div>
       )}
     </AppShell>

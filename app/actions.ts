@@ -34,7 +34,7 @@ export async function createTicketAction(formData: FormData): Promise<void> {
   const user = await requireUser();
 
   if (!can(user, "ticket:create")) {
-    throw new Error("Brak uprawnien do tworzenia zgloszen.");
+    throw new Error("Brak uprawnień do tworzenia zgłoszeń.");
   }
 
   const database = await readDatabase();
@@ -95,7 +95,7 @@ export async function updateTicketAction(formData: FormData): Promise<void> {
   const user = await requireUser();
 
   if (!can(user, "ticket:update")) {
-    throw new Error("Brak uprawnien do aktualizacji ticketu.");
+    throw new Error("Brak uprawnień do aktualizacji ticketu.");
   }
 
   const ticketId = String(formData.get("ticketId") ?? "");
@@ -184,19 +184,19 @@ export async function addCommentAction(formData: FormData): Promise<void> {
   const ticket = await findTicket(ticketId);
 
   if (!ticket || !canViewTicket(user, ticket)) {
-    throw new Error("Brak dostepu do ticketu.");
+    throw new Error("Brak dostępu do ticketu.");
   }
 
   const visibility = String(formData.get("visibility") ?? "PUBLIC") as CommentVisibility;
 
   if (visibility === "INTERNAL" && !can(user, "comment:internal")) {
-    throw new Error("Brak uprawnien do notatek wewnetrznych.");
+    throw new Error("Brak uprawnień do notatek wewnętrznych.");
   }
 
   const body = String(formData.get("body") ?? "").trim();
 
   if (body.length < 2) {
-    throw new Error("Komentarz jest za krotki.");
+    throw new Error("Komentarz jest za krótki.");
   }
 
   const comment = await addComment({
@@ -257,7 +257,7 @@ export async function createKnowledgeArticleAction(formData: FormData): Promise<
   const user = await requireUser();
 
   if (!can(user, "admin:manage-faq")) {
-    throw new Error("Brak uprawnien do zarzadzania baza wiedzy.");
+    throw new Error("Brak uprawnień do zarządzania bazą wiedzy.");
   }
 
   const input = knowledgeSchema.parse({
@@ -279,7 +279,7 @@ export async function updateKnowledgeArticleAction(formData: FormData): Promise<
   const user = await requireUser();
 
   if (!can(user, "admin:manage-faq")) {
-    throw new Error("Brak uprawnien do zarzadzania baza wiedzy.");
+    throw new Error("Brak uprawnień do zarządzania bazą wiedzy.");
   }
 
   const id = String(formData.get("id") ?? "");
@@ -303,7 +303,7 @@ export async function deleteKnowledgeArticleAction(formData: FormData): Promise<
   const user = await requireUser();
 
   if (!can(user, "admin:manage-faq")) {
-    throw new Error("Brak uprawnien do zarzadzania baza wiedzy.");
+    throw new Error("Brak uprawnień do zarządzania bazą wiedzy.");
   }
 
   const id = String(formData.get("id") ?? "");

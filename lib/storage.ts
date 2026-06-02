@@ -29,7 +29,7 @@ export async function saveAttachmentFile(
   mimeType: string
 ): Promise<{ storageKey: string; size: number; filename: string; mimeType: string }> {
   if (!filename || filename.length > 255) {
-    throw new UploadValidationError("Nieprawidlowa nazwa pliku.");
+    throw new UploadValidationError("Nieprawidłowa nazwa pliku.");
   }
   if (data.byteLength === 0) {
     throw new UploadValidationError("Plik jest pusty.");
@@ -59,7 +59,7 @@ export async function saveAttachmentFile(
 
 export async function readAttachmentFile(storageKey: string): Promise<Buffer> {
   if (!isValidStorageKey(storageKey)) {
-    throw new UploadValidationError("Nieprawidlowy klucz pliku.");
+    throw new UploadValidationError("Nieprawidłowy klucz pliku.");
   }
 
   if (isS3Configured()) {

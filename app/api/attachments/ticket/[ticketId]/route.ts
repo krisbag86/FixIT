@@ -25,11 +25,11 @@ export async function POST(
   const ticket = await findTicket(ticketId);
 
   if (!ticket) {
-    return NextResponse.json({ error: "Nie znaleziono zgloszenia." }, { status: 404 });
+    return NextResponse.json({ error: "Nie znaleziono zgłoszenia." }, { status: 404 });
   }
 
   if (!canViewTicket(user, ticket)) {
-    return NextResponse.json({ error: "Brak dostepu do tego zgloszenia." }, { status: 403 });
+    return NextResponse.json({ error: "Brak dostępu do tego zgłoszenia." }, { status: 403 });
   }
 
   let formData: FormData;
@@ -86,6 +86,6 @@ export async function POST(
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     console.error("Attachment upload failed:", error);
-    return NextResponse.json({ error: "Nie udalo sie zapisac pliku." }, { status: 500 });
+    return NextResponse.json({ error: "Nie udało się zapisać pliku." }, { status: 500 });
   }
 }

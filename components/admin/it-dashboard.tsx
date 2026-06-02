@@ -83,7 +83,7 @@ export function ITDashboard({
       <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
         <KPICard
           icon={<FileText size={22} />}
-          label="Otwarte zgloszenia"
+          label="Otwarte zgłoszenia"
           value={data.kpi.openTickets}
           color="text-blue-600 dark:text-blue-400"
         />
@@ -95,7 +95,7 @@ export function ITDashboard({
         />
         <KPICard
           icon={<TrendingDown size={22} />}
-          label="Sredni czas rozwiazania"
+          label="Średni czas rozwiązania"
           value={
             data.kpi.avgResolutionHours !== null
               ? `${data.kpi.avgResolutionHours}h`
@@ -121,7 +121,7 @@ export function ITDashboard({
           </h2>
           {data.dailyTicketCounts.every((d) => d.created === 0 && d.resolved === 0) ? (
             <p className="py-12 text-center text-sm text-ink/55 dark:text-paper/55">
-              Brak danych do wyswietlenia wykresu.
+              Brak danych do wyświetlenia wykresu.
             </p>
           ) : (
             <ResponsiveContainer width="100%" height={280}>
@@ -154,7 +154,7 @@ export function ITDashboard({
                 <Area
                   type="monotone"
                   dataKey="resolved"
-                  name="Rozwiazane"
+                  name="Rozwiązane"
                   stroke="#10b981"
                   fill="#10b981"
                   fillOpacity={0.15}
@@ -208,11 +208,11 @@ export function ITDashboard({
         <div className="rounded-md border border-black/10 bg-white/75 p-4 dark:border-white/10 dark:bg-white/10">
           <h2 className="mb-4 flex items-center gap-2 text-lg font-black">
             <Users size={18} className="text-mint" />
-            Obciazenie agentow
+            Obciążenie agentów
           </h2>
           {data.agentWorkload.length === 0 ? (
             <p className="py-8 text-center text-sm text-ink/55 dark:text-paper/55">
-              Brak przypisanych ticketow.
+              Brak przypisanych ticketów.
             </p>
           ) : (
             <div className="space-y-3">
@@ -244,11 +244,11 @@ export function ITDashboard({
         <div className="rounded-md border border-black/10 bg-white/75 p-4 dark:border-white/10 dark:bg-white/10">
           <h2 className="mb-4 flex items-center gap-2 text-lg font-black">
             <Clock size={18} className="text-mint" />
-            Ostatnia aktywnosc
+            Ostatnia aktywność
           </h2>
           {data.recentEvents.length === 0 ? (
             <p className="py-8 text-center text-sm text-ink/55 dark:text-paper/55">
-              Brak zdarzen.
+              Brak zdarzeń.
             </p>
           ) : (
             <div className="space-y-2">

@@ -77,13 +77,13 @@ export default async function StoreDashboardPage({
         />
         <MetricCard
           icon={<Clock size={22} />}
-          label="Blokujace sprzedaz"
+          label="Blokujące sprzedaż"
           value={dashboard.blockingTickets}
           color="text-amberline"
         />
         <MetricCard
           icon={<CheckCircle size={22} />}
-          label="Rozwiazane dzisiaj"
+          label="Rozwiązane dzisiaj"
           value={dashboard.resolvedToday}
           color="text-emerald-600 dark:text-emerald-400"
         />
@@ -92,7 +92,7 @@ export default async function StoreDashboardPage({
       <div className="mb-8 grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
         {/* Ticket list */}
         <div>
-          <h2 className="mb-4 text-lg font-black">Aktywne zgloszenia</h2>
+          <h2 className="mb-4 text-lg font-black">Aktywne zgłoszenia</h2>
 
           <form className="mb-4 flex flex-wrap items-center gap-2 rounded-md border border-black/10 bg-white/70 p-3 dark:border-white/10 dark:bg-white/10">
             <Filter size={18} className="text-ink/50 dark:text-paper/50" />
@@ -133,7 +133,7 @@ export default async function StoreDashboardPage({
             </div>
           ) : (
             <div className="rounded-md border border-dashed border-black/20 bg-white/60 p-10 text-center dark:border-white/20 dark:bg-white/10">
-              <h3 className="text-xl font-black">Brak zgloszen</h3>
+              <h3 className="text-xl font-black">Brak zgłoszeń</h3>
               <p className="mt-2 text-ink/65 dark:text-paper/65">
                 Wszystkie sprawy w tym sklepie sa rozwiazane. Zmien filtr, aby zobaczyc wiecej.
               </p>

@@ -10,17 +10,17 @@ const variantConfig: Record<
 > = {
   tickets: {
     icon: <Inbox size={40} />,
-    defaultTitle: "Brak zgloszen",
+    defaultTitle: "Brak zgłoszeń",
     iconColor: "text-ink/25 dark:text-paper/25",
   },
   search: {
     icon: <SearchX size={40} />,
-    defaultTitle: "Brak wynikow",
+    defaultTitle: "Brak wyników",
     iconColor: "text-ink/25 dark:text-paper/25",
   },
   articles: {
     icon: <FileText size={40} />,
-    defaultTitle: "Brak artykulow",
+    defaultTitle: "Brak artykułów",
     iconColor: "text-ink/25 dark:text-paper/25",
   },
   success: {

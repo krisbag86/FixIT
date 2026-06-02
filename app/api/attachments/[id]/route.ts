@@ -26,15 +26,15 @@ export async function GET(
   const ticket = await findTicket(attachment.ticketId);
 
   if (!ticket) {
-    return NextResponse.json({ error: "Nie znaleziono zgloszenia." }, { status: 404 });
+    return NextResponse.json({ error: "Nie znaleziono zgłoszenia." }, { status: 404 });
   }
 
   if (!canViewTicket(user, ticket)) {
-    return NextResponse.json({ error: "Brak dostepu do tego pliku." }, { status: 403 });
+    return NextResponse.json({ error: "Brak dostępu do tego pliku." }, { status: 403 });
   }
 
   if (!isValidStorageKey(attachment.storageKey)) {
-    return NextResponse.json({ error: "Nieprawidlowy klucz pliku." }, { status: 500 });
+    return NextResponse.json({ error: "Nieprawidłowy klucz pliku." }, { status: 500 });
   }
 
   try {
@@ -50,6 +50,6 @@ export async function GET(
     });
   } catch (error) {
     console.error("Attachment read failed:", error);
-    return NextResponse.json({ error: "Nie udalo sie odczytac pliku." }, { status: 500 });
+    return NextResponse.json({ error: "Nie udało się odczytać pliku." }, { status: 500 });
   }
 }

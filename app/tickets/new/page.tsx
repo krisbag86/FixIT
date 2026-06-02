@@ -15,7 +15,7 @@ export default async function NewTicketPage() {
   return (
     <AppShell user={user}>
       <div className="mb-6">
-        <h1 className="text-3xl font-black">Nowe zgloszenie</h1>
+        <h1 className="text-3xl font-black">Nowe zgłoszenie</h1>
         <p className="mt-2 text-ink/65 dark:text-paper/65">Krotki formularz dla sklepu i biura. Problem blokujacy prace podnosi priorytet do krytycznego.</p>
       </div>
 
@@ -72,7 +72,7 @@ export default async function NewTicketPage() {
         <div className="lg:col-span-2">
           <button type="submit" className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-mint px-5 font-black text-white transition hover:bg-mint/90 sm:w-auto">
             <Send size={18} />
-            Utworz zgloszenie
+            Utwórz zgłoszenie
           </button>
         </div>
       </form>

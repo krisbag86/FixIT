@@ -64,7 +64,7 @@ export function AttachmentUpload({
 
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
-        const errMsg = body.error ?? "Blad uploadu";
+        const errMsg = body.error ?? "Błąd uploadu";
         toastError(errMsg);
         setPending((current) =>
           current.map((p) =>
@@ -83,7 +83,7 @@ export function AttachmentUpload({
         stringId: string;
       };
 
-      toastSuccess(`Plik "${data.filename}" przeslany`);
+      toastSuccess(`Plik "${data.filename}" przesłany`);
       setPending((current) =>
         current.map((p) =>
           p.stringId === stringId
@@ -97,7 +97,7 @@ export function AttachmentUpload({
       ]);
     } catch (err) {
       const errMsg = (err as Error).message;
-      toastError(errMsg || "Blad polaczenia");
+      toastError(errMsg || "Błąd połączenia");
       setPending((current) =>
         current.map((p) =>
           p.stringId === stringId ? { ...p, status: "error", error: errMsg } : p
@@ -131,7 +131,7 @@ export function AttachmentUpload({
     <div className="space-y-2" data-testid="attachment-upload">
       <div className="flex items-center gap-2 text-sm font-bold">
         <Paperclip size={16} className="text-mint" />
-        Zalaczniki
+        Załączniki
       </div>
 
       {existing.length > 0 || pending.length > 0 ? (
@@ -165,12 +165,12 @@ export function AttachmentUpload({
               <Paperclip size={14} className="shrink-0 text-ink/50 dark:text-paper/50" />
               <span className="flex-1 truncate">{p.file.name}</span>
               {p.status === "uploading" ? (
-                <span className="shrink-0 text-xs text-ink/55 dark:text-paper/55">Wysylanie...</span>
+                <span className="shrink-0 text-xs text-ink/55 dark:text-paper/55">Wysyłanie...</span>
               ) : p.status === "done" ? (
                 <span className="shrink-0 text-xs font-bold text-green-700 dark:text-green-300">OK</span>
               ) : p.status === "error" ? (
                 <span className="shrink-0 text-xs text-red-600 dark:text-red-400" title={p.error}>
-                  Blad
+                  Błąd
                 </span>
               ) : (
                 <span className="shrink-0 text-xs text-ink/55 dark:text-paper/55">Oczekiwanie</span>

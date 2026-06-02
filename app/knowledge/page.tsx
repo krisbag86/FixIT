@@ -29,7 +29,7 @@ export default async function KnowledgePage({
           </div>
           <h1 className="text-3xl font-black">Baza wiedzy</h1>
           <p className="mt-2 text-ink/65 dark:text-paper/65">
-            Rozwiazania typowych problemow. Jesli nie znajdziesz odpowiedzi, utworz zgloszenie.
+            Rozwiązania typowych problemów. Jeśli nie znajdziesz odpowiedzi, utwórz zgłoszenie.
           </p>
         </div>
         <form className="flex items-center gap-2" method="get">
@@ -39,7 +39,7 @@ export default async function KnowledgePage({
               name="q"
               type="search"
               defaultValue={params.q ?? ""}
-              placeholder="Szukaj artykulow..."
+              placeholder="Szukaj artykułów..."
               className="h-10 w-48 rounded-md border border-black/10 bg-white pl-9 pr-3 text-sm dark:border-white/10 dark:bg-white/10 sm:w-56"
             />
           </div>
@@ -80,10 +80,10 @@ export default async function KnowledgePage({
           variant={params.q ? "search" : "articles"}
           description={
             params.q
-              ? `Brak wynikow dla "${params.q}". Spróbuj zmienic fraze.`
+              ? `Brak wyników dla "${params.q}". Spróbuj zmienić frazę.`
               : params.category
-                ? "Brak opublikowanych artykulow w tej kategorii."
-                : "Baza wiedzy nie zawiera jeszcze zadnych artykulow."
+                ? "Brak opublikowanych artykułów w tej kategorii."
+                : "Baza wiedzy nie zawiera jeszcze żadnych artykułów."
           }
         />
       )}

@@ -10,10 +10,10 @@ const KANBAN_COLUMNS: { status: TicketStatus; label: string }[] = [
   { status: "NEW", label: "Nowe" },
   { status: "TRIAGED", label: "Zweryfikowane" },
   { status: "IN_PROGRESS", label: "W trakcie" },
-  { status: "WAITING_FOR_USER", label: "Czeka na uzytk." },
-  { status: "WAITING_FOR_VENDOR", label: "Czeka na dostawce" },
-  { status: "RESOLVED", label: "Rozwiazane" },
-  { status: "CLOSED", label: "Zamkniete" },
+  { status: "WAITING_FOR_USER", label: "Czeka na użytk." },
+  { status: "WAITING_FOR_VENDOR", label: "Czeka na dostawcę" },
+  { status: "RESOLVED", label: "Rozwiązane" },
+  { status: "CLOSED", label: "Zamknięte" },
   { status: "CANCELLED", label: "Anulowane" }
 ];
 
@@ -99,7 +99,7 @@ export function KanbanBoard({
           next.delete(ticketId);
           return next;
         });
-        setError(text || "Nie udalo sie zmienic statusu.");
+        setError(text || "Nie udało się zmienić statusu.");
         return;
       }
 
@@ -122,7 +122,7 @@ export function KanbanBoard({
         next.delete(ticketId);
         return next;
       });
-      setError("Blad sieci. Sprobuj ponownie.");
+      setError("Błąd sieci. Spróbuj ponownie.");
       console.error("Kanban move network error:", err);
     }
   }
@@ -263,7 +263,7 @@ function KanbanCard({
       </div>
       {ticket.blocksWork && (
         <div className="mt-2 text-[10px] font-bold uppercase tracking-wide text-red-600 dark:text-red-400">
-          Blokuje sprzedaz
+          Blokuje sprzedaż
         </div>
       )}
     </div>

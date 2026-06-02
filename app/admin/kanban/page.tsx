@@ -28,7 +28,7 @@ export default async function KanbanPage() {
         </div>
         <h1 className="text-3xl font-black">Kanban</h1>
         <p className="mt-2 text-ink/65 dark:text-paper/65">
-          Tablica zgloszen &mdash; przeciagnij karte, aby zmienic status.
+          Tablica zgłoszeń &mdash; przeciągnij kartę, aby zmienić status.
         </p>
       </div>
 

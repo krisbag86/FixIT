@@ -332,7 +332,7 @@ async function ensureActiveAdminRemains(userId: string, nextRole: UserRole, next
     });
 
     if (activeAdminCount === 0) {
-      throw new Error("Nie mozna odebrac ostatniego aktywnego administratora.");
+      throw new Error("Nie można odebrać ostatniego aktywnego administratora.");
     }
 
     return;
@@ -342,7 +342,7 @@ async function ensureActiveAdminRemains(userId: string, nextRole: UserRole, next
   const activeAdminCount = database.users.filter((user) => user.role === "ADMIN" && user.isActive && user.id !== userId).length;
 
   if (activeAdminCount === 0) {
-    throw new Error("Nie mozna odebrac ostatniego aktywnego administratora.");
+    throw new Error("Nie można odebrać ostatniego aktywnego administratora.");
   }
 }
 
@@ -577,7 +577,7 @@ export async function updateUserAdmin(input: {
             action: "USER_UPDATED",
             entityType: "USER",
             entityId: nextUser.id,
-            summary: describeAuditChanges("Uzytkownik", nextUser.email, changes),
+            summary: describeAuditChanges("Użytkownik", nextUser.email, changes),
             payload: buildAuditPayload(changes)
           }
         });
@@ -600,7 +600,7 @@ export async function updateUserAdmin(input: {
       const activeAdminCount = database.users.filter((item) => item.role === "ADMIN" && item.isActive && item.id !== user.id).length;
 
       if (activeAdminCount === 0) {
-        throw new Error("Nie mozna odebrac ostatniego aktywnego administratora.");
+        throw new Error("Nie można odebrać ostatniego aktywnego administratora.");
       }
     }
 
@@ -616,7 +616,7 @@ export async function updateUserAdmin(input: {
         action: "USER_UPDATED",
         entityType: "USER",
         entityId: user.id,
-        summary: describeAuditChanges("Uzytkownik", user.email, changes),
+        summary: describeAuditChanges("Użytkownik", user.email, changes),
         payload: buildAuditPayload(changes)
       });
     }
@@ -804,7 +804,7 @@ export async function deleteStoreAdmin(id: string, actorId: string): Promise<boo
     ]);
 
     if (userCount > 0 || ticketCount > 0) {
-      throw new Error("Nie mozna usunac sklepu, bo jest powiazany z uzytkownikami lub ticketami.");
+      throw new Error("Nie można usunąć sklepu, bo jest powiązany z użytkownikami lub ticketami.");
     }
 
     await db.$transaction(async (tx) => {
@@ -815,7 +815,7 @@ export async function deleteStoreAdmin(id: string, actorId: string): Promise<boo
           action: "STORE_DELETED",
           entityType: "STORE",
           entityId: id,
-          summary: `Sklep ${store.code}: usunieto ${store.name}`,
+          summary: `Sklep ${store.code}: usunięto ${store.name}`,
           payload: { code: store.code, name: store.name }
         }
       });
@@ -833,7 +833,7 @@ export async function deleteStoreAdmin(id: string, actorId: string): Promise<boo
 
     const usage = getStoreUsageSummary(database, id);
     if (usage.userCount > 0 || usage.ticketCount > 0) {
-      throw new Error("Nie mozna usunac sklepu, bo jest powiazany z uzytkownikami lub ticketami.");
+      throw new Error("Nie można usunąć sklepu, bo jest powiązany z użytkownikami lub ticketami.");
     }
 
     const [store] = database.stores.splice(storeIndex, 1);
@@ -842,7 +842,7 @@ export async function deleteStoreAdmin(id: string, actorId: string): Promise<boo
       action: "STORE_DELETED",
       entityType: "STORE",
       entityId: id,
-      summary: `Sklep ${store.code}: usunieto ${store.name}`,
+      summary: `Sklep ${store.code}: usunięto ${store.name}`,
       payload: { code: store.code, name: store.name }
     });
     return true;
@@ -1018,7 +1018,7 @@ export async function deleteCategoryAdmin(id: string, actorId: string): Promise<
     ]);
 
     if (ticketCount > 0 || articleCount > 0) {
-      throw new Error("Nie mozna usunac kategorii, bo jest powiazana z ticketami lub baza wiedzy.");
+      throw new Error("Nie można usunąć kategorii, bo jest powiązana z ticketami lub bazą wiedzy.");
     }
 
     await db.$transaction(async (tx) => {
@@ -1029,7 +1029,7 @@ export async function deleteCategoryAdmin(id: string, actorId: string): Promise<
           action: "CATEGORY_DELETED",
           entityType: "CATEGORY",
           entityId: id,
-          summary: `Kategoria ${category.name}: usunieto`,
+          summary: `Kategoria ${category.name}: usunięto`,
           payload: { name: category.name }
         }
       });
@@ -1047,7 +1047,7 @@ export async function deleteCategoryAdmin(id: string, actorId: string): Promise<
 
     const usage = getCategoryUsageSummary(database, id);
     if (usage.ticketCount > 0 || usage.articleCount > 0) {
-      throw new Error("Nie mozna usunac kategorii, bo jest powiazana z ticketami lub baza wiedzy.");
+      throw new Error("Nie można usunąć kategorii, bo jest powiązana z ticketami lub bazą wiedzy.");
     }
 
     const [category] = database.categories.splice(categoryIndex, 1);
@@ -1056,7 +1056,7 @@ export async function deleteCategoryAdmin(id: string, actorId: string): Promise<
       action: "CATEGORY_DELETED",
       entityType: "CATEGORY",
       entityId: id,
-      summary: `Kategoria ${category.name}: usunieto`,
+      summary: `Kategoria ${category.name}: usunięto`,
       payload: { name: category.name }
     });
     return true;
@@ -2198,12 +2198,12 @@ export async function exportTicketsCSV(): Promise<string> {
     "Blokuje prace",
     "Kategoria",
     "Sklep",
-    "Zglaszajacy",
+    "Zgłaszający",
     "Wykonawca",
     "Utworzono",
     "Zaktualizowano",
-    "Rozwiazano",
-    "Zamknieto"
+    "Rozwiązano",
+    "Zamknięto"
   ];
 
   if (shouldUsePrisma()) {
