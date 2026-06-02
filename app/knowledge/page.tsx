@@ -1,6 +1,7 @@
 import { BookOpen, Filter, Search } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { ArticleCard } from "@/components/knowledge/article-card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { requireUser } from "@/lib/auth";
 import { listPublishedKnowledgeArticles, readDatabase } from "@/lib/data-store";
 
@@ -75,16 +76,16 @@ export default async function KnowledgePage({
           ))}
         </div>
       ) : (
-        <div className="rounded-md border border-dashed border-black/20 bg-white/60 p-10 text-center dark:border-white/20 dark:bg-white/10">
-          <h2 className="text-xl font-black">Brak artykulow</h2>
-          <p className="mt-2 text-ink/65 dark:text-paper/65">
-            {params.q
+        <EmptyState
+          variant={params.q ? "search" : "articles"}
+          description={
+            params.q
               ? `Brak wynikow dla "${params.q}". Spróbuj zmienic fraze.`
               : params.category
                 ? "Brak opublikowanych artykulow w tej kategorii."
-                : "Baza wiedzy nie zawiera jeszcze zadnych artykulow."}
-          </p>
-        </div>
+                : "Baza wiedzy nie zawiera jeszcze zadnych artykulow."
+          }
+        />
       )}
     </AppShell>
   );

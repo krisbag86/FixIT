@@ -39,6 +39,7 @@ export function KanbanBoard({
   const [localTickets, setLocalTickets] = useState<Ticket[]>(tickets);
   const [error, setError] = useState<string | null>(null);
   const [movingIds, setMovingIds] = useState<Set<string>>(new Set());
+  const [mobileColumn, setMobileColumn] = useState<string | null>(null);
 
   // Sync with server data after refresh
   useEffect(() => {
@@ -128,6 +129,11 @@ export function KanbanBoard({
 
   const isEmpty = localTickets.length === 0;
 
+  // On mobile, show column selector tabs + single column view
+  const visibleColumns = mobileColumn
+    ? columns.filter((col) => col.status === mobileColumn)
+    : columns;
+
   return (
     <div>
       {/* Error banner */}
@@ -145,12 +151,39 @@ export function KanbanBoard({
         </div>
       )}
 
-      <div className="flex gap-4 overflow-x-auto pb-4">
+      {/* Mobile column selector */}
+      <div className="mb-4 flex gap-1 overflow-x-auto pb-2 md:hidden scrollbar-none">
+        <button
+          onClick={() => setMobileColumn(null)}
+          className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-bold transition ${
+            !mobileColumn
+              ? "bg-ink text-white dark:bg-paper dark:text-ink"
+              : "bg-black/5 text-ink/60 hover:bg-black/10 dark:bg-white/10 dark:text-paper/60 dark:hover:bg-white/15"
+          }`}
+        >
+          Wszystkie
+        </button>
         {columns.map((col) => (
+          <button
+            key={col.status}
+            onClick={() => setMobileColumn(col.status)}
+            className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-bold transition ${
+              mobileColumn === col.status
+                ? "bg-ink text-white dark:bg-paper dark:text-ink"
+                : "bg-black/5 text-ink/60 hover:bg-black/10 dark:bg-white/10 dark:text-paper/60 dark:hover:bg-white/15"
+            }`}
+          >
+            {col.label} ({col.tickets.length})
+          </button>
+        ))}
+      </div>
+
+      <div className={`${mobileColumn ? "w-full" : "flex gap-4 overflow-x-auto pb-4"}`}>
+        {visibleColumns.map((col) => (
           <div
             key={col.status}
             data-kanban-column={col.status}
-            className="min-w-[14rem] flex-1 rounded-md border border-black/10 bg-white/60 p-3 transition-colors dark:border-white/10 dark:bg-white/5"
+            className={`${mobileColumn ? "w-full" : "min-w-[14rem] flex-1"} rounded-md border border-black/10 bg-white/60 p-3 transition-colors dark:border-white/10 dark:bg-white/5`}
             onDragOver={(e) => {
               e.preventDefault();
               e.dataTransfer.dropEffect = "move";

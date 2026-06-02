@@ -2,6 +2,7 @@
 
 import { Paperclip, Upload, X } from "lucide-react";
 import { useRef, useState } from "react";
+import { toastError, toastSuccess } from "@/lib/toast";
 import { formatFileSize } from "@/lib/storage-utils";
 import type { TicketAttachment } from "@/lib/types";
 
@@ -63,9 +64,11 @@ export function AttachmentUpload({
 
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
+        const errMsg = body.error ?? "Blad uploadu";
+        toastError(errMsg);
         setPending((current) =>
           current.map((p) =>
-            p.stringId === stringId ? { ...p, status: "error", error: body.error ?? "Blad uploadu" } : p
+            p.stringId === stringId ? { ...p, status: "error", error: errMsg } : p
           )
         );
         return;
@@ -80,6 +83,7 @@ export function AttachmentUpload({
         stringId: string;
       };
 
+      toastSuccess(`Plik "${data.filename}" przeslany`);
       setPending((current) =>
         current.map((p) =>
           p.stringId === stringId
@@ -92,9 +96,11 @@ export function AttachmentUpload({
         { id: data.id, filename: data.filename, mimeType: data.mimeType, size: data.size, createdAt: data.createdAt }
       ]);
     } catch (err) {
+      const errMsg = (err as Error).message;
+      toastError(errMsg || "Blad polaczenia");
       setPending((current) =>
         current.map((p) =>
-          p.stringId === stringId ? { ...p, status: "error", error: (err as Error).message } : p
+          p.stringId === stringId ? { ...p, status: "error", error: errMsg } : p
         )
       );
     }

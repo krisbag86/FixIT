@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { ToastProvider } from "@/components/ui/toast-provider";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin-ext"] });
 
 export const metadata: Metadata = {
   title: "FixIT Helpdesk",
-  description: "Helpdesk IT dla sklepów i biura Bagietki"
+  description: "Helpdesk IT dla sklepow i biura Bagietki"
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -19,6 +20,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           }}
         />
         {children}
+        <ToastProvider />
       </body>
     </html>
   );

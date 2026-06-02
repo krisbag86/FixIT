@@ -1,5 +1,6 @@
 import { Filter } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { EmptyState } from "@/components/ui/empty-state";
 import { TicketCard } from "@/components/ticket-card";
 import { requireUser } from "@/lib/auth";
 import { listVisibleTickets, readDatabase } from "@/lib/data-store";
@@ -57,10 +58,12 @@ export default async function TicketsPage({ searchParams }: { searchParams: Prom
           ))}
         </div>
       ) : (
-        <div className="rounded-md border border-dashed border-black/20 bg-white/60 p-10 text-center dark:border-white/20 dark:bg-white/10">
-          <h2 className="text-xl font-black">Brak zgloszen</h2>
-          <p className="mt-2 text-ink/65 dark:text-paper/65">Zmien filtr albo utworz pierwsze zgloszenie.</p>
-        </div>
+        <EmptyState
+          variant="tickets"
+          description={status ? "Brak zgloszen w tym statusie. Zmien filtr lub utworz nowe zgloszenie." : "Zmien filtr albo utworz pierwsze zgloszenie."}
+          actionHref="/tickets/new"
+          actionLabel="Zglos awarie"
+        />
       )}
     </AppShell>
   );

@@ -15,7 +15,7 @@ const links = [
 
 export function AdminNav({ user, currentPath }: { user: User; currentPath: string }) {
   return (
-    <div className="mb-6 flex flex-wrap gap-2 rounded-md border border-black/10 bg-white/70 p-2 dark:border-white/10 dark:bg-white/10">
+    <div className="mb-6 flex overflow-x-auto gap-2 rounded-md border border-black/10 bg-white/70 p-2 scrollbar-none dark:border-white/10 dark:bg-white/10">
       {links
         .filter((link) => !link.adminOnly || user.role === "ADMIN")
         .map((link) => {
