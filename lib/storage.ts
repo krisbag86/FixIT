@@ -10,7 +10,6 @@ import {
   sanitizeFilename,
   UploadValidationError
 } from "@/lib/storage-utils";
-import { isS3Configured, saveAttachmentFileS3, readAttachmentFileS3, deleteAttachmentFileS3 } from "@/lib/s3-storage";
 
 const storageRoot = path.join(process.cwd(), ".data", "attachments");
 
@@ -21,7 +20,14 @@ export {
   UploadValidationError
 } from "@/lib/storage-utils";
 
-
+function isS3Configured(): boolean {
+  return Boolean(
+    process.env.S3_ENDPOINT &&
+    process.env.S3_ACCESS_KEY_ID &&
+    process.env.S3_SECRET_ACCESS_KEY &&
+    process.env.S3_BUCKET
+  );
+}
 
 export async function saveAttachmentFile(
   data: Uint8Array,
@@ -44,6 +50,7 @@ export async function saveAttachmentFile(
   const safeName = sanitizeFilename(filename);
 
   if (isS3Configured()) {
+    const { saveAttachmentFileS3 } = await import("@/lib/s3-storage");
     return saveAttachmentFileS3(data, safeName, mimeType);
   }
 
@@ -63,6 +70,7 @@ export async function readAttachmentFile(storageKey: string): Promise<Buffer> {
   }
 
   if (isS3Configured()) {
+    const { readAttachmentFileS3 } = await import("@/lib/s3-storage");
     return readAttachmentFileS3(storageKey);
   }
 
@@ -76,6 +84,7 @@ export async function deleteAttachmentFile(storageKey: string): Promise<void> {
   }
 
   if (isS3Configured()) {
+    const { deleteAttachmentFileS3 } = await import("@/lib/s3-storage");
     return deleteAttachmentFileS3(storageKey);
   }
 

@@ -2,13 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
-import {
-  isAllowedMimeType,
-  MAX_FILE_SIZE,
-  sanitizeFilename,
-  UploadValidationError,
-  isValidStorageKey
-} from "@/lib/storage-utils";
+import { UploadValidationError, isValidStorageKey } from "@/lib/storage-utils";
 
 function getS3Config() {
   const endpoint = process.env.S3_ENDPOINT;
@@ -41,34 +35,16 @@ function getS3Client(config: NonNullable<ReturnType<typeof getS3Config>>): S3Cli
   return s3Client;
 }
 
-export function isS3Configured(): boolean {
-  return getS3Config() !== null;
-}
-
 export async function saveAttachmentFileS3(
   data: Uint8Array,
   filename: string,
   mimeType: string
-): Promise<{ storageKey: string; size: number; filename: string; mimeType: string }> {
-  if (!filename || filename.length > 255) {
-    throw new UploadValidationError("Nieprawidłowa nazwa pliku.");
-  }
-  if (data.byteLength === 0) {
-    throw new UploadValidationError("Plik jest pusty.");
-  }
-  if (data.byteLength > MAX_FILE_SIZE) {
-    throw new UploadValidationError(`Plik przekracza limit ${MAX_FILE_SIZE / 1024 / 1024} MB.`);
-  }
-  if (!isAllowedMimeType(mimeType)) {
-    throw new UploadValidationError(`Typ pliku ${mimeType} nie jest dozwolony.`);
-  }
-
+): Promise<{ storageKey: string; size: number; filename: string; mimeType: string }>
   const config = getS3Config();
   if (!config) {
     throw new Error("S3 nie jest skonfigurowane.");
   }
 
-  const safeName = sanitizeFilename(filename);
   const storageKey = randomUUID();
   const client = getS3Client(config);
 
@@ -82,7 +58,7 @@ export async function saveAttachmentFileS3(
     })
   );
 
-  return { storageKey, size: data.byteLength, filename: safeName, mimeType };
+  return { storageKey, size: data.byteLength, filename, mimeType };
 }
 
 export async function readAttachmentFileS3(storageKey: string): Promise<Buffer> {
@@ -122,17 +98,11 @@ export async function deleteAttachmentFileS3(storageKey: string): Promise<void> 
   }
 
   const client = getS3Client(config);
-  try {
-    await client.send(
-      new DeleteObjectCommand({
-        Bucket: config.bucket,
-        Key: storageKey
-      })
-    );
-  } catch (error) {
-    // Ignore if file doesn't exist
-    if ((error as { name?: string }).name !== "NoSuchKey") {
-      throw error;
-    }
-  }
+  // DeleteObjectCommand is idempotent — succeeds even if object doesn't exist
+  await client.send(
+    new DeleteObjectCommand({
+      Bucket: config.bucket,
+      Key: storageKey
+    })
+  );
 }
