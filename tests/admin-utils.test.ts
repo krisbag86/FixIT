@@ -5,32 +5,34 @@ import { createSeedDatabase } from "@/lib/seed";
 describe("admin utils", () => {
   it("builds audit payloads and readable summaries for user changes", () => {
     const database = createSeedDatabase();
-    const before = database.users.find((user) => user.id === "usr_reporter");
+    const before = database.users.find((user) => user.id === "usr_admin");
 
     expect(before).toBeDefined();
 
     const changes = getUserAuditChanges(before!, {
-      role: "STORE_MANAGER",
+      role: "AGENT",
       storeId: "store_krk02",
-      department: "Sprzedaz",
+      department: "Biuro",
       isActive: false
     });
 
     expect(changes).toHaveLength(4);
     expect(buildAuditPayload(changes)).toMatchObject({
-      rolaFrom: "REPORTER",
-      rolaTo: "STORE_MANAGER",
-      sklepFrom: "store_waw01",
+      rolaFrom: "ADMIN",
+      rolaTo: "AGENT",
+      sklepFrom: "-",
       sklepTo: "store_krk02"
     });
-    expect(describeAuditChanges("Uzytkownik", before!.email, changes)).toContain("rola REPORTER -> STORE_MANAGER");
+    expect(describeAuditChanges("Uzytkownik", before!.email, changes)).toContain("rola ADMIN -> AGENT");
   });
 
   it("counts store and category usage before delete", () => {
     const database = createSeedDatabase();
 
-    expect(getStoreUsageSummary(database, "store_waw01")).toEqual({ userCount: 2, ticketCount: 1 });
-    expect(getCategoryUsageSummary(database, "cat_terminal")).toEqual({ ticketCount: 1, articleCount: 1 });
+    // seed has 0 users assigned to store_waw01 and 0 tickets
+    expect(getStoreUsageSummary(database, "store_waw01")).toEqual({ userCount: 0, ticketCount: 0 });
+    // cat_terminal has 0 tickets but 1 knowledge article
+    expect(getCategoryUsageSummary(database, "cat_terminal")).toEqual({ ticketCount: 0, articleCount: 1 });
     expect(getCategoryUsageSummary(database, "cat_other")).toEqual({ ticketCount: 0, articleCount: 0 });
   });
 });

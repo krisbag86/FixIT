@@ -6,6 +6,7 @@ services:
     environment:
       NEXT_TELEMETRY_DISABLED: "1"
       APP_URL: "http://localhost:3001"
+      COOKIE_SECRET: "dev-secret-change-me-in-prod-32chars"
       DATABASE_URL: "postgresql://fixit:fixit@postgres:5432/fixit"
       NEXTAUTH_URL: "http://localhost:3001"
       NEXTAUTH_SECRET: "dev-secret-change-me"
