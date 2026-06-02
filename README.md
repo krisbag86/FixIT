@@ -171,3 +171,4 @@ npm run test:e2e
 
 Projekt wewnętrzny — **Bagietka Sp. z o.o.**
 
+
