@@ -1,9 +1,1 @@
-.git
-.next
 node_modules
-.data
-coverage
-dist
-.env
-.env.local
-it-helpdesk-docs.zip
