@@ -12,23 +12,34 @@ export default async function LoginPage() {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center px-4 py-10">
-      <section className="w-full max-w-md rounded-md border border-black/10 bg-paper/90 p-6 shadow-soft backdrop-blur dark:border-white/10 dark:bg-ink/90">
-        <div className="mb-8 flex items-start justify-between gap-4">
-          <div>
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-md bg-mint text-white">
-              <ShieldCheck size={24} />
+    <main className="relative grid min-h-screen place-items-center overflow-hidden px-4 py-10">
+      {/* Animowane tło */}
+      <div className="pointer-events-none fixed inset-0 -z-10">
+        <div className="absolute -left-32 -top-32 h-96 w-96 animate-pulse rounded-full bg-mint/10 blur-3xl" />
+        <div className="absolute -bottom-32 -right-32 h-96 w-96 animate-pulse rounded-full bg-river/10 blur-3xl" style={{ animationDelay: "2s" }} />
+        <div className="absolute left-1/2 top-1/3 h-64 w-64 -translate-x-1/2 animate-pulse rounded-full bg-amberline/8 blur-3xl" style={{ animationDelay: "4s" }} />
+      </div>
+
+      <section className="relative w-full max-w-md">
+        {/* Świecąca ramka */}
+        <div className="absolute -inset-0.5 animate-pulse rounded-2xl bg-gradient-to-r from-mint via-river to-amberline opacity-20 blur" />
+        
+        <div className="relative rounded-2xl border border-white/20 bg-paper/95 p-8 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-ink/95">
+          <div className="mb-8 flex items-start justify-between gap-4">
+            <div>
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-mint to-river text-white shadow-lg shadow-mint/20">
+                <ShieldCheck size={28} />
+              </div>
+              <h1 className="bg-gradient-to-r from-mint to-river bg-clip-text text-3xl font-black tracking-tight text-transparent">
+                FixIT
+              </h1>
+              <p className="mt-1 text-sm leading-6 text-ink/60 dark:text-paper/60">
+                System zgłoszeń IT — Bagietka
+              </p>
             </div>
-            <h1 className="text-2xl font-black">FixIT Helpdesk</h1>
-            <p className="mt-2 text-sm leading-6 text-ink/65 dark:text-paper/65">
-              Logowanie tylko dla adresow w domenie bagietka.pl.
-            </p>
+            <ThemeToggle />
           </div>
-          <ThemeToggle />
-        </div>
-        <LoginForm />
-        <div className="mt-5 rounded-md bg-white/70 p-3 text-xs leading-5 text-ink/65 dark:bg-white/10 dark:text-paper/65">
-          Konta testowe: admin@bagietka.pl, agent@bagietka.pl, sklep.waw01@bagietka.pl, kasjer@bagietka.pl.
+          <LoginForm />
         </div>
       </section>
     </main>

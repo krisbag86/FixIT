@@ -6,7 +6,7 @@ export function createSeedDatabase(): Database {
   return {
     meta: {
       ticketSequences: {
-        "2026": 3
+        "2026": 0
       }
     },
     users: [
@@ -16,30 +16,6 @@ export function createSeedDatabase(): Database {
         email: "admin@bagietka.pl",
         role: "ADMIN",
         department: "IT",
-        isActive: true
-      },
-      {
-        id: "usr_agent",
-        name: "Marek Agent",
-        email: "agent@bagietka.pl",
-        role: "AGENT",
-        department: "IT",
-        isActive: true
-      },
-      {
-        id: "usr_manager",
-        name: "Kasia Kierownik",
-        email: "sklep.waw01@bagietka.pl",
-        role: "STORE_MANAGER",
-        storeId: "store_waw01",
-        isActive: true
-      },
-      {
-        id: "usr_reporter",
-        name: "Jan Kasjer",
-        email: "kasjer@bagietka.pl",
-        role: "REPORTER",
-        storeId: "store_waw01",
         isActive: true
       }
     ],
@@ -55,121 +31,56 @@ export function createSeedDatabase(): Database {
       {
         id: "store_krk02",
         code: "KRK02",
-        name: "Bagietka Krakow Kazimierz",
-        city: "Krakow",
-        region: "Malopolskie",
+        name: "Bagietka Kraków Kazimierz",
+        city: "Kraków",
+        region: "Małopolskie",
         isActive: true
       }
     ],
     categories: [
       { id: "cat_pos", name: "Kasa / POS", defaultPriority: "CRITICAL", isActive: true },
       { id: "cat_printer", name: "Drukarka fiskalna", defaultPriority: "HIGH", isActive: true },
-      { id: "cat_terminal", name: "Terminal platniczy", defaultPriority: "HIGH", isActive: true },
-      { id: "cat_network", name: "Internet / siec", defaultPriority: "HIGH", isActive: true },
+      { id: "cat_terminal", name: "Terminal płatniczy", defaultPriority: "HIGH", isActive: true },
+      { id: "cat_network", name: "Internet / sieć", defaultPriority: "HIGH", isActive: true },
       { id: "cat_computer", name: "Komputer / laptop", defaultPriority: "NORMAL", isActive: true },
-      { id: "cat_access", name: "Konto / dostep", defaultPriority: "NORMAL", isActive: true },
+      { id: "cat_access", name: "Konto / dostęp", defaultPriority: "NORMAL", isActive: true },
       { id: "cat_mail", name: "Poczta", defaultPriority: "NORMAL", isActive: true },
       { id: "cat_other", name: "Inne", defaultPriority: "NORMAL", isActive: true }
     ],
-    tickets: [
-      {
-        id: "t_001",
-        number: "IT-2026-0001",
-        title: "Terminal nie laczy sie z siecia",
-        description: "Terminal platniczy przy kasie 2 od rana pokazuje brak polaczenia.",
-        status: "IN_PROGRESS",
-        priority: "HIGH",
-        blocksWork: true,
-        contact: "+48 500 100 200",
-        categoryId: "cat_terminal",
-        storeId: "store_waw01",
-        reporterId: "usr_reporter",
-        assigneeId: "usr_agent",
-        createdAt: "2026-06-01T08:12:00.000Z",
-        updatedAt: "2026-06-01T09:05:00.000Z"
-      },
-      {
-        id: "t_002",
-        number: "IT-2026-0002",
-        title: "Nowy dostep do systemu magazynowego",
-        description: "Prosze o nadanie dostepu dla nowej osoby w biurze.",
-        status: "NEW",
-        priority: "NORMAL",
-        blocksWork: false,
-        contact: "biuro@bagietka.pl",
-        categoryId: "cat_access",
-        department: "Biuro",
-        reporterId: "usr_manager",
-        createdAt: "2026-06-01T09:30:00.000Z",
-        updatedAt: "2026-06-01T09:30:00.000Z"
-      }
-    ],
-    comments: [
-      {
-        id: "c_001",
-        ticketId: "t_001",
-        authorId: "usr_agent",
-        body: "Sprawdzamy polaczenie operatora i konfiguracje terminala.",
-        visibility: "PUBLIC",
-        createdAt: "2026-06-01T09:05:00.000Z"
-      },
-      {
-        id: "c_002",
-        ticketId: "t_001",
-        authorId: "usr_agent",
-        body: "Jesli restart terminala nie pomoze, eskalowac do dostawcy.",
-        visibility: "INTERNAL",
-        createdAt: "2026-06-01T09:06:00.000Z"
-      }
-    ],
+    tickets: [],
+    comments: [],
     attachments: [],
-    events: [
-      {
-        id: "e_001",
-        ticketId: "t_001",
-        actorId: "usr_reporter",
-        type: "TICKET_CREATED",
-        createdAt: "2026-06-01T08:12:00.000Z"
-      },
-      {
-        id: "e_002",
-        ticketId: "t_001",
-        actorId: "usr_agent",
-        type: "ASSIGNEE_CHANGED",
-        payload: { assigneeId: "usr_agent" },
-        createdAt: "2026-06-01T09:00:00.000Z"
-      }
-    ],
+    events: [],
     knowledgeArticles: [
       {
         id: "ka_001",
-        title: "Szybki restart terminala platniczego",
+        title: "Szybki restart terminala płatniczego",
         slug: "restart-terminala",
-        body: "Odlacz terminal od zasilania na 20 sekund, wlacz ponownie i sprawdz polaczenie.",
+        body: "Odłącz terminal od zasilania na 20 sekund, włącz ponownie i sprawdź połączenie.",
         categoryId: "cat_terminal",
         isPublished: true
       },
       {
         id: "ka_002",
-        title: "Jak wydrukowac raport dobowy na kasie",
+        title: "Jak wydrukować raport dobowy na kasie",
         slug: "raport-dobowy-kasa",
-        body: "Na ekranie glownym kasy wybierz 'Raporty' → 'Raport dobowy'. Kasa wydrukuje podsumowanie sprzedazy. Jesli drukarka nie reaguje, sprawdz czy jest wlaczona i czy ma papier.",
+        body: "Na ekranie głównym kasy wybierz 'Raporty' → 'Raport dobowy'. Kasa wydrukuje podsumowanie sprzedaży. Jeśli drukarka nie reaguje, sprawdź czy jest włączona i czy ma papier.",
         categoryId: "cat_pos",
         isPublished: true
       },
       {
         id: "ka_003",
-        title: "Reset hasla do poczty sluzbowej",
+        title: "Reset hasła do poczty służbowej",
         slug: "reset-hasla-poczta",
-        body: "Skontaktuj sie z IT przez FixIT (nowe zgloszenie → kategoria Poczta). Nowe haslo zostanie wyslane na Twoj numer telefonu w systemie HR.",
+        body: "Skontaktuj się z IT przez FixIT (nowe zgłoszenie → kategoria Poczta). Nowe hasło zostanie wysłane na Twój numer telefonu w systemie HR.",
         categoryId: "cat_mail",
         isPublished: true
       },
       {
         id: "ka_004",
-        title: "Co zrobic gdy internet nie dziala",
+        title: "Co zrobić gdy internet nie działa",
         slug: "internet-nie-dziala",
-        body: "1. Sprawdz czy switch/swiatla na routerze sa zielone.\n2. Restartuj router (odlacz zasilanie na 30 sekund).\n3. Jesli to nie pomaga, utworz zgloszenie w FixIT z kategoria Internet / siec.",
+        body: "1. Sprawdź czy switch/światła na routerze są zielone.\n2. Zrestartuj router (odłącz zasilanie na 30 sekund).\n3. Jeśli to nie pomaga, utwórz zgłoszenie w FixIT z kategorią Internet / sieć.",
         categoryId: "cat_network",
         isPublished: true
       },
@@ -177,29 +88,20 @@ export function createSeedDatabase(): Database {
         id: "ka_005",
         title: "Zmiana papieru w drukarce fiskalnej",
         slug: "zmiana-papieru-drukarka",
-        body: "1. Otworz pokrywe drukarki.\n2. Wloz nowa role papieru zgodnie z kierunkiem nadruku na obudowie.\n3. Zamknij pokrywe – drukarka automatycznie przyjmie papier.\n4. Jesli papier sie zacina, otworz ponownie i wyrownaj krawedz.",
+        body: "1. Otwórz pokrywę drukarki.\n2. Włóż nową rolkę papieru zgodnie z kierunkiem nadruku na obudowie.\n3. Zamknij pokrywę – drukarka automatycznie przyjmie papier.\n4. Jeśli papier się zacina, otwórz ponownie i wyrównaj krawędź.",
         categoryId: "cat_printer",
         isPublished: true
       },
       {
         id: "ka_006",
-        title: "Jak zamowic nowy sprzet IT",
+        title: "Jak zamówić nowy sprzęt IT",
         slug: "zamowienie-sprzetu",
-        body: "Nowy sprzet (komputer, drukarka, terminal) zamawiasz przez zgloszenie w FixIT. Opisz czego potrzebujesz i uzasadnij. Decyzje podejmuje IT w porozumieniu z kierownikiem.",
+        body: "Nowy sprzęt (komputer, drukarka, terminal) zamawiasz przez zgłoszenie w FixIT. Opisz czego potrzebujesz i uzasadnij. Decyzję podejmuje IT w porozumieniu z kierownikiem.",
         categoryId: "cat_computer",
         isPublished: false
       }
     ],
-    notificationLogs: [
-      {
-        id: "n_001",
-        ticketId: "t_001",
-        recipientEmail: "kasjer@bagietka.pl",
-        type: "TICKET_CREATED",
-        status: "QUEUED",
-        createdAt: now
-      }
-    ],
+    notificationLogs: [],
     adminAuditLogs: []
   };
 }

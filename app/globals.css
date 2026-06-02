@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap&subset=latin,latin-ext');
+
 :root {
   color-scheme: light;
 }
@@ -10,34 +12,74 @@
   color-scheme: dark;
 }
 
+* {
+  box-sizing: border-box;
+}
+
 body {
   min-height: 100vh;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   background:
-    radial-gradient(circle at top left, rgba(31, 138, 112, 0.14), transparent 32rem),
+    radial-gradient(ellipse at 0% 0%, rgba(31, 138, 112, 0.10), transparent 50%),
+    radial-gradient(ellipse at 100% 100%, rgba(47, 111, 237, 0.08), transparent 50%),
     linear-gradient(135deg, #f7f5ef 0%, #eef4f3 46%, #f8f1f4 100%);
   color: #17202a;
 }
 
 .dark body {
   background:
-    radial-gradient(circle at top left, rgba(47, 111, 237, 0.18), transparent 34rem),
-    linear-gradient(135deg, #101820 0%, #17202a 50%, #211723 100%);
+    radial-gradient(ellipse at 0% 0%, rgba(47, 111, 237, 0.12), transparent 50%),
+    radial-gradient(ellipse at 100% 100%, rgba(230, 167, 0, 0.06), transparent 50%),
+    linear-gradient(135deg, #0a0f16 0%, #131b26 50%, #1a121e 100%);
   color: #f7f5ef;
 }
 
-* {
-  box-sizing: border-box;
+/* Animowane tło dla strony logowania */
+@keyframes float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-20px) scale(1.05); }
 }
 
-button,
-input,
-select,
-textarea {
-  font: inherit;
+@keyframes glow {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Szybkie przejścia */
+a, button, input, select, textarea {
+  transition: all 0.2s ease;
 }
 
 ::selection {
-  background: rgba(31, 138, 112, 0.28);
+  background: rgba(31, 138, 112, 0.30);
+}
+
+.dark ::selection {
+  background: rgba(31, 138, 112, 0.40);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(31, 138, 112, 0.25);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(31, 138, 112, 0.40);
 }
 
 .scrollbar-none::-webkit-scrollbar {
@@ -46,4 +88,25 @@ textarea {
 .scrollbar-none {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Klasa dla kart w stylu glassmorphism */
+.glass {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dark .glass {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Lśniący efekt dla gradientowych napisów */
+.text-gradient {
+  background: linear-gradient(135deg, #1f8a70, #2f6fed);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
