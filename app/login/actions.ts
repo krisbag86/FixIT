@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createOrFindUser } from "@/lib/data-store";
 import { isAllowedBagietkaEmail, normalizeEmail } from "@/lib/email-domain";
 import { sessionCookieName } from "@/lib/auth";
+import { signSessionValue } from "@/lib/cookie-signature";
 
 export async function loginAction(_previousState: string | undefined, formData: FormData): Promise<string | undefined> {
   const email = normalizeEmail(String(formData.get("email") ?? ""));
@@ -15,7 +16,7 @@ export async function loginAction(_previousState: string | undefined, formData: 
 
   const user = await createOrFindUser(email);
   const cookieStore = await cookies();
-  cookieStore.set(sessionCookieName, user.id, {
+  cookieStore.set(sessionCookieName, signSessionValue(user.id), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

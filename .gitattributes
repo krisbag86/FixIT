@@ -1,0 +1,21 @@
+# Force LF line endings for Docker and Railway deployment files
+# CRLF line endings cause BuildKit errors on Railway
+.dockerignore text eol=lf
+Dockerfile text eol=lf
+docker-compose.yml text eol=lf
+railway.json text eol=lf
+
+# Shell scripts must have LF line endings
+*.sh text eol=lf
+
+# Config files
+.env.example text eol=lf
+
+# Source code - let Git handle normalization automatically
+*.ts text
+*.tsx text
+*.css text
+*.json text
+*.md text
+*.yml text
+*.yaml text
