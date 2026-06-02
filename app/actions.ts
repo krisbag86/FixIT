@@ -10,6 +10,7 @@ import { sendEmail } from "@/lib/email";
 import { templateTicketCreated, templateTicketResolved, templateTicketAssigned, templateCommentAdded } from "@/lib/email-templates";
 import type { CommentVisibility, Database, TicketPriority, TicketStatus } from "@/lib/types";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter";
+import { reportError } from "@/lib/sentry";
 
 function enforceMutationRateLimit(userId: string): void {
   const rateCheck = checkRateLimit(`mutation:${userId}`, RATE_LIMITS.MUTATION.windowMs, RATE_LIMITS.MUTATION.maxAttempts);
@@ -93,6 +94,7 @@ export async function createTicketAction(formData: FormData): Promise<void> {
     }
   } catch (error) {
     console.error("Failed to initiate ticket creation email:", error);
+    reportError(error, { context: "createTicketAction", ticketId: ticket.id });
     // Don't throw - ticket was already created
   }
 
@@ -180,6 +182,7 @@ export async function updateTicketAction(formData: FormData): Promise<void> {
       }
     } catch (error) {
       console.error("Failed to send ticket update email:", error);
+      reportError(error, { context: "updateTicketAction", ticketId: ticketId });
       // Don't throw - ticket was already updated
     }
   }
@@ -248,6 +251,7 @@ export async function addCommentAction(formData: FormData): Promise<void> {
       }
     } catch (error) {
       console.error("Failed to initiate comment email:", error);
+      reportError(error, { context: "addCommentAction", ticketId: ticket.id });
       // Don't throw - comment was already added
     }
   }
