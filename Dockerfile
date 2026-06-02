@@ -35,10 +35,12 @@ COPY --from=builder /app/prisma ./prisma
 # Install only production dependencies (smaller image, fewer attack vectors)
 RUN npm ci --omit=dev
 
-# Copy Prisma-generated client (output of db:generate in builder)
+# Copy Prisma CLI + generated client from builder (prisma is a devDependency)
+# so it's not installed by npm ci --omit=dev, but needed at startup for migrations
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
-# Ensure all files are owned by the node user (needed for prisma generate in entrypoint)
+# Ensure all files are owned by the node user (needed for prisma CLI in entrypoint)
 RUN chown -R node:node /app
 
 # Switch to non-root user
