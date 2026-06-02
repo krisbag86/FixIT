@@ -44,6 +44,6 @@ RUN chown -R node:node /app
 # Switch to non-root user
 USER node
 
-EXPOSE 3000
+EXPOSE 8080
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["npm", "run", "start"]
