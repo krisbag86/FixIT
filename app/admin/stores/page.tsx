@@ -24,7 +24,7 @@ export default async function AdminStoresPage() {
           <span className="text-sm font-black uppercase">Administracja</span>
         </div>
         <h1 className="text-3xl font-black">Sklepy</h1>
-        <p className="mt-2 text-ink/65 dark:text-paper/65">CRUD sklepow i kontrola aktywnosci slownika.</p>
+        <p className="mt-2 text-ink/65 dark:text-paper/65">Zarządzanie sklepami i kontrola aktywności słownika.</p>
       </div>
 
       <AdminNav user={user} currentPath="/admin/stores" />
@@ -56,7 +56,7 @@ export default async function AdminStoresPage() {
               <th className="px-4 py-3 font-bold">Kod</th>
               <th className="px-4 py-3 font-bold">Nazwa</th>
               <th className="px-4 py-3 font-bold">Lokalizacja</th>
-              <th className="px-4 py-3 font-bold">Powiazania</th>
+              <th className="px-4 py-3 font-bold">Powiązania</th>
               <th className="px-4 py-3 font-bold">Edycja</th>
             </tr>
           </thead>
@@ -73,7 +73,7 @@ export default async function AdminStoresPage() {
                     {store.city || "-"} / {store.region || "-"}
                   </td>
                   <td className="px-4 py-3 text-xs text-ink/60 dark:text-paper/60">
-                    {userCount} uzytk. · {ticketCount} ticket.
+                    {userCount} użytk. · {ticketCount} zgłosz.
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
@@ -98,7 +98,7 @@ export default async function AdminStoresPage() {
                           className="inline-flex h-10 items-center gap-2 rounded-md border border-red-500/20 bg-red-500/5 px-3 text-sm font-bold text-red-600 dark:text-red-400"
                         >
                           <Trash2 size={16} />
-                          Usun
+                          Usuń
                         </button>
                       </form>
                     </div>
@@ -113,4 +113,5 @@ export default async function AdminStoresPage() {
   );
 }
 
-const fieldClass = "h-10 rounded-md border border-black/10 bg-white px-3 text-sm dark:border-white/10 dark:bg-white/10";
+const fieldClass =
+  "h-10 w-full min-w-0 rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper";

@@ -28,7 +28,7 @@ export default async function DashboardPage() {
           <LayoutDashboard size={20} />
           <span className="text-sm font-black uppercase">Panel IT</span>
         </div>
-        <h1 className="text-3xl font-black">Dashboard</h1>
+        <h1 className="text-3xl font-black">Pulpit</h1>
         <p className="mt-2 text-ink/65 dark:text-paper/65">
           Przegląd stanu zgłoszeń i obciążenia zespołu IT.
         </p>

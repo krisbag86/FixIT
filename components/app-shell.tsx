@@ -89,21 +89,13 @@ export function AppShell({ user, children }: { user: User; children: React.React
       </header>
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:py-8">{children}</main>
 
-        {/* Stopka */}
-        <footer className="border-t border-black/8 dark:border-white/8">
-          <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6">
-            <p className="text-center text-xs text-ink/40 dark:text-paper/40">
-              &copy; 2026 Krzysztof Graczyk. Wszelkie prawa zastrzeżone.
-            </p>
-          </div>
-        </footer>
       <footer className="border-t border-black/8 dark:border-white/8">
-          <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6">
-            <p className="text-center text-xs text-ink/40 dark:text-paper/40">
-              &copy; 2026 Krzysztof Graczyk. Wszelkie prawa zastrzeżone.
-            </p>
-          </div>
-        </footer>
+        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6">
+          <p className="text-center text-xs text-ink/40 dark:text-paper/40">
+            &copy; 2026 Krzysztof Graczyk. Wszelkie prawa zastrzeżone.
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }

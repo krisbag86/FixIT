@@ -16,7 +16,7 @@ export default async function NewTicketPage() {
     <AppShell user={user}>
       <div className="mb-6">
         <h1 className="text-3xl font-black">Nowe zgłoszenie</h1>
-        <p className="mt-2 text-ink/65 dark:text-paper/65">Krotki formularz dla sklepu i biura. Problem blokujacy prace podnosi priorytet do krytycznego.</p>
+        <p className="mt-2 text-ink/65 dark:text-paper/65">Krótki formularz dla sklepu i biura. Problem blokujący pracę podnosi priorytet do krytycznego.</p>
       </div>
 
       <form action={createTicketAction} data-testid="new-ticket-form" className="grid gap-5 rounded-md border border-black/10 bg-white/80 p-5 shadow-sm dark:border-white/10 dark:bg-white/10 lg:grid-cols-2">
@@ -39,10 +39,10 @@ export default async function NewTicketPage() {
             ))}
           </select>
         </Field>
-        <Field label="Dzial">
+        <Field label="Dział">
           <input name="department" defaultValue={user.department ?? ""} className={inputClass} placeholder="np. Biuro, Magazyn" />
         </Field>
-        <Field label="Pilnosc">
+        <Field label="Pilność">
           <select name="priority" defaultValue="NORMAL" className={inputClass}>
             {ticketPriorities.map((priority) => (
               <option key={priority} value={priority}>
@@ -53,12 +53,12 @@ export default async function NewTicketPage() {
         </Field>
         <div className="lg:col-span-2">
           <Field label="Temat">
-            <input name="title" className={inputClass} minLength={4} maxLength={120} placeholder="np. Kasa 2 nie drukuje paragonow" required />
+            <input name="title" className={inputClass} minLength={4} maxLength={120} placeholder="np. Kasa 2 nie drukuje paragonów" required />
           </Field>
         </div>
         <div className="lg:col-span-2">
           <Field label="Opis">
-            <textarea name="description" className={`${inputClass} min-h-36 py-3`} minLength={10} maxLength={2000} placeholder="Co sie dzieje, od kiedy, jaka kasa/stanowisko, czy probowano restartu?" required />
+            <textarea name="description" className={`${inputClass} min-h-36 py-3`} minLength={10} maxLength={2000} placeholder="Co się dzieje, od kiedy, jaka kasa/stanowisko, czy próbowano restartu?" required />
           </Field>
         </div>
         <Field label="Kontakt">
@@ -66,7 +66,7 @@ export default async function NewTicketPage() {
         </Field>
         <label className="flex min-h-12 items-center gap-3 rounded-md border border-black/10 bg-paper/70 px-3 text-sm font-semibold dark:border-white/10 dark:bg-white/5">
           <input name="blocksWork" type="checkbox" className="h-5 w-5 accent-mint" />
-          Blokuje sprzedaz lub prace
+          Blokuje sprzedaż lub pracę
         </label>
         <TicketFormFaq articles={articles} categories={categories} />
         <div className="lg:col-span-2">
@@ -81,7 +81,7 @@ export default async function NewTicketPage() {
 }
 
 const inputClass =
-  "h-12 w-full rounded-md border border-black/10 bg-white px-3 text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper";
+  "h-12 w-full rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

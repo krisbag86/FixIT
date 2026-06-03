@@ -28,7 +28,7 @@ export default async function AdminReportsPage() {
           <BarChart3 size={20} />
           <span className="text-sm font-black uppercase">Raporty</span>
         </div>
-        <h1 className="text-3xl font-black">Dashboard IT</h1>
+        <h1 className="text-3xl font-black">Raport IT</h1>
         <p className="mt-2 text-ink/65 dark:text-paper/65">Metryki, SLA i eksport danych.</p>
       </div>
 
@@ -140,7 +140,7 @@ export default async function AdminReportsPage() {
               })}
               {metrics.slaBreached.length > 10 && (
                 <p className="text-sm text-ink/55 dark:text-paper/55">
-                  + {metrics.slaBreached.length - 10} wiecej naruszen...
+                  + {metrics.slaBreached.length - 10} więcej naruszeń...
                 </p>
               )}
             </div>
@@ -152,7 +152,7 @@ export default async function AdminReportsPage() {
       <div className="mb-8 rounded-md border border-black/10 bg-white/75 p-4 dark:border-white/10 dark:bg-white/10">
         <h2 className="mb-3 flex items-center gap-2 text-lg font-black">
           <Clock size={18} className="text-mint" />
-          Reguly SLA
+          Reguły SLA
         </h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {(Object.entries(priorityLabels) as [TicketPriority, string][]).map(([priority, label]) => (

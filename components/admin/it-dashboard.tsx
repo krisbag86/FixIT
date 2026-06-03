@@ -117,7 +117,7 @@ export function ITDashboard({
         <div className="rounded-md border border-black/10 bg-white/75 p-4 dark:border-white/10 dark:bg-white/10">
           <h2 className="mb-4 flex items-center gap-2 text-lg font-black">
             <BarChart3 size={18} className="text-mint" />
-            Ticket volume (ostatnie 30 dni)
+            Liczba zgłoszeń (ostatnie 30 dni)
           </h2>
           {data.dailyTicketCounts.every((d) => d.created === 0 && d.resolved === 0) ? (
             <p className="py-12 text-center text-sm text-ink/55 dark:text-paper/55">
@@ -195,7 +195,7 @@ export function ITDashboard({
                   className="text-ink/50 dark:text-paper/50"
                 />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="count" name="Tickety" fill="#06b6a2" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="count" name="Zgłoszenia" fill="#06b6a2" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -212,7 +212,7 @@ export function ITDashboard({
           </h2>
           {data.agentWorkload.length === 0 ? (
             <p className="py-8 text-center text-sm text-ink/55 dark:text-paper/55">
-              Brak przypisanych ticketów.
+              Brak przypisanych zgłoszeń.
             </p>
           ) : (
             <div className="space-y-3">

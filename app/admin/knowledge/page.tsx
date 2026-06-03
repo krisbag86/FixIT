@@ -36,7 +36,7 @@ export default async function AdminKnowledgePage() {
             className="inline-flex h-10 items-center gap-2 rounded-md bg-mint px-4 font-bold text-white transition hover:bg-mint/90"
           >
             <Plus size={18} />
-            Nowy artykul
+            Nowy artykuł
           </Link>
         ) : null}
       </div>
@@ -95,7 +95,7 @@ export default async function AdminKnowledgePage() {
                             <button
                               type="submit"
                               className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-500/20 bg-red-500/5 text-red-600 transition hover:bg-red-500/10 dark:text-red-400"
-                              title="Usun"
+                              title="Usuń"
                             >
                               <Trash2 size={15} />
                             </button>
@@ -110,7 +110,8 @@ export default async function AdminKnowledgePage() {
           </table>
         </div>
       ) : (
-        <div className="rounded-md border border-dashed border-black/20 bg-white/60 p-10 text-center dark:border-white/20 dark:bg-white/10">            <h2 className="text-xl font-black">Brak artykułów</h2>
+        <div className="rounded-md border border-dashed border-black/20 bg-white/60 p-10 text-center dark:border-white/20 dark:bg-white/10">
+          <h2 className="text-xl font-black">Brak artykułów</h2>
           <p className="mt-2 text-ink/65 dark:text-paper/65">Dodaj pierwszy artykuł do bazy wiedzy.</p>
         </div>
       )}

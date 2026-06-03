@@ -55,6 +55,68 @@ a, button, input, select, textarea {
   transition: all 0.2s ease;
 }
 
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  line-height: 1;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(23, 32, 42, 0.45);
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: rgba(247, 245, 239, 0.45);
+}
+
+:where(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]), select, textarea) {
+  min-width: 0;
+  color: #17202a;
+}
+
+.dark :where(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]), select, textarea) {
+  color: #f7f5ef;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+select {
+  cursor: pointer;
+}
+
+select option,
+select optgroup {
+  background-color: #ffffff;
+  color: #17202a;
+}
+
+.dark select option,
+.dark select optgroup {
+  background-color: #111923;
+  color: #f7f5ef;
+}
+
+:where(input, select, textarea):disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.control-panel {
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.dark .control-panel {
+  border-color: rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.08);
+}
+
 ::selection {
   background: rgba(31, 138, 112, 0.30);
 }

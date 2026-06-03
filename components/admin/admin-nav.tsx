@@ -3,12 +3,12 @@ import { BarChart3, BookOpen, Building2, ClipboardList, Columns3, LayoutDashboar
 import type { User } from "@/lib/types";
 
 const links = [
-  { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard, adminOnly: false },
-  { href: "/admin/tickets", label: "Tickety", icon: ClipboardList, adminOnly: false },
+  { href: "/admin/dashboard", label: "Pulpit", icon: LayoutDashboard, adminOnly: false },
+  { href: "/admin/tickets", label: "Zgłoszenia", icon: ClipboardList, adminOnly: false },
   { href: "/admin/kanban", label: "Kanban", icon: Columns3, adminOnly: false },
   { href: "/admin/reports", label: "Raporty", icon: BarChart3, adminOnly: false },
   { href: "/admin/knowledge", label: "Baza wiedzy", icon: BookOpen, adminOnly: false },
-  { href: "/admin/users", label: "Uzytkownicy", icon: Users, adminOnly: true },
+  { href: "/admin/users", label: "Użytkownicy", icon: Users, adminOnly: true },
   { href: "/admin/stores", label: "Sklepy", icon: Building2, adminOnly: true },
   { href: "/admin/categories", label: "Kategorie", icon: Tags, adminOnly: true }
 ] as const;

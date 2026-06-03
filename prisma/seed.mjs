@@ -3,7 +3,6 @@ import process from "node:process";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
-const now = new Date("2026-06-01T10:00:00.000Z");
 
 async function main() {
   await prisma.store.upsert({

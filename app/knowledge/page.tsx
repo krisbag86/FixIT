@@ -32,22 +32,22 @@ export default async function KnowledgePage({
             Rozwiązania typowych problemów. Jeśli nie znajdziesz odpowiedzi, utwórz zgłoszenie.
           </p>
         </div>
-        <form className="flex items-center gap-2" method="get">
-          <div className="relative">
+        <form className="flex w-full flex-wrap items-center gap-2 sm:w-auto" method="get">
+          <div className="relative min-w-0 flex-1 sm:flex-none">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/40 dark:text-paper/40" />
             <input
               name="q"
               type="search"
               defaultValue={params.q ?? ""}
               placeholder="Szukaj artykułów..."
-              className="h-10 w-48 rounded-md border border-black/10 bg-white pl-9 pr-3 text-sm dark:border-white/10 dark:bg-white/10 sm:w-56"
+              className="h-10 w-full rounded-md border border-black/10 bg-white pl-9 pr-3 text-sm text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper sm:w-56"
             />
           </div>
           <Filter size={18} className="text-ink/50 dark:text-paper/50" />
           <select
             name="category"
             defaultValue={params.category ?? ""}
-            className="h-10 rounded-md border border-black/10 bg-white px-3 text-sm dark:border-white/10 dark:bg-white/10"
+            className="h-10 min-w-48 rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper"
           >
             <option value="">Wszystkie kategorie</option>
             {categories.map((cat) => (
@@ -57,7 +57,7 @@ export default async function KnowledgePage({
             ))}
           </select>
           <button
-            className="h-10 rounded-md bg-ink px-3 text-sm font-bold text-white dark:bg-paper dark:text-ink"
+            className="inline-flex h-10 items-center justify-center rounded-md bg-ink px-4 text-sm font-bold text-white dark:bg-paper dark:text-ink"
             type="submit"
           >
             Szukaj

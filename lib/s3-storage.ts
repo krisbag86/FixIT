@@ -39,7 +39,7 @@ export async function saveAttachmentFileS3(
   data: Uint8Array,
   filename: string,
   mimeType: string
-): Promise<{ storageKey: string; size: number; filename: string; mimeType: string }>
+): Promise<{ storageKey: string; size: number; filename: string; mimeType: string }> {
   const config = getS3Config();
   if (!config) {
     throw new Error("S3 nie jest skonfigurowane.");

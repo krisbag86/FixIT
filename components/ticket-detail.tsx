@@ -83,7 +83,7 @@ export function TicketDetail({
             <input type="hidden" name="ticketId" value={ticket.id} />
             <textarea
               name="body"
-              className="min-h-28 w-full rounded-md border border-black/10 bg-white px-3 py-3 text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper"
+              className="min-h-28 w-full rounded-md border border-black/10 bg-white px-3 py-3 text-sm text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper"
               placeholder="Dodaj odpowiedź..."
               minLength={2}
               required
@@ -91,12 +91,12 @@ export function TicketDetail({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <select
                 name="visibility"
-                className="h-10 rounded-md border border-black/10 bg-white px-3 text-sm dark:border-white/10 dark:bg-white/10"
+                className={commentSelectClass}
                 disabled={!canAddInternal}
                 data-testid="visibility-select"
               >
                 <option value="PUBLIC">Komentarz publiczny</option>
-                {canAddInternal ?                <option value="INTERNAL">Notatka wewnętrzna</option> : null}
+                {canAddInternal ? <option value="INTERNAL">Notatka wewnętrzna</option> : null}
               </select>
               <button type="submit" className="inline-flex h-10 items-center gap-2 rounded-md bg-mint px-4 text-sm font-black text-white hover:bg-mint/90">
                 <MessageSquare size={16} />
@@ -111,12 +111,13 @@ export function TicketDetail({
         <div className="rounded-md border border-black/10 bg-white/80 p-5 shadow-sm dark:border-white/10 dark:bg-white/10">
           <h2 className="mb-4 text-lg font-black">Informacje</h2>
           <Info label="Kategoria" value={category?.name ?? "Brak"} />
-          <Info label="Lokalizacja" value={store?.name ?? ticket.department ?? "Brak"} />            <Info label="Zgłaszający" value={reporter?.name ?? "Nieznany"} />
+          <Info label="Lokalizacja" value={store?.name ?? ticket.department ?? "Brak"} />
+          <Info label="Zgłaszający" value={reporter?.name ?? "Nieznany"} />
           <Info label="Prowadzi" value={assignee?.name ?? "Nieprzypisane"} />
           <Info label="Kontakt" value={ticket.contact} />
           <Info label="Utworzono" value={formatDateTime(ticket.createdAt)} />
           <Info label="Aktualizacja" value={formatDateTime(ticket.updatedAt)} />
-          <Info label="Blokuje prace" value={ticket.blocksWork ? "Tak" : "Nie"} />
+          <Info label="Blokuje pracę" value={ticket.blocksWork ? "Tak" : "Nie"} />
         </div>
 
         {canEdit ? (
@@ -159,7 +160,7 @@ export function TicketDetail({
         ) : null}
 
         <div className="rounded-md border border-black/10 bg-white/80 p-5 shadow-sm dark:border-white/10 dark:bg-white/10">
-          <h2 className="mb-4 text-lg font-black">{adminMode ? "Audit log" : "Historia"}</h2>
+          <h2 className="mb-4 text-lg font-black">{adminMode ? "Dziennik zmian" : "Historia"}</h2>
           <div className="space-y-3">
             {events.map((event) => {
               const actor = users.find((user) => user.id === event.actorId);
@@ -181,6 +182,9 @@ export function TicketDetail({
 
 const sideInputClass =
   "h-10 w-full rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper";
+
+const commentSelectClass =
+  "h-10 w-full rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper sm:w-auto sm:min-w-56";
 
 function Info({ label, value }: { label: string; value: string }) {
   return (

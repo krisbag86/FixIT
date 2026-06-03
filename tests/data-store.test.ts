@@ -112,7 +112,7 @@ describe("CSV injection prevention", () => {
   afterEach(resetDatabase);
 
   it("neutralizes formula injection in ticket titles via export", async () => {
-    const { createTicket, exportTicketsCSV, readDatabase } = await import("@/lib/data-store");
+    const { createTicket, exportTicketsCSV } = await import("@/lib/data-store");
 
     // Create tickets with formula-like titles
     await createTicket({

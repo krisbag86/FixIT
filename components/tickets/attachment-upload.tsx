@@ -179,7 +179,7 @@ export function AttachmentUpload({
                 type="button"
                 onClick={() => removePending(p.stringId)}
                 className="shrink-0 text-ink/40 hover:text-ink dark:text-paper/40 dark:hover:text-paper"
-                aria-label="Usun"
+                aria-label="Usuń"
               >
                 <X size={14} />
               </button>

@@ -16,7 +16,7 @@ export async function POST(request: Request): Promise<Response> {
   const newStatus = String(fd.get("status") ?? "") as TicketStatus;
 
   if (!ticketId || !newStatus) {
-    return new Response("Brak wymaganych pol (ticketId, status).", { status: 400 });
+    return new Response("Brak wymaganych pól (ticketId, status).", { status: 400 });
   }
 
   const validStatuses: TicketStatus[] = [
@@ -36,7 +36,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const ticket = await findTicket(ticketId);
   if (!ticket) {
-    return new Response("Ticket nie istnieje.", { status: 404 });
+    return new Response("Zgłoszenie nie istnieje.", { status: 404 });
   }
 
   await updateTicket({

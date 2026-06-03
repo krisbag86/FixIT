@@ -52,7 +52,7 @@ async function requireAdminAction(permission: "admin:manage-users" | "admin:mana
   const user = await requireUser();
 
   if (!can(user, permission)) {
-    throw new Error("Brak uprawnien administracyjnych.");
+    throw new Error("Brak uprawnień administracyjnych.");
   }
 
   return user;
@@ -86,7 +86,7 @@ export async function updateUserAdminAction(formData: FormData): Promise<void> {
   });
 
   if (input.id === actor.id && (input.role !== actor.role || !input.isActive)) {
-    throw new Error("Nie mozesz odebrac sobie roli administratora ani dezaktywowac swojego konta.");
+    throw new Error("Nie możesz odebrać sobie roli administratora ani dezaktywować swojego konta.");
   }
 
   if (input.role === "STORE_MANAGER" && !input.storeId) {

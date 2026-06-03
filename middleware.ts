@@ -53,7 +53,6 @@ function isCSRFProtected(request: NextRequest): boolean {
 
   const expectedHost = request.headers.get("host") || "";
   const expectedOrigin = `https://${expectedHost}`;
-  const expectedRefererOrigin = `https://${expectedHost}`;
 
   // Check Origin header if present
   if (origin && !origin.startsWith(expectedOrigin) && !origin.startsWith(`http://${expectedHost}`)) {

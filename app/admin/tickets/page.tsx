@@ -51,7 +51,7 @@ export default async function AdminTicketsPage({
 
       <AdminNav user={user} currentPath="/admin/tickets" />
 
-      <form className="mb-5 flex flex-wrap items-center gap-2 rounded-md border border-black/10 bg-white/70 p-3 dark:border-white/10 dark:bg-white/10">
+      <form className="control-panel mb-5 flex flex-wrap items-center gap-2 rounded-md p-3">
         <Filter size={18} className="text-ink/50 dark:text-paper/50" />
         <select name="status" defaultValue={params.status ?? ""} className={filterClass}>
           <option value="">Status</option>
@@ -79,7 +79,7 @@ export default async function AdminTicketsPage({
               </option>
             ))}
         </select>
-        <button className="h-10 rounded-md bg-ink px-3 text-sm font-bold text-white dark:bg-paper dark:text-ink" type="submit">
+        <button className="inline-flex h-10 items-center justify-center rounded-md bg-ink px-4 text-sm font-bold text-white dark:bg-paper dark:text-ink" type="submit">
           Filtruj
         </button>
       </form>
@@ -101,7 +101,8 @@ export default async function AdminTicketsPage({
   );
 }
 
-const filterClass = "h-10 rounded-md border border-black/10 bg-white px-3 text-sm dark:border-white/10 dark:bg-white/10";
+const filterClass =
+  "h-10 min-w-40 rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper";
 
 function Metric({ label, value }: { label: string; value: number }) {
   return (

@@ -72,7 +72,7 @@ export function ChangePasswordForm() {
         className="group relative inline-flex h-13 w-full items-center justify-center gap-2.5 overflow-hidden rounded-xl bg-gradient-to-r from-mint to-river px-5 font-bold text-white shadow-lg shadow-mint/20 transition-all duration-300 hover:shadow-xl hover:shadow-mint/30 disabled:cursor-not-allowed disabled:opacity-60"
       >
         <Save size={18} />
-        {pending ? "Zmienianie..." : "Zmień hasło i zaloguj"}
+        {pending ? "Zmienianie..." : "Zmień hasło i zaloguj się"}
       </button>
     </form>
   );

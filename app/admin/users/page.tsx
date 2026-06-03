@@ -37,21 +37,21 @@ export default async function AdminUsersPage({
           <Users size={20} />
           <span className="text-sm font-black uppercase">Administracja</span>
         </div>
-        <h1 className="text-3xl font-black">Uzytkownicy</h1>
-        <p className="mt-2 text-ink/65 dark:text-paper/65">Role, aktywnosc i przypisanie do sklepow.</p>
+        <h1 className="text-3xl font-black">Użytkownicy</h1>
+        <p className="mt-2 text-ink/65 dark:text-paper/65">Role, aktywność i przypisanie do sklepów.</p>
       </div>
 
       <AdminNav user={user} currentPath="/admin/users" />
 
-      <form className="mb-5 flex flex-wrap items-center gap-2 rounded-md border border-black/10 bg-white/70 p-3 dark:border-white/10 dark:bg-white/10">
+      <form className="control-panel mb-5 flex flex-wrap items-center gap-2 rounded-md p-3">
         <input
           type="search"
           name="q"
           defaultValue={query}
           placeholder="Szukaj po imieniu, mailu lub dziale"
-          className="h-10 min-w-[18rem] rounded-md border border-black/10 bg-white px-3 text-sm dark:border-white/10 dark:bg-white/10"
+          className="h-10 w-full min-w-0 rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper sm:w-auto sm:min-w-[18rem]"
         />
-        <button className="h-10 rounded-md bg-ink px-4 text-sm font-bold text-white dark:bg-paper dark:text-ink" type="submit">
+        <button className="inline-flex h-10 items-center justify-center rounded-md bg-ink px-4 text-sm font-bold text-white dark:bg-paper dark:text-ink" type="submit">
           Szukaj
         </button>
       </form>
@@ -61,9 +61,9 @@ export default async function AdminUsersPage({
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-white/70 text-left dark:bg-white/10">
-                <th className="px-4 py-3 font-bold">Uzytkownik</th>
+                <th className="px-4 py-3 font-bold">Użytkownik</th>
                 <th className="px-4 py-3 font-bold">Rola</th>
-                <th className="px-4 py-3 font-bold">Sklep / dzial</th>
+                <th className="px-4 py-3 font-bold">Sklep / dział</th>
                 <th className="px-4 py-3 font-bold">Status</th>
                 <th className="px-4 py-3 font-bold">Akcje</th>
               </tr>
@@ -120,7 +120,7 @@ export default async function AdminUsersPage({
                           type="text"
                           name="department"
                           defaultValue={item.department ?? ""}
-                          placeholder="Dzial"
+                          placeholder="Dział"
                           className={fieldClass}
                         />
                         <label className="inline-flex items-center gap-2 rounded-md border border-black/10 bg-white px-3 text-xs font-bold dark:border-white/10 dark:bg-white/10">
@@ -140,8 +140,8 @@ export default async function AdminUsersPage({
         </div>
 
         <div className="rounded-md border border-black/10 bg-white/75 p-4 dark:border-white/10 dark:bg-white/10">
-          <h2 className="text-lg font-black">Audit zmian</h2>
-          <p className="mt-1 text-sm text-ink/65 dark:text-paper/65">Ostatnie zmiany rol, aktywnosci i slownikow.</p>
+          <h2 className="text-lg font-black">Dziennik zmian</h2>
+          <p className="mt-1 text-sm text-ink/65 dark:text-paper/65">Ostatnie zmiany ról, aktywności i słowników.</p>
           <div className="mt-4 space-y-3">
             {auditLogs.map((log) => {
               const actor = users.find((entry) => entry.id === log.actorId);
@@ -162,4 +162,5 @@ export default async function AdminUsersPage({
   );
 }
 
-const fieldClass = "h-10 rounded-md border border-black/10 bg-white px-3 text-sm dark:border-white/10 dark:bg-white/10";
+const fieldClass =
+  "h-10 w-full min-w-0 rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper";

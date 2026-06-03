@@ -11,10 +11,10 @@ export function TicketFormFaq({
 }) {
   return (
     <div className="lg:col-span-2" id="faq-suggestions">
-      <label className="mb-2 block text-sm font-bold">Moze znajdziesz odpowiedz w bazie wiedzy?</label>
+      <label className="mb-2 block text-sm font-bold">Może znajdziesz odpowiedź w bazie wiedzy?</label>
       <div className="rounded-md border border-black/10 bg-paper/70 p-3 dark:border-white/10 dark:bg-white/5">
         <p className="text-xs text-ink/60 dark:text-paper/60">
-          Wybierz kategorie powyzej, aby zobaczyc powiazane artykuly.
+          Wybierz kategorię powyżej, aby zobaczyć powiązane artykuły.
         </p>
         <div className="mt-2 space-y-1">
           {articles.length > 0 ? (
@@ -38,7 +38,7 @@ export function TicketFormFaq({
               );
             })
           ) : (
-            <p className="text-xs italic text-ink/50 dark:text-paper/50">Brak pasujacych artykulow.</p>
+            <p className="text-xs italic text-ink/50 dark:text-paper/50">Brak pasujących artykułów.</p>
           )}
         </div>
         <Link
@@ -46,7 +46,7 @@ export function TicketFormFaq({
           target="_blank"
           className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-mint hover:underline"
         >
-          Przegladaj cala baze wiedzy
+          Przeglądaj całą bazę wiedzy
         </Link>
       </div>
     </div>

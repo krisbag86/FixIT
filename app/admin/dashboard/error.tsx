@@ -13,10 +13,10 @@ export default function DashboardError({
     <div className="flex min-h-[50vh] flex-col items-center justify-center p-8 text-center">
       <AlertTriangle className="mb-4 text-red-500 dark:text-red-400" size={48} />
       <h1 className="text-2xl font-black text-red-700 dark:text-red-300">
-        Błąd ładowania dashboardu
+        Błąd ładowania pulpitu
       </h1>
       <p className="mt-2 max-w-md text-ink/65 dark:text-paper/65">
-        Nie udało się załadować danych dashboardu. Sprawdź połączenie z bazą danych
+        Nie udało się załadować danych pulpitu. Sprawdź połączenie z bazą danych
         i spróbuj ponownie.
       </p>
       {error.digest ? (

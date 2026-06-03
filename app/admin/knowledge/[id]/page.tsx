@@ -29,7 +29,7 @@ export default async function EditKnowledgeArticlePage({
   return (
     <AppShell user={user}>
       <div className="mb-6">
-        <h1 className="text-3xl font-black">Edytuj artykul</h1>
+        <h1 className="text-3xl font-black">Edytuj artykuł</h1>
         <p className="mt-2 text-ink/65 dark:text-paper/65">Edycja: {article.title}</p>
       </div>
       <form action={updateKnowledgeArticleAction} className="grid gap-5 rounded-md border border-black/10 bg-white/80 p-5 shadow-sm dark:border-white/10 dark:bg-white/10">

@@ -107,7 +107,7 @@ export async function updateTicketAction(formData: FormData): Promise<void> {
   enforceMutationRateLimit(user.id);
 
   if (!can(user, "ticket:update")) {
-    throw new Error("Brak uprawnień do aktualizacji ticketu.");
+    throw new Error("Brak uprawnień do aktualizacji zgłoszenia.");
   }
 
   const ticketId = String(formData.get("ticketId") ?? "");
@@ -198,7 +198,7 @@ export async function addCommentAction(formData: FormData): Promise<void> {
   const ticket = await findTicket(ticketId);
 
   if (!ticket || !canViewTicket(user, ticket)) {
-    throw new Error("Brak dostępu do ticketu.");
+    throw new Error("Brak dostępu do zgłoszenia.");
   }
 
   const visibility = String(formData.get("visibility") ?? "PUBLIC") as CommentVisibility;

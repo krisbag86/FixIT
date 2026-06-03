@@ -2,7 +2,7 @@ import { Save } from "lucide-react";
 import type { Category, KnowledgeArticle } from "@/lib/types";
 
 const inputClass =
-  "h-12 w-full rounded-md border border-black/10 bg-white px-3 text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper";
+  "h-12 w-full rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper";
 
 export function ArticleFormFields({
   article,
@@ -15,7 +15,7 @@ export function ArticleFormFields({
     <>
       <div>
         <label className="mb-2 block text-sm font-bold" htmlFor="title">
-          Tytul
+          Tytuł
         </label>
         <input
           id="title"
@@ -57,7 +57,7 @@ export function ArticleFormFields({
       </div>
       <div>
         <label className="mb-2 block text-sm font-bold" htmlFor="body">
-          Tresc
+          Treść
         </label>
         <textarea
           id="body"
@@ -76,7 +76,7 @@ export function ArticleFormFields({
           defaultChecked={article?.isPublished ?? false}
           className="h-5 w-5 accent-mint"
         />
-        Opublikowany (widoczny dla uzytkownikow)
+        Opublikowany (widoczny dla użytkowników)
       </label>
       <div>
         <button
@@ -84,7 +84,7 @@ export function ArticleFormFields({
           className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-mint px-5 font-black text-white transition hover:bg-mint/90 sm:w-auto"
         >
           <Save size={18} />
-          {article ? "Zapisz zmiany" : "Utworz artykul"}
+          {article ? "Zapisz zmiany" : "Utwórz artykuł"}
         </button>
       </div>
     </>

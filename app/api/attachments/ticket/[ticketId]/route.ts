@@ -18,7 +18,7 @@ export async function POST(
   }
 
   if (!can(user, "ticket:view")) {
-    return NextResponse.json({ error: "Brak uprawnien." }, { status: 403 });
+    return NextResponse.json({ error: "Brak uprawnień." }, { status: 403 });
   }
 
   const { ticketId } = await params;
@@ -36,7 +36,7 @@ export async function POST(
   try {
     formData = await request.formData();
   } catch {
-    return NextResponse.json({ error: "Nieprawidlowe zadanie." }, { status: 400 });
+    return NextResponse.json({ error: "Nieprawidłowe żądanie." }, { status: 400 });
   }
 
   const file = formData.get("file");
@@ -44,7 +44,7 @@ export async function POST(
   const fileStringId = formData.get("stringId");
 
   if (!(file instanceof File)) {
-    return NextResponse.json({ error: "Nie przeslano pliku." }, { status: 400 });
+    return NextResponse.json({ error: "Nie przesłano pliku." }, { status: 400 });
   }
 
   if (file.size === 0) {

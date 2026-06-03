@@ -15,7 +15,7 @@ export default async function StoreDashboardPage({
 }) {
   const user = await requireUser();
 
-  // Tylko STORE_MANAGER lub wyzsze role
+  // Tylko STORE_MANAGER lub wyższe role
   if (user.role !== "STORE_MANAGER" && user.role !== "ADMIN" && user.role !== "AGENT") {
     redirect("/tickets");
   }
@@ -56,7 +56,7 @@ export default async function StoreDashboardPage({
             {store.code} &mdash; {store.name}
           </h1>
           <p className="mt-2 text-ink/65 dark:text-paper/65">
-            {store.city} / {store.region} &middot; Dashboard dla kierownika sklepu
+            {store.city} / {store.region} &middot; Pulpit kierownika sklepu
           </p>
         </div>
       </div>
@@ -90,11 +90,11 @@ export default async function StoreDashboardPage({
       </div>
 
       <div className="mb-8 grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
-        {/* Ticket list */}
+        {/* Lista zgłoszeń */}
         <div>
           <h2 className="mb-4 text-lg font-black">Aktywne zgłoszenia</h2>
 
-          <form className="mb-4 flex flex-wrap items-center gap-2 rounded-md border border-black/10 bg-white/70 p-3 dark:border-white/10 dark:bg-white/10">
+          <form className="control-panel mb-4 flex flex-wrap items-center gap-2 rounded-md p-3">
             <Filter size={18} className="text-ink/50 dark:text-paper/50" />
             <select name="status" defaultValue={params.status ?? ""} className={filterClass}>
               <option value="">Status</option>
@@ -112,7 +112,7 @@ export default async function StoreDashboardPage({
                 </option>
               ))}
             </select>
-            <button className="h-10 rounded-md bg-ink px-3 text-sm font-bold text-white dark:bg-paper dark:text-ink" type="submit">
+            <button className="inline-flex h-10 items-center justify-center rounded-md bg-ink px-4 text-sm font-bold text-white dark:bg-paper dark:text-ink" type="submit">
               Filtruj
             </button>
           </form>
@@ -135,7 +135,7 @@ export default async function StoreDashboardPage({
             <div className="rounded-md border border-dashed border-black/20 bg-white/60 p-10 text-center dark:border-white/20 dark:bg-white/10">
               <h3 className="text-xl font-black">Brak zgłoszeń</h3>
               <p className="mt-2 text-ink/65 dark:text-paper/65">
-                Wszystkie sprawy w tym sklepie sa rozwiazane. Zmien filtr, aby zobaczyc wiecej.
+                Wszystkie sprawy w tym sklepie są rozwiązane. Zmień filtr, aby zobaczyć więcej.
               </p>
             </div>
           )}
@@ -175,7 +175,7 @@ export default async function StoreDashboardPage({
                 );
               })
             ) : (
-              <p className="text-sm text-ink/55 dark:text-paper/55">Brak zdarzen.</p>
+              <p className="text-sm text-ink/55 dark:text-paper/55">Brak zdarzeń.</p>
             )}
           </div>
         </div>
@@ -184,7 +184,8 @@ export default async function StoreDashboardPage({
   );
 }
 
-const filterClass = "h-10 rounded-md border border-black/10 bg-white px-3 text-sm dark:border-white/10 dark:bg-white/10";
+const filterClass =
+  "h-10 min-w-40 rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper";
 
 function MetricCard({
   icon,

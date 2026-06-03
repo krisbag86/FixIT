@@ -20,7 +20,7 @@ export default async function TicketsPage({ searchParams }: { searchParams: Prom
         <div>
           <h1 className="text-3xl font-black">Moje zgłoszenia</h1>
           <p className="mt-2 text-ink/65 dark:text-paper/65">
-            Lista spraw, ktore mozesz sledzic zgodnie ze swoja rola.
+            Lista spraw, które możesz śledzić zgodnie ze swoją rolą.
           </p>
         </div>
         <form className="flex items-center gap-2">
@@ -28,7 +28,7 @@ export default async function TicketsPage({ searchParams }: { searchParams: Prom
           <select
             name="status"
             defaultValue={status ?? ""}
-            className="h-10 rounded-md border border-black/10 bg-white px-3 text-sm dark:border-white/10 dark:bg-white/10"
+            className="h-10 min-w-48 rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper"
           >
             <option value="">Wszystkie statusy</option>
             {ticketStatuses.map((item) => (
@@ -37,7 +37,7 @@ export default async function TicketsPage({ searchParams }: { searchParams: Prom
               </option>
             ))}
           </select>
-          <button className="h-10 rounded-md bg-ink px-3 text-sm font-bold text-white dark:bg-paper dark:text-ink" type="submit">
+          <button className="inline-flex h-10 items-center justify-center rounded-md bg-ink px-4 text-sm font-bold text-white dark:bg-paper dark:text-ink" type="submit">
             Filtruj
           </button>
         </form>

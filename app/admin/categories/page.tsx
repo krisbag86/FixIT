@@ -25,7 +25,7 @@ export default async function AdminCategoriesPage() {
           <span className="text-sm font-black uppercase">Administracja</span>
         </div>
         <h1 className="text-3xl font-black">Kategorie</h1>
-        <p className="mt-2 text-ink/65 dark:text-paper/65">Slownik kategorii dla ticketow i bazy wiedzy.</p>
+        <p className="mt-2 text-ink/65 dark:text-paper/65">Słownik kategorii dla zgłoszeń i bazy wiedzy.</p>
       </div>
 
       <AdminNav user={user} currentPath="/admin/categories" />
@@ -33,7 +33,7 @@ export default async function AdminCategoriesPage() {
       <section className="mb-6 rounded-md border border-black/10 bg-white/75 p-4 dark:border-white/10 dark:bg-white/10">
         <div className="mb-4 flex items-center gap-2">
           <Plus size={18} className="text-mint" />
-          <h2 className="text-lg font-black">Dodaj kategorie</h2>
+          <h2 className="text-lg font-black">Dodaj kategorię</h2>
         </div>
         <form action={createCategoryAdminAction} className="grid gap-3 lg:grid-cols-[minmax(0,1.3fr)_12rem_auto_auto]">
           <input name="name" placeholder="Nazwa kategorii" className={fieldClass} />
@@ -59,8 +59,8 @@ export default async function AdminCategoriesPage() {
           <thead>
             <tr className="bg-white/70 text-left dark:bg-white/10">
               <th className="px-4 py-3 font-bold">Kategoria</th>
-              <th className="px-4 py-3 font-bold">Domyslny priorytet</th>
-              <th className="px-4 py-3 font-bold">Powiazania</th>
+              <th className="px-4 py-3 font-bold">Domyślny priorytet</th>
+              <th className="px-4 py-3 font-bold">Powiązania</th>
               <th className="px-4 py-3 font-bold">Edycja</th>
             </tr>
           </thead>
@@ -74,7 +74,7 @@ export default async function AdminCategoriesPage() {
                   <td className="px-4 py-3 font-semibold">{category.name}</td>
                   <td className="px-4 py-3 text-ink/65 dark:text-paper/65">{priorityLabels[category.defaultPriority]}</td>
                   <td className="px-4 py-3 text-xs text-ink/60 dark:text-paper/60">
-                    {ticketCount} ticket. · {articleCount} art.
+                    {ticketCount} zgłosz. · {articleCount} art.
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
@@ -103,7 +103,7 @@ export default async function AdminCategoriesPage() {
                           className="inline-flex h-10 items-center gap-2 rounded-md border border-red-500/20 bg-red-500/5 px-3 text-sm font-bold text-red-600 dark:text-red-400"
                         >
                           <Trash2 size={16} />
-                          Usun
+                          Usuń
                         </button>
                       </form>
                     </div>
@@ -118,4 +118,5 @@ export default async function AdminCategoriesPage() {
   );
 }
 
-const fieldClass = "h-10 rounded-md border border-black/10 bg-white px-3 text-sm dark:border-white/10 dark:bg-white/10";
+const fieldClass =
+  "h-10 w-full min-w-0 rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper";

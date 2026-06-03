@@ -10,7 +10,7 @@ export default async function ChangePasswordPage() {
     redirect("/login");
   }
 
-  // If user doesn't need to change password, redirect to dashboard
+  // Jeśli użytkownik nie musi zmieniać hasła, przejdź do zgłoszeń.
   if (!user.mustChangePassword) {
     redirect("/tickets");
   }

@@ -15,7 +15,7 @@ export default function AdminTicketsError({
         Błąd ładowania kolejki
       </h1>
       <p className="mt-2 max-w-md text-ink/65 dark:text-paper/65">
-        Nie udało się załadować listy ticketów. Spróbuj odświeżyć stronę.
+        Nie udało się załadować listy zgłoszeń. Spróbuj odświeżyć stronę.
       </p>
       <button
         onClick={reset}

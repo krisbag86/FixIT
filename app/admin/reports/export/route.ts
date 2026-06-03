@@ -8,7 +8,7 @@ export async function POST(): Promise<Response> {
   const user = await requireUser();
 
   if (!can(user, "ticket:view-all")) {
-    return new Response("Brak uprawnien.", { status: 403 });
+    return new Response("Brak uprawnień.", { status: 403 });
   }
 
   const csv = await exportTicketsCSV();
