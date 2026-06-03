@@ -96,6 +96,7 @@ function mapStore(store: Prisma.StoreGetPayload<object>): Store {
     code: store.code,
     name: store.name,
     city: definedString(store.city) ?? "",
+    address: definedString(store.address) ?? "",
     region: definedString(store.region) ?? "",
     isActive: store.isActive
   };
@@ -233,6 +234,12 @@ async function ensureDatabase(): Promise<Database> {
     }
     if (!Array.isArray(parsed.adminAuditLogs)) {
       parsed.adminAuditLogs = [];
+    }
+    if (Array.isArray(parsed.stores)) {
+      parsed.stores = parsed.stores.map((store) => ({
+        ...store,
+        address: store.address ?? ""
+      }));
     }
     return parsed as Database;
   } catch {
@@ -611,6 +618,7 @@ export async function createStoreAdmin(input: {
   code: string;
   name: string;
   city: string;
+  address: string;
   region: string;
   isActive: boolean;
   actorId: string;
@@ -629,6 +637,7 @@ export async function createStoreAdmin(input: {
           code: input.code,
           name: input.name,
           city: input.city,
+          address: input.address,
           region: input.region,
           isActive: input.isActive
         }
@@ -661,6 +670,7 @@ export async function createStoreAdmin(input: {
       code: input.code,
       name: input.name,
       city: input.city,
+      address: input.address,
       region: input.region,
       isActive: input.isActive
     };
@@ -683,6 +693,7 @@ export async function updateStoreAdmin(input: {
   code: string;
   name: string;
   city: string;
+  address: string;
   region: string;
   isActive: boolean;
   actorId: string;
@@ -713,6 +724,7 @@ export async function updateStoreAdmin(input: {
           code: input.code,
           name: input.name,
           city: input.city,
+          address: input.address,
           region: input.region,
           isActive: input.isActive
         }
@@ -753,6 +765,7 @@ export async function updateStoreAdmin(input: {
     store.code = input.code;
     store.name = input.name;
     store.city = input.city;
+    store.address = input.address;
     store.region = input.region;
     store.isActive = input.isActive;
 

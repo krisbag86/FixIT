@@ -9,7 +9,10 @@ import { priorityLabels, ticketPriorities } from "@/lib/labels";
 export default async function NewTicketPage() {
   const user = await requireUser();
   const [database, articles] = await Promise.all([readDatabase(), listPublishedKnowledgeArticles()]);
-  const stores = database.stores.filter((store) => store.isActive);
+  const storeCollator = new Intl.Collator("pl", { numeric: true, sensitivity: "base" });
+  const stores = database.stores
+    .filter((store) => store.isActive)
+    .sort((a, b) => storeCollator.compare(a.city, b.city) || storeCollator.compare(a.code, b.code));
   const categories = database.categories.filter((category) => category.isActive);
 
   return (
@@ -34,7 +37,7 @@ export default async function NewTicketPage() {
             <option value="">Biuro / brak sklepu</option>
             {stores.map((store) => (
               <option key={store.id} value={store.id}>
-                {store.code} - {store.name}
+                {store.code} - {store.address || `${store.city} - ${store.name}`}
               </option>
             ))}
           </select>

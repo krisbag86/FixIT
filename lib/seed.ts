@@ -1,4 +1,17 @@
 import type { Database } from "@/lib/types";
+import storeDirectory from "@/data/store-directory.json";
+
+type StoreDirectoryEntry = (typeof storeDirectory)[number];
+
+function createStoreDirectoryMarkdown(stores: StoreDirectoryEntry[]): string {
+  return [
+    "# Książka adresowa sklepów",
+    "",
+    "| Kod | Skrót | Nazwa | Adres | E-mail |",
+    "| --- | --- | --- | --- | --- |",
+    ...stores.map((store) => `| ${store.code} | ${store.shortcut} | ${store.name} | ${store.address} | ${store.email} |`)
+  ].join("\n");
+}
 
 export function createSeedDatabase(): Database {
   return {
@@ -19,24 +32,15 @@ export function createSeedDatabase(): Database {
         mustChangePassword: true
       }
     ],
-    stores: [
-      {
-        id: "store_waw01",
-        code: "WAW01",
-        name: "Bagietka Warszawa Centrum",
-        city: "Warszawa",
-        region: "Mazowieckie",
-        isActive: true
-      },
-      {
-        id: "store_krk02",
-        code: "KRK02",
-        name: "Bagietka Kraków Kazimierz",
-        city: "Kraków",
-        region: "Małopolskie",
-        isActive: true
-      }
-    ],
+    stores: storeDirectory.map((store) => ({
+      id: store.id,
+      code: store.code,
+      name: store.name,
+      city: store.city,
+      address: store.address,
+      region: "",
+      isActive: true
+    })),
     categories: [
       { id: "cat_pos", name: "Kasa / POS", defaultPriority: "CRITICAL", isActive: true },
       { id: "cat_printer", name: "Drukarka fiskalna", defaultPriority: "HIGH", isActive: true },
@@ -99,6 +103,13 @@ export function createSeedDatabase(): Database {
         body: "Nowy sprzęt (komputer, drukarka, terminal) zamawiasz przez zgłoszenie w FixIT. Opisz czego potrzebujesz i uzasadnij. Decyzję podejmuje IT w porozumieniu z kierownikiem.",
         categoryId: "cat_computer",
         isPublished: false
+      },
+      {
+        id: "ka_store_directory",
+        title: "Książka adresowa sklepów",
+        slug: "ksiazka-adresowa",
+        body: createStoreDirectoryMarkdown(storeDirectory),
+        isPublished: true
       }
     ],
     notificationLogs: [],

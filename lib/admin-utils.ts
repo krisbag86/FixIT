@@ -77,7 +77,7 @@ export function getUserAuditChanges(
 
 export function getStoreAuditChanges(
   before: Store,
-  after: Pick<Store, "code" | "name" | "city" | "region" | "isActive">
+  after: Pick<Store, "code" | "name" | "city" | "address" | "region" | "isActive">
 ): AuditChange[] {
   const changes: AuditChange[] = [];
 
@@ -91,6 +91,10 @@ export function getStoreAuditChanges(
 
   if (before.city !== after.city) {
     changes.push({ field: "miasto", from: before.city, to: after.city });
+  }
+
+  if (before.address !== after.address) {
+    changes.push({ field: "adres", from: before.address, to: after.address });
   }
 
   if (before.region !== after.region) {

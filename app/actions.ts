@@ -263,7 +263,7 @@ export async function addCommentAction(formData: FormData): Promise<void> {
 const knowledgeSchema = z.object({
   title: z.string().min(3).max(200),
   slug: z.string().min(3).max(200).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
-  body: z.string().min(10).max(10000),
+  body: z.string().min(10).max(30000),
   categoryId: z.string().optional(),
   isPublished: z.boolean()
 });

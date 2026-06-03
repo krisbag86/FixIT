@@ -1,45 +1,49 @@
 import { error as logError } from "node:console";
+import { readFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
+const rootDir = join(dirname(fileURLToPath(import.meta.url)), "..");
+
+async function readJson(relativePath) {
+  return JSON.parse(await readFile(join(rootDir, relativePath), "utf8"));
+}
 
 async function main() {
-  await prisma.store.upsert({
-    where: { code: "WAW01" },
-    update: {
-      name: "Bagietka Warszawa Centrum",
-      city: "Warszawa",
-      region: "Mazowieckie",
-      isActive: true
-    },
-    create: {
-      id: "store_waw01",
-      code: "WAW01",
-      name: "Bagietka Warszawa Centrum",
-      city: "Warszawa",
-      region: "Mazowieckie",
-      isActive: true
-    }
+  const [storeDirectory, storeDirectoryMarkdown] = await Promise.all([
+    readJson("data/store-directory.json"),
+    readFile(join(rootDir, "data/knowledge/ksiazka-adresowa.md"), "utf8")
+  ]);
+
+  await prisma.store.updateMany({
+    where: { code: { in: ["WAW01", "KRK02"] } },
+    data: { isActive: false }
   });
 
-  await prisma.store.upsert({
-    where: { code: "KRK02" },
-    update: {
-      name: "Bagietka Krakow Kazimierz",
-      city: "Krakow",
-      region: "Malopolskie",
-      isActive: true
-    },
-    create: {
-      id: "store_krk02",
-      code: "KRK02",
-      name: "Bagietka Krakow Kazimierz",
-      city: "Krakow",
-      region: "Malopolskie",
-      isActive: true
-    }
-  });
+  for (const store of storeDirectory) {
+    await prisma.store.upsert({
+      where: { code: store.code },
+      update: {
+        name: store.name,
+        city: store.city,
+        address: store.address,
+        region: "",
+        isActive: true
+      },
+      create: {
+        id: store.id,
+        code: store.code,
+        name: store.name,
+        city: store.city,
+        address: store.address,
+        region: "",
+        isActive: true
+      }
+    });
+  }
 
   // Single admin account — all other users must be added manually via admin panel
   await prisma.user.upsert({
@@ -67,10 +71,10 @@ async function main() {
   const categories = [
     { id: "cat_pos", name: "Kasa / POS", defaultPriority: "CRITICAL", isActive: true },
     { id: "cat_printer", name: "Drukarka fiskalna", defaultPriority: "HIGH", isActive: true },
-    { id: "cat_terminal", name: "Terminal platniczy", defaultPriority: "HIGH", isActive: true },
-    { id: "cat_network", name: "Internet / siec", defaultPriority: "HIGH", isActive: true },
+    { id: "cat_terminal", name: "Terminal płatniczy", defaultPriority: "HIGH", isActive: true },
+    { id: "cat_network", name: "Internet / sieć", defaultPriority: "HIGH", isActive: true },
     { id: "cat_computer", name: "Komputer / laptop", defaultPriority: "NORMAL", isActive: true },
-    { id: "cat_access", name: "Konto / dostep", defaultPriority: "NORMAL", isActive: true },
+    { id: "cat_access", name: "Konto / dostęp", defaultPriority: "NORMAL", isActive: true },
     { id: "cat_mail", name: "Poczta", defaultPriority: "NORMAL", isActive: true },
     { id: "cat_other", name: "Inne", defaultPriority: "NORMAL", isActive: true }
   ];
@@ -92,17 +96,17 @@ async function main() {
   await prisma.knowledgeArticle.upsert({
     where: { slug: "restart-terminala" },
     update: {
-      title: "Szybki restart terminala platniczego",
-      body: "Odlacz terminal od zasilania na 20 sekund, wlacz ponownie i sprawdz polaczenie.",
+      title: "Szybki restart terminala płatniczego",
+      body: "Odłącz terminal od zasilania na 20 sekund, włącz ponownie i sprawdź połączenie.",
       categoryId: "cat_terminal",
       isPublished: true,
       createdById: "usr_admin"
     },
     create: {
       id: "ka_001",
-      title: "Szybki restart terminala platniczego",
+      title: "Szybki restart terminala płatniczego",
       slug: "restart-terminala",
-      body: "Odlacz terminal od zasilania na 20 sekund, wlacz ponownie i sprawdz polaczenie.",
+      body: "Odłącz terminal od zasilania na 20 sekund, włącz ponownie i sprawdź połączenie.",
       categoryId: "cat_terminal",
       isPublished: true,
       createdById: "usr_admin"
@@ -112,17 +116,17 @@ async function main() {
   await prisma.knowledgeArticle.upsert({
     where: { slug: "raport-dobowy-kasa" },
     update: {
-      title: "Jak wydrukowac raport dobowy na kasie",
-      body: "Na ekranie glownym kasy wybierz 'Raporty' → 'Raport dobowy'. Kasa wydrukuje podsumowanie sprzedazy. Jesli drukarka nie reaguje, sprawdz czy jest wlaczona i czy ma papier.",
+      title: "Jak wydrukować raport dobowy na kasie",
+      body: "Na ekranie głównym kasy wybierz 'Raporty' → 'Raport dobowy'. Kasa wydrukuje podsumowanie sprzedaży. Jeśli drukarka nie reaguje, sprawdź czy jest włączona i czy ma papier.",
       categoryId: "cat_pos",
       isPublished: true,
       createdById: "usr_admin"
     },
     create: {
       id: "ka_002",
-      title: "Jak wydrukowac raport dobowy na kasie",
+      title: "Jak wydrukować raport dobowy na kasie",
       slug: "raport-dobowy-kasa",
-      body: "Na ekranie glownym kasy wybierz 'Raporty' → 'Raport dobowy'. Kasa wydrukuje podsumowanie sprzedazy. Jesli drukarka nie reaguje, sprawdz czy jest wlaczona i czy ma papier.",
+      body: "Na ekranie głównym kasy wybierz 'Raporty' → 'Raport dobowy'. Kasa wydrukuje podsumowanie sprzedaży. Jeśli drukarka nie reaguje, sprawdź czy jest włączona i czy ma papier.",
       categoryId: "cat_pos",
       isPublished: true,
       createdById: "usr_admin"
@@ -132,17 +136,17 @@ async function main() {
   await prisma.knowledgeArticle.upsert({
     where: { slug: "reset-hasla-poczta" },
     update: {
-      title: "Reset hasla do poczty sluzbowej",
-      body: "Skontaktuj sie z IT przez FixIT (nowe zgloszenie → kategoria Poczta). Nowe haslo zostanie wyslane na Twoj numer telefonu w systemie HR.",
+      title: "Reset hasła do poczty służbowej",
+      body: "Skontaktuj się z IT przez FixIT (nowe zgłoszenie → kategoria Poczta). Nowe hasło zostanie wysłane na Twój numer telefonu w systemie HR.",
       categoryId: "cat_mail",
       isPublished: true,
       createdById: "usr_admin"
     },
     create: {
       id: "ka_003",
-      title: "Reset hasla do poczty sluzbowej",
+      title: "Reset hasła do poczty służbowej",
       slug: "reset-hasla-poczta",
-      body: "Skontaktuj sie z IT przez FixIT (nowe zgloszenie → kategoria Poczta). Nowe haslo zostanie wyslane na Twoj numer telefonu w systemie HR.",
+      body: "Skontaktuj się z IT przez FixIT (nowe zgłoszenie → kategoria Poczta). Nowe hasło zostanie wysłane na Twój numer telefonu w systemie HR.",
       categoryId: "cat_mail",
       isPublished: true,
       createdById: "usr_admin"
@@ -152,17 +156,17 @@ async function main() {
   await prisma.knowledgeArticle.upsert({
     where: { slug: "internet-nie-dziala" },
     update: {
-      title: "Co zrobic gdy internet nie dziala",
-      body: "1. Sprawdz czy switch/swiatla na routerze sa zielone.\n2. Zrestartuj router (odlacz zasilanie na 30 sekund).\n3. Jesli to nie pomaga, utworz zgloszenie w FixIT z kategoria Internet / siec.",
+      title: "Co zrobić gdy internet nie działa",
+      body: "1. Sprawdź czy switch/światła na routerze są zielone.\n2. Zrestartuj router (odłącz zasilanie na 30 sekund).\n3. Jeśli to nie pomaga, utwórz zgłoszenie w FixIT z kategorią Internet / sieć.",
       categoryId: "cat_network",
       isPublished: true,
       createdById: "usr_admin"
     },
     create: {
       id: "ka_004",
-      title: "Co zrobic gdy internet nie dziala",
+      title: "Co zrobić gdy internet nie działa",
       slug: "internet-nie-dziala",
-      body: "1. Sprawdz czy switch/swiatla na routerze sa zielone.\n2. Zrestartuj router (odlacz zasilanie na 30 sekund).\n3. Jesli to nie pomaga, utworz zgloszenie w FixIT z kategoria Internet / siec.",
+      body: "1. Sprawdź czy switch/światła na routerze są zielone.\n2. Zrestartuj router (odłącz zasilanie na 30 sekund).\n3. Jeśli to nie pomaga, utwórz zgłoszenie w FixIT z kategorią Internet / sieć.",
       categoryId: "cat_network",
       isPublished: true,
       createdById: "usr_admin"
@@ -173,7 +177,7 @@ async function main() {
     where: { slug: "zmiana-papieru-drukarka" },
     update: {
       title: "Zmiana papieru w drukarce fiskalnej",
-      body: "1. Otworz pokrywe drukarki.\n2. Wloz nowa rolke papieru zgodnie z kierunkiem nadruku na obudowie.\n3. Zamknij pokrywe – drukarka automatycznie przyjmie papier.\n4. Jesli papier sie zacina, otworz ponownie i wyrownaj krawedz.",
+      body: "1. Otwórz pokrywę drukarki.\n2. Włóż nową rolkę papieru zgodnie z kierunkiem nadruku na obudowie.\n3. Zamknij pokrywę - drukarka automatycznie przyjmie papier.\n4. Jeśli papier się zacina, otwórz ponownie i wyrównaj krawędź.",
       categoryId: "cat_printer",
       isPublished: true,
       createdById: "usr_admin"
@@ -182,7 +186,7 @@ async function main() {
       id: "ka_005",
       title: "Zmiana papieru w drukarce fiskalnej",
       slug: "zmiana-papieru-drukarka",
-      body: "1. Otworz pokrywe drukarki.\n2. Wloz nowa rolke papieru zgodnie z kierunkiem nadruku na obudowie.\n3. Zamknij pokrywe – drukarka automatycznie przyjmie papier.\n4. Jesli papier sie zacina, otworz ponownie i wyrownaj krawedz.",
+      body: "1. Otwórz pokrywę drukarki.\n2. Włóż nową rolkę papieru zgodnie z kierunkiem nadruku na obudowie.\n3. Zamknij pokrywę - drukarka automatycznie przyjmie papier.\n4. Jeśli papier się zacina, otwórz ponownie i wyrównaj krawędź.",
       categoryId: "cat_printer",
       isPublished: true,
       createdById: "usr_admin"
@@ -192,19 +196,37 @@ async function main() {
   await prisma.knowledgeArticle.upsert({
     where: { slug: "zamowienie-sprzetu" },
     update: {
-      title: "Jak zamowic nowy sprzet IT",
-      body: "Nowy sprzet (komputer, drukarka, terminal) zamawiasz przez zgloszenie w FixIT. Opisz czego potrzebujesz i uzasadnij. Decyzje podejmuje IT w porozumieniu z kierownikiem.",
+      title: "Jak zamówić nowy sprzęt IT",
+      body: "Nowy sprzęt (komputer, drukarka, terminal) zamawiasz przez zgłoszenie w FixIT. Opisz czego potrzebujesz i uzasadnij. Decyzję podejmuje IT w porozumieniu z kierownikiem.",
       categoryId: "cat_computer",
       isPublished: false,
       createdById: "usr_admin"
     },
     create: {
       id: "ka_006",
-      title: "Jak zamowic nowy sprzet IT",
+      title: "Jak zamówić nowy sprzęt IT",
       slug: "zamowienie-sprzetu",
-      body: "Nowy sprzet (komputer, drukarka, terminal) zamawiasz przez zgloszenie w FixIT. Opisz czego potrzebujesz i uzasadnij. Decyzje podejmuje IT w porozumieniu z kierownikiem.",
+      body: "Nowy sprzęt (komputer, drukarka, terminal) zamawiasz przez zgłoszenie w FixIT. Opisz czego potrzebujesz i uzasadnij. Decyzję podejmuje IT w porozumieniu z kierownikiem.",
       categoryId: "cat_computer",
       isPublished: false,
+      createdById: "usr_admin"
+    }
+  });
+
+  await prisma.knowledgeArticle.upsert({
+    where: { slug: "ksiazka-adresowa" },
+    update: {
+      title: "Książka adresowa sklepów",
+      body: storeDirectoryMarkdown,
+      isPublished: true,
+      createdById: "usr_admin"
+    },
+    create: {
+      id: "ka_store_directory",
+      title: "Książka adresowa sklepów",
+      slug: "ksiazka-adresowa",
+      body: storeDirectoryMarkdown,
+      isPublished: true,
       createdById: "usr_admin"
     }
   });

@@ -34,10 +34,11 @@ export default async function AdminStoresPage() {
           <Plus size={18} className="text-mint" />
           <h2 className="text-lg font-black">Dodaj sklep</h2>
         </div>
-        <form action={createStoreAdminAction} className="grid gap-3 lg:grid-cols-[9rem_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_auto_auto]">
+        <form action={createStoreAdminAction} className="grid gap-3 lg:grid-cols-[8rem_minmax(0,1.2fr)_minmax(0,0.8fr)_minmax(0,1.4fr)_minmax(0,0.8fr)_auto_auto]">
           <input name="code" placeholder="Kod" className={fieldClass} />
           <input name="name" placeholder="Nazwa" className={fieldClass} />
           <input name="city" placeholder="Miasto" className={fieldClass} />
+          <input name="address" placeholder="Adres" className={fieldClass} />
           <input name="region" placeholder="Region" className={fieldClass} />
           <label className="inline-flex items-center gap-2 rounded-md border border-black/10 bg-white px-3 text-xs font-bold dark:border-white/10 dark:bg-white/10">
             <input type="checkbox" name="isActive" defaultChecked className="h-4 w-4" />
@@ -70,18 +71,21 @@ export default async function AdminStoresPage() {
                   <td className="px-4 py-3 font-mono text-xs font-bold">{store.code}</td>
                   <td className="px-4 py-3 font-semibold">{store.name}</td>
                   <td className="px-4 py-3 text-ink/65 dark:text-paper/65">
-                    {store.city || "-"} / {store.region || "-"}
+                    <div>{store.city || "-"}</div>
+                    <div className="text-xs">{store.address || "-"}</div>
+                    {store.region ? <div className="text-xs">{store.region}</div> : null}
                   </td>
                   <td className="px-4 py-3 text-xs text-ink/60 dark:text-paper/60">
                     {userCount} użytk. · {ticketCount} zgłosz.
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
-                      <form action={updateStoreAdminAction} className="grid gap-2 lg:grid-cols-[8rem_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)_auto_auto]">
+                      <form action={updateStoreAdminAction} className="grid gap-2 lg:grid-cols-[7rem_minmax(0,1.1fr)_minmax(0,0.8fr)_minmax(0,1.4fr)_minmax(0,0.8fr)_auto_auto]">
                         <input type="hidden" name="id" value={store.id} />
                         <input name="code" defaultValue={store.code} className={fieldClass} />
                         <input name="name" defaultValue={store.name} className={fieldClass} />
                         <input name="city" defaultValue={store.city} className={fieldClass} />
+                        <input name="address" defaultValue={store.address} className={fieldClass} />
                         <input name="region" defaultValue={store.region} className={fieldClass} />
                         <label className="inline-flex items-center gap-2 rounded-md border border-black/10 bg-white px-3 text-xs font-bold dark:border-white/10 dark:bg-white/10">
                           <input type="checkbox" name="isActive" defaultChecked={store.isActive} className="h-4 w-4" />

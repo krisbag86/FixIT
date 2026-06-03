@@ -19,6 +19,7 @@ export type Store = {
   code: string;
   name: string;
   city: string;
+  address: string;
   region: string;
   isActive: boolean;
 };

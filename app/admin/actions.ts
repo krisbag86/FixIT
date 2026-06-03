@@ -30,6 +30,7 @@ const storeSchema = z.object({
   code: z.string().min(3).max(20).regex(/^[A-Z0-9_-]+$/),
   name: z.string().min(3).max(120),
   city: z.string().max(80),
+  address: z.string().max(200),
   region: z.string().max(80),
   isActive: z.boolean()
 });
@@ -115,6 +116,7 @@ export async function createStoreAdminAction(formData: FormData): Promise<void> 
     code: String(formData.get("code") ?? "").trim().toUpperCase(),
     name: String(formData.get("name") ?? "").trim(),
     city: String(formData.get("city") ?? "").trim(),
+    address: String(formData.get("address") ?? "").trim(),
     region: String(formData.get("region") ?? "").trim(),
     isActive: formData.get("isActive") === "on"
   });
@@ -132,6 +134,7 @@ export async function updateStoreAdminAction(formData: FormData): Promise<void> 
     code: String(formData.get("code") ?? "").trim().toUpperCase(),
     name: String(formData.get("name") ?? "").trim(),
     city: String(formData.get("city") ?? "").trim(),
+    address: String(formData.get("address") ?? "").trim(),
     region: String(formData.get("region") ?? "").trim(),
     isActive: formData.get("isActive") === "on"
   });

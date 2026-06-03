@@ -65,7 +65,7 @@ export function ArticleFormFields({
           defaultValue={article?.body ?? ""}
           className={`${inputClass} min-h-48 py-3 font-mono text-sm leading-6`}
           minLength={10}
-          maxLength={10000}
+          maxLength={30000}
           required
         />
       </div>
