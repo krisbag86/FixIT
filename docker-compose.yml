@@ -7,7 +7,12 @@ services:
       NEXT_TELEMETRY_DISABLED: "1"
       APP_URL: "http://localhost:3001"
       DATABASE_URL: "postgresql://fixit:fixit@postgres:5432/fixit"
-      EMAIL_FROM: "IT Helpdesk <it@bagietka.pl>"
+      SMTP_HOST: "${SMTP_HOST:-}"
+      SMTP_PORT: "${SMTP_PORT:-465}"
+      SMTP_SECURE: "${SMTP_SECURE:-true}"
+      SMTP_USER: "${SMTP_USER:-}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+      EMAIL_FROM: "${EMAIL_FROM:-IT Helpdesk <it@bagietka.pl>}"
     ports:
       - "3001:3000"
     volumes:

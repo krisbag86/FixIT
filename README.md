@@ -76,6 +76,7 @@ Projekt jest skonfigurowany do automatycznego wdrożenia na **[Railway](https://
 | `EMAIL_FROM` | Adres nadawcy e-mail | `FixIT <it@bagietka.pl>` |
 | `SMTP_HOST` | Host serwera SMTP | |
 | `SMTP_PORT` | Port SMTP | `465` |
+| `SMTP_SECURE` | Czy używać TLS/SSL dla SMTP | `true` |
 | `SMTP_USER` | Użytkownik SMTP | |
 | `SMTP_PASSWORD` | Hasło SMTP | |
 | `S3_ENDPOINT` | Endpoint S3 (Railway Bucket) | |
@@ -170,5 +171,4 @@ npm run test:e2e
 ## 📄 Licencja
 
 Projekt wewnętrzny — **Bagietka Sp. z o.o.**
-
 
