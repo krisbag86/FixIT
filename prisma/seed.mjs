@@ -12,11 +12,78 @@ async function readJson(relativePath) {
   return JSON.parse(await readFile(join(rootDir, relativePath), "utf8"));
 }
 
+function createStoreDirectoryMarkdown(stores) {
+  return [
+    "# Kontakty",
+    "",
+    "Książka adresowa sklepów Bagietka.",
+    "",
+    "| Kod | Skrót | Nazwa | Miejscowość | Adres | E-mail |",
+    "| --- | --- | --- | --- | --- | --- |",
+    ...stores.map((store) => `| ${store.code} | ${store.shortcut} | ${store.name} | ${store.city} | ${store.address} | ${store.email} |`)
+  ].join("\n");
+}
+
+async function upsertContactsArticle(storeDirectory) {
+  const body = createStoreDirectoryMarkdown(storeDirectory);
+  const contactsArticle = await prisma.knowledgeArticle.findUnique({ where: { slug: "kontakty" } });
+  const legacyArticle = await prisma.knowledgeArticle.findUnique({ where: { slug: "ksiazka-adresowa" } });
+
+  if (contactsArticle) {
+    await prisma.knowledgeArticle.update({
+      where: { id: contactsArticle.id },
+      data: {
+        title: "Kontakty",
+        body,
+        isPublished: true,
+        createdById: "usr_admin",
+        updatedById: "usr_admin"
+      }
+    });
+
+    if (legacyArticle && legacyArticle.id !== contactsArticle.id) {
+      await prisma.knowledgeArticle.update({
+        where: { id: legacyArticle.id },
+        data: {
+          title: "Książka adresowa sklepów (archiwum)",
+          isPublished: false,
+          updatedById: "usr_admin"
+        }
+      });
+    }
+
+    return;
+  }
+
+  if (legacyArticle) {
+    await prisma.knowledgeArticle.update({
+      where: { id: legacyArticle.id },
+      data: {
+        title: "Kontakty",
+        slug: "kontakty",
+        body,
+        isPublished: true,
+        createdById: "usr_admin",
+        updatedById: "usr_admin"
+      }
+    });
+    return;
+  }
+
+  await prisma.knowledgeArticle.create({
+    data: {
+      id: "ka_contacts",
+      title: "Kontakty",
+      slug: "kontakty",
+      body,
+      isPublished: true,
+      createdById: "usr_admin"
+    }
+  });
+}
+
 async function main() {
-  const [storeDirectory, storeDirectoryMarkdown] = await Promise.all([
-    readJson("data/store-directory.json"),
-    readFile(join(rootDir, "data/knowledge/ksiazka-adresowa.md"), "utf8")
-  ]);
+  const storeDirectory = await readJson("data/store-directory.json");
 
   await prisma.store.updateMany({
     where: { code: { in: ["WAW01", "KRK02"] } },
@@ -53,8 +120,7 @@ async function main() {
       role: "ADMIN",
       department: "IT",
       isActive: true,
-      passwordHash: "a1d23467081c9be78f2d21b46d6b0342:722284589a896330acf291b4cbc73757a040d39ff8526f24f1ae5c30a732a46620b36334c36ded2d54ec43fed36b957e0704c800ba6c145c6913427390a50c91",
-      mustChangePassword: true
+      mustChangePassword: false
     },
     create: {
       id: "usr_admin",
@@ -213,23 +279,7 @@ async function main() {
     }
   });
 
-  await prisma.knowledgeArticle.upsert({
-    where: { slug: "ksiazka-adresowa" },
-    update: {
-      title: "Książka adresowa sklepów",
-      body: storeDirectoryMarkdown,
-      isPublished: true,
-      createdById: "usr_admin"
-    },
-    create: {
-      id: "ka_store_directory",
-      title: "Książka adresowa sklepów",
-      slug: "ksiazka-adresowa",
-      body: storeDirectoryMarkdown,
-      isPublished: true,
-      createdById: "usr_admin"
-    }
-  });
+  await upsertContactsArticle(storeDirectory);
 }
 
 main()

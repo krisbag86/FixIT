@@ -5,11 +5,13 @@ type StoreDirectoryEntry = (typeof storeDirectory)[number];
 
 function createStoreDirectoryMarkdown(stores: StoreDirectoryEntry[]): string {
   return [
-    "# Książka adresowa sklepów",
+    "# Kontakty",
     "",
-    "| Kod | Skrót | Nazwa | Adres | E-mail |",
-    "| --- | --- | --- | --- | --- |",
-    ...stores.map((store) => `| ${store.code} | ${store.shortcut} | ${store.name} | ${store.address} | ${store.email} |`)
+    "Książka adresowa sklepów Bagietka.",
+    "",
+    "| Kod | Skrót | Nazwa | Miejscowość | Adres | E-mail |",
+    "| --- | --- | --- | --- | --- | --- |",
+    ...stores.map((store) => `| ${store.code} | ${store.shortcut} | ${store.name} | ${store.city} | ${store.address} | ${store.email} |`)
   ].join("\n");
 }
 
@@ -105,9 +107,9 @@ export function createSeedDatabase(): Database {
         isPublished: false
       },
       {
-        id: "ka_store_directory",
-        title: "Książka adresowa sklepów",
-        slug: "ksiazka-adresowa",
+        id: "ka_contacts",
+        title: "Kontakty",
+        slug: "kontakty",
         body: createStoreDirectoryMarkdown(storeDirectory),
         isPublished: true
       }
