@@ -5,6 +5,10 @@
     "dockerfilePath": "Dockerfile"
   },
   "deploy": {
+    "preDeployCommand": [
+      "npx prisma migrate deploy",
+      "npx prisma db seed"
+    ],
     "healthcheckPath": "/api/health",
     "healthcheckTimeout": 30,
     "restartPolicyType": "ON_FAILURE",

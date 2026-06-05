@@ -24,7 +24,7 @@ function createStoreDirectoryMarkdown(stores) {
   ].join("\n");
 }
 
-async function upsertContactsArticle(storeDirectory) {
+async function upsertContactsArticle(storeDirectory, adminId) {
   const body = createStoreDirectoryMarkdown(storeDirectory);
   const contactsArticle = await prisma.knowledgeArticle.findUnique({ where: { slug: "kontakty" } });
   const legacyArticle = await prisma.knowledgeArticle.findUnique({ where: { slug: "ksiazka-adresowa" } });
@@ -36,8 +36,8 @@ async function upsertContactsArticle(storeDirectory) {
         title: "Kontakty",
         body,
         isPublished: true,
-        createdById: "usr_admin",
-        updatedById: "usr_admin"
+        createdById: adminId,
+        updatedById: adminId
       }
     });
 
@@ -47,7 +47,7 @@ async function upsertContactsArticle(storeDirectory) {
         data: {
           title: "Książka adresowa sklepów (archiwum)",
           isPublished: false,
-          updatedById: "usr_admin"
+          updatedById: adminId
         }
       });
     }
@@ -63,8 +63,8 @@ async function upsertContactsArticle(storeDirectory) {
         slug: "kontakty",
         body,
         isPublished: true,
-        createdById: "usr_admin",
-        updatedById: "usr_admin"
+        createdById: adminId,
+        updatedById: adminId
       }
     });
     return;
@@ -77,7 +77,7 @@ async function upsertContactsArticle(storeDirectory) {
       slug: "kontakty",
       body,
       isPublished: true,
-      createdById: "usr_admin"
+      createdById: adminId
     }
   });
 }
@@ -113,7 +113,7 @@ async function main() {
   }
 
   // Single admin account — all other users must be added manually via admin panel
-  await prisma.user.upsert({
+  const admin = await prisma.user.upsert({
     where: { email: "krzysztofgraczyk@bagietka.pl" },
     update: {
       name: "Krzysztof Graczyk",
@@ -166,7 +166,7 @@ async function main() {
       body: "Odłącz terminal od zasilania na 20 sekund, włącz ponownie i sprawdź połączenie.",
       categoryId: "cat_terminal",
       isPublished: true,
-      createdById: "usr_admin"
+      createdById: admin.id
     },
     create: {
       id: "ka_001",
@@ -175,7 +175,7 @@ async function main() {
       body: "Odłącz terminal od zasilania na 20 sekund, włącz ponownie i sprawdź połączenie.",
       categoryId: "cat_terminal",
       isPublished: true,
-      createdById: "usr_admin"
+      createdById: admin.id
     }
   });
 
@@ -186,7 +186,7 @@ async function main() {
       body: "Na ekranie głównym kasy wybierz 'Raporty' → 'Raport dobowy'. Kasa wydrukuje podsumowanie sprzedaży. Jeśli drukarka nie reaguje, sprawdź czy jest włączona i czy ma papier.",
       categoryId: "cat_pos",
       isPublished: true,
-      createdById: "usr_admin"
+      createdById: admin.id
     },
     create: {
       id: "ka_002",
@@ -195,7 +195,7 @@ async function main() {
       body: "Na ekranie głównym kasy wybierz 'Raporty' → 'Raport dobowy'. Kasa wydrukuje podsumowanie sprzedaży. Jeśli drukarka nie reaguje, sprawdź czy jest włączona i czy ma papier.",
       categoryId: "cat_pos",
       isPublished: true,
-      createdById: "usr_admin"
+      createdById: admin.id
     }
   });
 
@@ -206,7 +206,7 @@ async function main() {
       body: "Skontaktuj się z IT przez FixIT (nowe zgłoszenie → kategoria Poczta). Nowe hasło zostanie wysłane na Twój numer telefonu w systemie HR.",
       categoryId: "cat_mail",
       isPublished: true,
-      createdById: "usr_admin"
+      createdById: admin.id
     },
     create: {
       id: "ka_003",
@@ -215,7 +215,7 @@ async function main() {
       body: "Skontaktuj się z IT przez FixIT (nowe zgłoszenie → kategoria Poczta). Nowe hasło zostanie wysłane na Twój numer telefonu w systemie HR.",
       categoryId: "cat_mail",
       isPublished: true,
-      createdById: "usr_admin"
+      createdById: admin.id
     }
   });
 
@@ -226,7 +226,7 @@ async function main() {
       body: "1. Sprawdź czy switch/światła na routerze są zielone.\n2. Zrestartuj router (odłącz zasilanie na 30 sekund).\n3. Jeśli to nie pomaga, utwórz zgłoszenie w FixIT z kategorią Internet / sieć.",
       categoryId: "cat_network",
       isPublished: true,
-      createdById: "usr_admin"
+      createdById: admin.id
     },
     create: {
       id: "ka_004",
@@ -235,7 +235,7 @@ async function main() {
       body: "1. Sprawdź czy switch/światła na routerze są zielone.\n2. Zrestartuj router (odłącz zasilanie na 30 sekund).\n3. Jeśli to nie pomaga, utwórz zgłoszenie w FixIT z kategorią Internet / sieć.",
       categoryId: "cat_network",
       isPublished: true,
-      createdById: "usr_admin"
+      createdById: admin.id
     }
   });
 
@@ -246,7 +246,7 @@ async function main() {
       body: "1. Otwórz pokrywę drukarki.\n2. Włóż nową rolkę papieru zgodnie z kierunkiem nadruku na obudowie.\n3. Zamknij pokrywę - drukarka automatycznie przyjmie papier.\n4. Jeśli papier się zacina, otwórz ponownie i wyrównaj krawędź.",
       categoryId: "cat_printer",
       isPublished: true,
-      createdById: "usr_admin"
+      createdById: admin.id
     },
     create: {
       id: "ka_005",
@@ -255,7 +255,7 @@ async function main() {
       body: "1. Otwórz pokrywę drukarki.\n2. Włóż nową rolkę papieru zgodnie z kierunkiem nadruku na obudowie.\n3. Zamknij pokrywę - drukarka automatycznie przyjmie papier.\n4. Jeśli papier się zacina, otwórz ponownie i wyrównaj krawędź.",
       categoryId: "cat_printer",
       isPublished: true,
-      createdById: "usr_admin"
+      createdById: admin.id
     }
   });
 
@@ -266,7 +266,7 @@ async function main() {
       body: "Nowy sprzęt (komputer, drukarka, terminal) zamawiasz przez zgłoszenie w FixIT. Opisz czego potrzebujesz i uzasadnij. Decyzję podejmuje IT w porozumieniu z kierownikiem.",
       categoryId: "cat_computer",
       isPublished: false,
-      createdById: "usr_admin"
+      createdById: admin.id
     },
     create: {
       id: "ka_006",
@@ -275,11 +275,11 @@ async function main() {
       body: "Nowy sprzęt (komputer, drukarka, terminal) zamawiasz przez zgłoszenie w FixIT. Opisz czego potrzebujesz i uzasadnij. Decyzję podejmuje IT w porozumieniu z kierownikiem.",
       categoryId: "cat_computer",
       isPublished: false,
-      createdById: "usr_admin"
+      createdById: admin.id
     }
   });
 
-  await upsertContactsArticle(storeDirectory);
+  await upsertContactsArticle(storeDirectory, admin.id);
 }
 
 main()
