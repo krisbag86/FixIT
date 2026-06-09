@@ -4,7 +4,10 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "FixIT Helpdesk",
-  description: "Helpdesk IT dla sklepów i biura Bagietki"
+  description: "Helpdesk IT dla sklepów i biura Bagietki",
+  icons: {
+    icon: "/icon.svg"
+  }
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

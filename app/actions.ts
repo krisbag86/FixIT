@@ -6,8 +6,9 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { addComment, createKnowledgeArticle, createTicket, deleteKnowledgeArticle, findTicket, readDatabase, updateKnowledgeArticle, updateNotificationLog, updateTicket } from "@/lib/data-store";
 import { can, canViewTicket } from "@/lib/permissions";
-import { sendEmail } from "@/lib/email";
+import { sendEmailWithResult } from "@/lib/email";
 import { templateTicketCreated, templateTicketResolved, templateTicketAssigned, templateCommentAdded } from "@/lib/email-templates";
+import type { EmailTemplate } from "@/lib/email-templates";
 import type { CommentVisibility, Database, TicketPriority, TicketStatus } from "@/lib/types";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter";
 import { reportError } from "@/lib/sentry";
@@ -26,6 +27,27 @@ function findLatestQueuedNotification(database: Database, input: { ticketId: str
     .filter((log) => log.recipientEmail === input.recipientEmail)
     .filter((log) => log.status === "QUEUED")
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+}
+
+async function sendTrackedEmail(input: {
+  notification?: ReturnType<typeof findLatestQueuedNotification>;
+  to: string;
+  template: EmailTemplate;
+}): Promise<void> {
+  const result = await sendEmailWithResult({
+    to: input.to,
+    subject: input.template.subject,
+    html: input.template.html,
+    text: input.template.text
+  });
+
+  if (input.notification) {
+    await updateNotificationLog(
+      input.notification.id,
+      result.ok ? "SENT" : "FAILED",
+      result.error
+    );
+  }
 }
 
 const ticketSchema = z.object({
@@ -80,17 +102,7 @@ export async function createTicketAction(formData: FormData): Promise<void> {
         type: "TICKET_CREATED",
         recipientEmail: reporter.email
       });
-      void (async () => {
-        const ok = await sendEmail({
-          to: reporter.email,
-          subject: template.subject,
-          html: template.html,
-          text: template.text
-        });
-        if (notification) {
-          await updateNotificationLog(notification.id, ok ? "SENT" : "FAILED");
-        }
-      })();
+      await sendTrackedEmail({ notification, to: reporter.email, template });
     }
   } catch (error) {
     console.error("Failed to initiate ticket creation email:", error);
@@ -141,17 +153,7 @@ export async function updateTicketAction(formData: FormData): Promise<void> {
             type: "TICKET_RESOLVED",
             recipientEmail: recipient.email
           });
-          void (async () => {
-            const ok = await sendEmail({
-              to: recipient.email,
-              subject: template.subject,
-              html: template.html,
-              text: template.text
-            });
-            if (notification) {
-              await updateNotificationLog(notification.id, ok ? "SENT" : "FAILED");
-            }
-          })();
+          await sendTrackedEmail({ notification, to: recipient.email, template });
         }
       }
 
@@ -167,17 +169,7 @@ export async function updateTicketAction(formData: FormData): Promise<void> {
             type: "TICKET_ASSIGNED",
             recipientEmail: newAssignee.email
           });
-          void (async () => {
-            const ok = await sendEmail({
-              to: newAssignee.email,
-              subject: template.subject,
-              html: template.html,
-              text: template.text
-            });
-            if (notification) {
-              await updateNotificationLog(notification.id, ok ? "SENT" : "FAILED");
-            }
-          })();
+          await sendTrackedEmail({ notification, to: newAssignee.email, template });
         }
       }
     } catch (error) {
@@ -237,17 +229,7 @@ export async function addCommentAction(formData: FormData): Promise<void> {
           type: "COMMENT_CREATED",
           recipientEmail: recipient.email
         });
-        void (async () => {
-          const ok = await sendEmail({
-            to: recipient.email,
-            subject: template.subject,
-            html: template.html,
-            text: template.text
-          });
-          if (notification) {
-            await updateNotificationLog(notification.id, ok ? "SENT" : "FAILED");
-          }
-        })();
+        await sendTrackedEmail({ notification, to: recipient.email, template });
       }
     } catch (error) {
       console.error("Failed to initiate comment email:", error);

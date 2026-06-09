@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { hashPassword, verifyPassword } from "@/lib/password";
+import { generateTemporaryPassword, hashPassword, verifyPassword } from "@/lib/password";
 
 describe("password hashing", () => {
   it("hashes and verifies a password correctly", () => {
@@ -41,5 +41,12 @@ describe("password hashing", () => {
     const seedHash = "bbee40413ae94dfc2d463f51eb1fc703:6c6e44a5d1b3798fa02baa515a3cd85b5a04d195425c807cc5cc235546d02e4257355007fa1ea67e3a1cf8b6af1495828d23232b12aa63dc97fc3935abd35bbe";
     expect(verifyPassword("admin123", seedHash)).toBe(true);
     expect(verifyPassword("wrong", seedHash)).toBe(false);
+  });
+
+  it("generates temporary passwords with the requested length", () => {
+    const password = generateTemporaryPassword(16);
+
+    expect(password).toHaveLength(16);
+    expect(password).toMatch(/^[A-Za-z0-9!@#$%]+$/);
   });
 });

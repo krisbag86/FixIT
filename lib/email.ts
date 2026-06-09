@@ -2,6 +2,27 @@ import nodemailer from 'nodemailer';
 
 let transporter: ReturnType<typeof nodemailer.createTransport> | null = null;
 
+function getSmtpPort(): number {
+  const parsedPort = Number.parseInt(process.env.SMTP_PORT || '465', 10);
+  return Number.isNaN(parsedPort) ? 465 : parsedPort;
+}
+
+function getSmtpSecure(port: number): boolean {
+  if (process.env.SMTP_SECURE) {
+    return process.env.SMTP_SECURE === 'true';
+  }
+
+  return port === 465;
+}
+
+function formatEmailError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return String(error);
+}
+
 export function getEmailTransporter() {
   if (!transporter) {
     if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
@@ -9,10 +30,12 @@ export function getEmailTransporter() {
       return null;
     }
 
+    const port = getSmtpPort();
+
     transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '465', 10),
-      secure: process.env.SMTP_SECURE === 'true', // SSL/TLS
+      port,
+      secure: getSmtpSecure(port),
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASSWORD,
@@ -31,12 +54,20 @@ export interface EmailPayload {
   text?: string;
 }
 
-export async function sendEmail(payload: EmailPayload): Promise<boolean> {
+export interface EmailSendResult {
+  ok: boolean;
+  error?: string;
+}
+
+export async function sendEmailWithResult(payload: EmailPayload): Promise<EmailSendResult> {
   try {
     const transporter = getEmailTransporter();
     if (!transporter) {
       console.log('Email sending disabled or not configured');
-      return false;
+      return {
+        ok: false,
+        error: 'SMTP configuration incomplete. Required: SMTP_HOST, SMTP_USER, SMTP_PASSWORD.'
+      };
     }
 
     // Send email with timeout to prevent hanging
@@ -55,11 +86,16 @@ export async function sendEmail(payload: EmailPayload): Promise<boolean> {
 
     const result = await Promise.race([sendPromise, timeoutPromise]);
     console.log(`Email sent to ${payload.to}: ${result.messageId}`);
-    return true;
+    return { ok: true };
   } catch (error) {
     console.error(`Failed to send email to ${payload.to}:`, error);
-    return false;
+    return { ok: false, error: formatEmailError(error) };
   }
+}
+
+export async function sendEmail(payload: EmailPayload): Promise<boolean> {
+  const result = await sendEmailWithResult(payload);
+  return result.ok;
 }
 
 // Send email in background without blocking

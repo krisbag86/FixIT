@@ -499,15 +499,20 @@ export async function listAdminAuditLogs(limit = 20): Promise<AdminAuditLog[]> {
     .slice(0, limit);
 }
 
-export async function findUserByEmail(email: string): Promise<User | undefined> {
+export async function findUserByEmail(email: string, options?: { includeInactive?: boolean }): Promise<User | undefined> {
   if (shouldUsePrisma()) {
     const db = await getPrisma();
     const user = await db.user.findUnique({ where: { email } });
-    return user ? mapUser(user) : undefined;
+
+    if (!user || (!options?.includeInactive && !user.isActive)) {
+      return undefined;
+    }
+
+    return mapUser(user);
   }
 
   const database = await readDatabase();
-  return database.users.find((user) => user.email === email && user.isActive);
+  return database.users.find((user) => user.email === email && (options?.includeInactive || user.isActive));
 }
 
 export async function findUserById(userId: string): Promise<User | undefined> {
@@ -607,6 +612,104 @@ export async function updateUserAdmin(input: {
         entityId: user.id,
         summary: describeAuditChanges("Użytkownik", user.email, changes),
         payload: buildAuditPayload(changes)
+      });
+    }
+
+    return user;
+  });
+}
+
+export async function createUser(input: {
+  name: string;
+  email: string;
+  role: UserRole;
+  storeId?: string;
+  department?: string;
+  isActive: boolean;
+  passwordHash: string;
+  mustChangePassword: boolean;
+  actorId?: string;
+}): Promise<User> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const existing = await db.user.findUnique({ where: { email: input.email } });
+
+    if (existing) {
+      throw new Error("Użytkownik z tym adresem e-mail już istnieje.");
+    }
+
+    const created = await db.$transaction(async (tx) => {
+      const nextUser = await tx.user.create({
+        data: {
+          name: input.name,
+          email: input.email,
+          role: input.role,
+          storeId: input.storeId,
+          department: input.department,
+          isActive: input.isActive,
+          passwordHash: input.passwordHash,
+          mustChangePassword: input.mustChangePassword
+        }
+      });
+
+      if (input.actorId) {
+        await tx.adminAuditLog.create({
+          data: {
+            actorId: input.actorId,
+            action: "USER_CREATED",
+            entityType: "USER",
+            entityId: nextUser.id,
+            summary: `Użytkownik ${nextUser.email}: utworzono konto ${nextUser.role}`,
+            payload: {
+              rolaTo: nextUser.role,
+              sklepTo: definedString(nextUser.storeId) ?? "-",
+              dzialTo: definedString(nextUser.department) ?? "-",
+              aktywnyTo: nextUser.isActive ? "tak" : "nie"
+            }
+          }
+        });
+      }
+
+      return nextUser;
+    });
+
+    return mapUser(created);
+  }
+
+  return withDatabase((database) => {
+    const existing = database.users.find((user) => user.email === input.email);
+
+    if (existing) {
+      throw new Error("Użytkownik z tym adresem e-mail już istnieje.");
+    }
+
+    const user: User = {
+      id: id("usr"),
+      name: input.name,
+      email: input.email,
+      role: input.role,
+      storeId: input.storeId,
+      department: input.department,
+      isActive: input.isActive,
+      passwordHash: input.passwordHash,
+      mustChangePassword: input.mustChangePassword
+    };
+
+    database.users.push(user);
+
+    if (input.actorId) {
+      appendAdminAuditLog(database, {
+        actorId: input.actorId,
+        action: "USER_CREATED",
+        entityType: "USER",
+        entityId: user.id,
+        summary: `Użytkownik ${user.email}: utworzono konto ${user.role}`,
+        payload: {
+          rolaTo: user.role,
+          sklepTo: user.storeId ?? "-",
+          dzialTo: user.department ?? "-",
+          aktywnyTo: user.isActive ? "tak" : "nie"
+        }
       });
     }
 

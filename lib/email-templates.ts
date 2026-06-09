@@ -7,10 +7,82 @@ export function getTicketUrl(ticketId: string): string {
   return `${baseUrl}/tickets/${ticketId}`;
 }
 
+export function getLoginUrl(): string {
+  return `${baseUrl}/login`;
+}
+
 export interface EmailTemplate {
   subject: string;
   html: string;
   text: string;
+}
+
+export function templateUserInvitation(user: User, temporaryPassword: string): EmailTemplate {
+  const loginUrl = getLoginUrl();
+  const subject = `[FixIT] Dostep do systemu FixIT`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background-color: #f0f0f0; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+          .credentials { background-color: #eefbf7; padding: 15px; border-left: 4px solid #20b486; margin: 15px 0; }
+          .password { font-family: monospace; font-size: 1.1em; font-weight: bold; }
+          .footer { font-size: 0.9em; color: #666; margin-top: 30px; border-top: 1px solid #ddd; padding-top: 15px; }
+          a { color: #007bff; text-decoration: none; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h2>FixIT Helpdesk</h2>
+            <p>Twoje konto zostalo utworzone</p>
+          </div>
+
+          <p>Czesc ${escapeHtml(user.name || user.email)},</p>
+          <p>Administrator utworzyl dla Ciebie konto w systemie FixIT.</p>
+
+          <div class="credentials">
+            <p><strong>Login:</strong> ${escapeHtml(user.email)}</p>
+            <p><strong>Haslo tymczasowe:</strong> <span class="password">${escapeHtml(temporaryPassword)}</span></p>
+          </div>
+
+          <p>Przy pierwszym logowaniu system poprosi Cie o ustawienie nowego hasla.</p>
+          <p>
+            <a href="${loginUrl}">Przejdz do logowania</a>
+          </p>
+
+          <div class="footer">
+            <p>To jest automatyczna wiadomosc z systemu FixIT Helpdesk. Prosze nie odpowiadac na tego maila.</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  const text = `
+FixIT Helpdesk
+
+Twoje konto zostalo utworzone
+
+Czesc ${user.name || user.email},
+Administrator utworzyl dla Ciebie konto w systemie FixIT.
+
+Login: ${user.email}
+Haslo tymczasowe: ${temporaryPassword}
+
+Przy pierwszym logowaniu system poprosi Cie o ustawienie nowego hasla.
+
+Przejdz do logowania: ${loginUrl}
+
+To jest automatyczna wiadomosc z systemu FixIT Helpdesk. Prosze nie odpowiadac na tego maila.
+  `.trim();
+
+  return { subject, html, text };
 }
 
 export function templateTicketCreated(ticket: Ticket, reporter: User): EmailTemplate {
