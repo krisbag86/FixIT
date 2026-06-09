@@ -1,0 +1,82 @@
+"use server";
+
+import { cookies, headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { z } from "zod";
+import { sessionCookieName } from "@/lib/auth";
+import { createUser, findUserByEmail } from "@/lib/data-store";
+import { isAllowedBagietkaEmail, normalizeEmail } from "@/lib/email-domain";
+import { hashPassword } from "@/lib/password";
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter";
+import { createSession } from "@/lib/session-store";
+
+const registerSchema = z
+  .object({
+    name: z.string().min(2).max(120),
+    email: z.string().email(),
+    password: z.string().min(8).max(200),
+    confirmPassword: z.string().min(8).max(200)
+  })
+  .refine((input) => input.password === input.confirmPassword, {
+    message: "Hasła nie są zgodne.",
+    path: ["confirmPassword"]
+  });
+
+export async function registerAction(_previousState: string | undefined, formData: FormData): Promise<string | undefined> {
+  const input = registerSchema.safeParse({
+    name: String(formData.get("name") ?? "").trim(),
+    email: normalizeEmail(String(formData.get("email") ?? "")),
+    password: String(formData.get("password") ?? ""),
+    confirmPassword: String(formData.get("confirmPassword") ?? "")
+  });
+
+  if (!input.success) {
+    return input.error.issues[0]?.message ?? "Nie udało się zarejestrować konta.";
+  }
+
+  if (!isAllowedBagietkaEmail(input.data.email)) {
+    return "Podaj służbowy adres w domenie bagietka.pl.";
+  }
+
+  const headersList = await headers();
+  const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim()
+    || headersList.get("x-real-ip")
+    || "unknown";
+  const rateLimitKey = `register:${input.data.email}:${ip}`;
+  const rateCheck = checkRateLimit(rateLimitKey, RATE_LIMITS.LOGIN.windowMs, RATE_LIMITS.LOGIN.maxAttempts);
+
+  if (!rateCheck.allowed) {
+    const minutes = Math.ceil(rateCheck.resetInSeconds / 60);
+    return `Zbyt wiele prób rejestracji. Spróbuj ponownie za ${minutes} min.`;
+  }
+
+  const existingUser = await findUserByEmail(input.data.email, { includeInactive: true });
+
+  if (existingUser) {
+    return existingUser.isActive
+      ? "Konto z tym adresem już istnieje. Zaloguj się."
+      : "Konto z tym adresem istnieje, ale jest nieaktywne. Skontaktuj się z administratorem.";
+  }
+
+  const user = await createUser({
+    name: input.data.name,
+    email: input.data.email,
+    role: "REPORTER",
+    isActive: true,
+    passwordHash: hashPassword(input.data.password),
+    mustChangePassword: false
+  });
+
+  const sessionId = await createSession(user.id);
+
+  const cookieStore = await cookies();
+  cookieStore.set(sessionCookieName, sessionId, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 14
+  });
+
+  redirect("/tickets/new");
+}

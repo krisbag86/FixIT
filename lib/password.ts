@@ -4,6 +4,7 @@ const ITERATIONS = 100_000;
 const KEY_LENGTH = 64;
 const DIGEST = "sha512";
 const SALT_LENGTH = 16;
+const TEMP_PASSWORD_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
 
 /**
  * Hash a password using PBKDF2 with a random salt.
@@ -13,6 +14,17 @@ export function hashPassword(password: string): string {
   const salt = randomBytes(SALT_LENGTH).toString("hex");
   const hash = pbkdf2Sync(password, salt, ITERATIONS, KEY_LENGTH, DIGEST).toString("hex");
   return `${salt}:${hash}`;
+}
+
+export function generateTemporaryPassword(length = 14): string {
+  let password = "";
+  const bytes = randomBytes(length);
+
+  for (let index = 0; index < length; index += 1) {
+    password += TEMP_PASSWORD_CHARS[bytes[index] % TEMP_PASSWORD_CHARS.length];
+  }
+
+  return password;
 }
 
 /**

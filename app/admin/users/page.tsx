@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { Shield, ShieldOff, Users } from "lucide-react";
 import { updateUserAdminAction } from "@/app/admin/actions";
 import { AdminNav } from "@/components/admin/admin-nav";
+import { CreateUserForm } from "@/components/admin/create-user-form";
 import { AppShell } from "@/components/app-shell";
 import { RoleBadge } from "@/components/badges";
 import { requireUser } from "@/lib/auth";
@@ -42,6 +43,8 @@ export default async function AdminUsersPage({
       </div>
 
       <AdminNav user={user} currentPath="/admin/users" />
+
+      <CreateUserForm stores={stores} />
 
       <form className="control-panel mb-5 flex flex-wrap items-center gap-2 rounded-md p-3">
         <input

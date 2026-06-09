@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/auth";
 import {
   createCategoryAdmin,
   createStoreAdmin,
+  createUser,
   deleteCategoryAdmin,
   deleteStoreAdmin,
   listStoresAdmin,
@@ -13,6 +14,10 @@ import {
   updateStoreAdmin,
   updateUserAdmin
 } from "@/lib/data-store";
+import { sendEmailWithResult } from "@/lib/email";
+import { templateUserInvitation } from "@/lib/email-templates";
+import { normalizeEmail, isAllowedBagietkaEmail } from "@/lib/email-domain";
+import { generateTemporaryPassword, hashPassword } from "@/lib/password";
 import { can } from "@/lib/permissions";
 
 const roleSchema = z.enum(["REPORTER", "STORE_MANAGER", "AGENT", "ADMIN"]);
@@ -24,6 +29,16 @@ const userAdminSchema = z.object({
   storeId: z.string().optional(),
   department: z.string().max(120).optional(),
   isActive: z.boolean()
+});
+
+const createUserSchema = z.object({
+  name: z.string().min(2).max(120),
+  email: z.string().email(),
+  role: roleSchema,
+  storeId: z.string().optional(),
+  department: z.string().max(120).optional(),
+  isActive: z.boolean(),
+  sendInvite: z.boolean()
 });
 
 const storeSchema = z.object({
@@ -75,6 +90,14 @@ async function assertStoreExists(storeId: string | undefined): Promise<void> {
   }
 }
 
+export type CreateUserAdminState = {
+  status: "idle" | "success" | "error";
+  message?: string;
+  temporaryPassword?: string;
+  createdEmail?: string;
+  inviteSent?: boolean;
+};
+
 export async function updateUserAdminAction(formData: FormData): Promise<void> {
   const actor = await requireAdminAction("admin:manage-users");
 
@@ -107,6 +130,95 @@ export async function updateUserAdminAction(formData: FormData): Promise<void> {
 
   revalidatePath("/admin/users");
   revalidatePath("/admin/tickets");
+}
+
+export async function createUserAdminAction(
+  _previousState: CreateUserAdminState,
+  formData: FormData
+): Promise<CreateUserAdminState> {
+  try {
+    const actor = await requireAdminAction("admin:manage-users");
+
+    const input = createUserSchema.parse({
+      name: String(formData.get("name") ?? "").trim(),
+      email: normalizeEmail(String(formData.get("email") ?? "")),
+      role: String(formData.get("role") ?? "REPORTER"),
+      storeId: normalizeOptionalText(formData.get("storeId")),
+      department: normalizeOptionalText(formData.get("department")),
+      isActive: formData.get("isActive") === "on",
+      sendInvite: formData.get("sendInvite") === "on"
+    });
+
+    if (!isAllowedBagietkaEmail(input.email)) {
+      return {
+        status: "error",
+        message: "Podaj służbowy adres w domenie bagietka.pl."
+      };
+    }
+
+    if (input.role === "STORE_MANAGER" && !input.storeId) {
+      return {
+        status: "error",
+        message: "Kierownik sklepu musi mieć przypisany sklep."
+      };
+    }
+
+    await assertStoreExists(input.storeId);
+
+    const temporaryPassword = generateTemporaryPassword();
+    const user = await createUser({
+      name: input.name,
+      email: input.email,
+      role: input.role,
+      storeId: input.role === "AGENT" || input.role === "ADMIN" ? undefined : input.storeId,
+      department: input.department,
+      isActive: input.isActive,
+      passwordHash: hashPassword(temporaryPassword),
+      mustChangePassword: true,
+      actorId: actor.id
+    });
+
+    let inviteSent = false;
+    let message = `Utworzono konto dla ${user.email}.`;
+
+    if (input.sendInvite) {
+      const template = templateUserInvitation(user, temporaryPassword);
+      const result = await sendEmailWithResult({
+        to: user.email,
+        subject: template.subject,
+        html: template.html,
+        text: template.text
+      });
+
+      inviteSent = result.ok;
+      message = result.ok
+        ? `${message} Wiadomosc z danymi logowania zostala wyslana.`
+        : `${message} Nie udalo sie wyslac e-maila z danymi logowania.`;
+    }
+
+    revalidatePath("/admin/users");
+    revalidatePath("/admin/tickets");
+
+    return {
+      status: "success",
+      message,
+      temporaryPassword,
+      createdEmail: user.email,
+      inviteSent
+    };
+  } catch (error) {
+    const message =
+      error instanceof z.ZodError
+        ? error.issues[0]?.message ?? "Nie udalo sie utworzyc uzytkownika."
+        : error instanceof Error
+          ? error.message
+          : "Nie udalo sie utworzyc uzytkownika.";
+
+    return {
+      status: "error",
+      message
+    };
+  }
 }
 
 export async function createStoreAdminAction(formData: FormData): Promise<void> {

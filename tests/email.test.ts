@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { sendEmail } from '@/lib/email';
 import {
+  templateUserInvitation,
   templateTicketCreated,
   templateTicketAssigned,
   templateCommentAdded,
@@ -82,6 +83,17 @@ describe('Email Templates', () => {
 
       expect(template.html).toContain(`/tickets/${mockTicket.id}`);
       expect(template.text).toContain(`/tickets/${mockTicket.id}`);
+    });
+  });
+
+  describe('templateUserInvitation', () => {
+    it('should include login and temporary password details', () => {
+      const template = templateUserInvitation(mockUser, 'TempPass123!');
+
+      expect(template.subject).toContain('FixIT');
+      expect(template.html).toContain(mockUser.email);
+      expect(template.html).toContain('TempPass123!');
+      expect(template.text).toContain('/login');
     });
   });
 

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 import { LogIn, Mail, AlertCircle } from "lucide-react";
 import { loginAction } from "@/app/login/actions";
@@ -87,6 +88,13 @@ i wyrażam zgodę na{" "}
         <LogIn size={18} className="transition-transform duration-300 group-hover:translate-x-0.5" />
         <span className="relative">{pending ? "Logowanie…" : "Zaloguj się"}</span>
       </button>
+
+      <p className="text-center text-sm text-ink/55 dark:text-paper/55">
+        Nie masz jeszcze konta?{" "}
+        <Link href="/register" className="font-semibold text-mint underline decoration-mint/30 hover:decoration-mint/70">
+          Zarejestruj się
+        </Link>
+      </p>
     </form>
   );
 }

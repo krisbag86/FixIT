@@ -179,3 +179,61 @@ describe("CSV injection prevention", () => {
     expect(csv).toContain("Normal title with no injection");
   });
 });
+
+describe("user creation", () => {
+  beforeEach(resetDatabase);
+  afterEach(resetDatabase);
+
+  it("creates a new user and allows lookup by active email", async () => {
+    const { createUser, findUserByEmail } = await import("@/lib/data-store");
+
+    const user = await createUser({
+      name: "Jan Kowalski",
+      email: "jan.kowalski@bagietka.pl",
+      role: "REPORTER",
+      isActive: true,
+      passwordHash: "salt:hash",
+      mustChangePassword: false
+    });
+
+    expect(user.email).toBe("jan.kowalski@bagietka.pl");
+    expect(user.role).toBe("REPORTER");
+
+    const found = await findUserByEmail("jan.kowalski@bagietka.pl");
+    expect(found?.id).toBe(user.id);
+  });
+
+  it("does not return inactive users from standard email lookup", async () => {
+    const { createUser, findUserByEmail } = await import("@/lib/data-store");
+
+    await createUser({
+      name: "Jan Kowalski",
+      email: "jan.kowalski@bagietka.pl",
+      role: "REPORTER",
+      isActive: false,
+      passwordHash: "salt:hash",
+      mustChangePassword: false
+    });
+
+    expect(await findUserByEmail("jan.kowalski@bagietka.pl")).toBeUndefined();
+    expect(await findUserByEmail("jan.kowalski@bagietka.pl", { includeInactive: true })).toBeDefined();
+  });
+
+  it("adds an admin audit log when user is created by admin", async () => {
+    const { createUser, listAdminAuditLogs } = await import("@/lib/data-store");
+
+    const user = await createUser({
+      name: "Jan Kowalski",
+      email: "jan.kowalski@bagietka.pl",
+      role: "REPORTER",
+      isActive: true,
+      passwordHash: "salt:hash",
+      mustChangePassword: true,
+      actorId: "usr_admin"
+    });
+
+    const logs = await listAdminAuditLogs(5);
+    expect(logs[0]?.action).toBe("USER_CREATED");
+    expect(logs[0]?.entityId).toBe(user.id);
+  });
+});
