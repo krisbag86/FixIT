@@ -10,6 +10,12 @@ Dla MVP rekomendowany deployment:
 - Osobny projekt dla production,
 - Opcjonalnie osobny projekt dla staging.
 
+Stan na 2026-06-09:
+
+- produkcyjny auto-deploy dziala po pushu na branch `main`,
+- merge `v-1.1` -> `main` uruchomil deploy na Railway poprawnie,
+- healthcheck aplikacji pozostaje oparty o `GET /api/health`.
+
 ## 2. Wymagane zmienne srodowiskowe
 
 Aplikacja **nie używa NextAuth.js** - uzywa wlasnego cookie-based auth.
@@ -63,10 +69,13 @@ W Railway Dashboard → project → Variables, ustaw:
 
 ### Krok 4: Pierwszy deploy
 1. Railway automatycznie zbuduje obraz Dockerem (DOCKERFILE builder z `railway.json`)
-2. `docker-entrypoint.sh`:
+2. `railway.json` wykonuje pre-deploy command:
+   - `npx prisma migrate deploy`
+   - `npx prisma db seed`
+3. `docker-entrypoint.sh` przy starcie kontenera:
    - Generuje klienta Prisma (`npx prisma generate`)
    - Wykonuje migracje (`npx prisma migrate deploy`)
-3. Jesli to pierwszy deploy, ustaw `FIXIT_RUN_SEED=true` w Variables, a po udanym deployu **natychmiast usun** te zmienna
+   - Uruchamia seed (`npx prisma db seed`)
 
 ### Krok 5: Sprawdz czy dziala
 - Odwiedz `https://twoja-aplikacja.railway.app/api/health` - powinien zwrocic JSON z `"status": "ok"` i `"database": "connected"`
@@ -76,7 +85,10 @@ W Railway Dashboard → project → Variables, ustaw:
 
 | Mechanizm | Jak dziala |
 |-----------|-----------|
+| Auto-deploy | Railway obserwuje branch `main` w repo GitHub |
+| Pre-deploy | `railway.json` uruchamia `npx prisma migrate deploy && npx prisma db seed` |
 | Migracje Prisma | `docker-entrypoint.sh` uruchamia `prisma migrate deploy` przy starcie |
+| Seed danych | `docker-entrypoint.sh` uruchamia `prisma db seed` przy starcie; seed jest idempotentny |
 | SSL do bazy | Entrypoint automatycznie dodaje `?sslmode=require` jesli brak |
 | Healthcheck | Endpoint `GET /api/health` sprawdza baze i zwraca status |
 | Data provider | Automatycznie wybiera Prisma gdy `NODE_ENV=production` i `DATABASE_URL` ustawiony |
@@ -93,8 +105,16 @@ Nie uzywamy:
 npx prisma migrate dev      # NIE - to resetuje baze
 ```
 
-Migracje sa uruchamiane automatycznie przez `docker-entrypoint.sh` przy kazdym starcie kontenera.
-Nie ma potrzeby recznego uruchamiania migracji na Railway.
+Migracje sa uruchamiane automatycznie przez `railway.json` i dodatkowo przez `docker-entrypoint.sh`.
+Nie ma potrzeby recznego uruchamiania migracji na Railway, chyba ze diagnozujesz awarie deployu.
+
+## 5a. Auth i konta uzytkownikow
+
+- Publiczna rejestracja jest dostepna pod `/register`.
+- Rejestracja akceptuje tylko adresy z dokladnej domeny `bagietka.pl`.
+- Samodzielna rejestracja tworzy aktywne konto `REPORTER`.
+- Admin moze tworzyc konta recznie z `/admin/users`, nadawac role i generowac hasla tymczasowe.
+- Jesli SMTP jest skonfigurowane, panel admina moze wyslac dane logowania e-mailem.
 
 ## 6. Zalaczniki i Railway
 
@@ -117,7 +137,8 @@ Rozwiazania:
 - [ ] Railway Bucket S3 skonfigurowany (jesli potrzebujesz persistent zalacznikow)
 - [ ] Domena `bagietka.pl` wymuszona po stronie serwera (dziala domyslnie)
 - [ ] Healthcheck dziala: `GET /api/health` → `{"status":"ok","database":"connected"}`
-- [ ] `FIXIT_RUN_SEED` usuniete po pierwszym seedzie
+- [ ] Publiczna rejestracja `/register` dziala dla `@bagietka.pl`
+- [ ] Tworzenie usera z `/admin/users` wysyla mail poprawnie (jesli SMTP wlaczone)
 
 ## 8. Backupy i bezpieczenstwo
 
@@ -139,7 +160,8 @@ Przed uzyciem produkcyjnym warto ustalic:
 | Brak tabel po deployu | Migracje nie dzialaja | Sprawdz logi: `npx prisma migrate deploy` |
 | Zalaczniki zniknely po redeploy | Brak S3 Bucket | Skonfiguruj Railway Bucket (zobacz sekcje 6) |
 | Email nie dziala | Brak SMTP | Skonfiguruj SMTP w zmiennych srodowiskowych |
-| Strona ladowana bez danych | `FIXIT_DATA_PROVIDER` wymusza JSON | Usun zmienna lub ustaw na `prisma` |
+| Strona laduje sie bez danych | `FIXIT_DATA_PROVIDER` wymusza JSON | Usun zmienna lub ustaw na `prisma` |
+| Push nie uruchamia deployu | Railway obserwuje inny branch | Sprawdz `Service -> Source` i ustaw auto-deploy z `main` |
 
 ## 9. Alternatywy
 

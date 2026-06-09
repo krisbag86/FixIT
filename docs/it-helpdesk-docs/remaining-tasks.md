@@ -17,7 +17,7 @@ Aktualna lista prac pozostalych po Etapie 7, czyli po dodaniu runtime data-store
   - `Users`, `Stores`, `Categories`, `Tickets`, `Comments`, `TicketEvent` i `NotificationLog` maja runtime Prisma w `lib/data-store.ts`.
   - Numeracja ticketow w trybie Prisma korzysta z `TicketCounter` w transakcji.
   - Zdarzenia i powiadomienia sa tworzone w tych samych sciezkach zapisu co w JSON-store.
-  - Do walidacji produkcyjnej zostaje uruchomienie migracji i smoke test na prawdziwej bazie Railway.
+  - Produkcyjny deploy na Railway z `main` zostal zweryfikowany 2026-06-09.
 - Priorytet 2 (Testy e2e) zostal zrealizowany:
   - Playwright jest skonfigurowany w repo, a `npm run test:e2e` przechodzi lokalnie.
   - Testy obejmuja logowanie domenowe, odrzucenie obcych domen, tworzenie ticketu, liste ticketow, panel IT, przypisanie/status oraz regresje notatek wewnetrznych.
@@ -59,6 +59,11 @@ Aktualna lista prac pozostalych po Etapie 7, czyli po dodaniu runtime data-store
     - blokada zdezaktywowania/zmiany roli wlasnego konta admina,
     - blokada usuniecia sklepu/kategorii, jesli sa powiazane z danymi runtime.
   - Walidacja: `npm run db:generate` OK, `npm run lint` OK, `npm run typecheck` OK, `npm run test` OK, 32 passed / 1 skipped.
+- Auth / onboarding uzytkownikow zostaly rozszerzone:
+  - publiczna rejestracja `/register` dla adresow w domenie `bagietka.pl`,
+  - self-registration tworzy konto `REPORTER` i od razu loguje do aplikacji,
+  - `/admin/users` pozwala utworzyc konto recznie, wygenerowac haslo tymczasowe i opcjonalnie wyslac je e-mailem,
+  - konta tworzone przez admina maja wymuszona zmiane hasla przy pierwszym logowaniu.
 
 ## Walidacja Etapu 7 + Priorytet 6 + Priorytet 5
 
@@ -70,11 +75,9 @@ Aktualna lista prac pozostalych po Etapie 7, czyli po dodaniu runtime data-store
 
 ## Pozostale zadania deploymentowe Railway
 
-- Skonfigurowac env vars: `DATABASE_URL`, `APP_URL`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, `EMAIL_FROM`, `FIXIT_DATA_PROVIDER=prisma`.
-- Uruchamiac `npm run db:migrate:deploy` podczas deploymentu.
+- Skonfigurowac env vars: `DATABASE_URL`, `APP_URL`, `EMAIL_FROM`, `SMTP_*`, `FIXIT_DATA_PROVIDER=prisma`.
 - Ustalic polityke seedowania produkcji, zeby seed testowy nie tworzyl danych na produkcji.
-- `npm run db:migrate:deploy` na bazie Railway
-- Smoke test: logowanie + utworzenie ticketu + przypisanie/status + komentarz na staging/production.
+- Smoke test po kolejnych zmianach: logowanie + rejestracja + utworzenie ticketu + przypisanie/status + komentarz na staging/production.
 
 ## Priorytet 5 - Zalaczniki [ZROBIONE]
 
@@ -122,6 +125,8 @@ Zrealizowane:
   - Lista i wyszukiwarka uzytkownikow.
   - Dezaktywacja/reaktywacja.
   - Przypisywanie rol, sklepu i dzialu.
+  - Tworzenie nowego konta przez admina.
+  - Generowanie hasla tymczasowego i opcjonalna wysylka danych logowania e-mailem.
 - Slowniki:
   - CRUD sklepow z blokada usuniecia przy aktywnych powiazaniach.
   - CRUD kategorii z blokada usuniecia przy aktywnych powiazaniach.
@@ -173,7 +178,7 @@ Walidacja:
 ## Znane ograniczenia srodowiska
 
 - W aktualnym srodowisku Codex nie byl dostepny Docker CLI, wiec `docker compose config` i `docker compose up` po Etapie 6 wymagaja walidacji na maszynie z Dockerem.
-- `npm run build` w tym srodowisku obecnie konczy sie ogolnym komunikatem `Build failed because of webpack errors` bez szczegolow stack trace; `lint`, `typecheck` i testy przechodza, ale build wymaga osobnej diagnozy lokalnej/staging.
+- `npm run build` zostal ponownie zweryfikowany po merge do `main` i przechodzi poprawnie.
 - Prisma 6.x jest celowo uzyta dla zgodnosci z obecnym `schema.prisma`; przy przejsciu na Prisma 7 trzeba przeniesc konfiguracje seeda z `package.json#prisma` do `prisma.config.ts`.
 - **Po Priorytecie 5** dodano pole `uploadedById` do `TicketAttachment` w Prisma schema. Wdrozenie na Railway wymaga migracji `prisma migrate deploy` przed startem aplikacji.
 - **Po Priorytecie 7** doszedl model `AdminAuditLog` w Prisma schema. Wdrozenie na Railway wymaga migracji `prisma migrate deploy` przed startem aplikacji.

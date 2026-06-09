@@ -10,7 +10,8 @@ Wewnętrzny system helpdesk IT dla sklepów i biura **Bagietka**. Nowoczesna apl
 - **Panel IT** — Dashboard z metrykami, wykresami i SLA
 - **Kanban** — Wizualne zarządzanie zgłoszeniami metodą przeciągnij i upuść
 - **Baza wiedzy** — Artykuły FAQ dla użytkowników
-- **Autoryzacja** — Logowanie przez e-mail w domenie `bagietka.pl`
+- **Autoryzacja** — Logowanie i rejestracja tylko dla adresów w domenie `bagietka.pl`
+- **Administracja użytkownikami** — Admin może tworzyć konta, nadawać role i wysyłać dane logowania
 - **Tryb ciemny** — Wsparcie dla jasnego i ciemnego motywu
 - **Załączniki** — Przesyłanie plików przez S3 (Railway Bucket)
 - **Powiadomienia e-mail** — Automatyczne powiadomienia o zmianach statusu
@@ -57,6 +58,7 @@ npm run dev
 ## 🌐 Wdrożenie na Railway
 
 Projekt jest skonfigurowany do automatycznego wdrożenia na **[Railway](https://railway.com)** przez GitHub.
+Produkcyjny auto-deploy jest uruchamiany z brancha `main`.
 
 ### Pierwsze wdrożenie
 
@@ -71,8 +73,8 @@ Projekt jest skonfigurowany do automatycznego wdrożenia na **[Railway](https://
 | Zmienna | Opis | Przykład |
 |---|---|---|
 | `DATABASE_URL` | URL połączenia z PostgreSQL | `postgresql://...` |
-| `NEXTAUTH_SECRET` | Sekret do podpisywania sesji | `twoj-tajny-klucz` |
-| `NEXTAUTH_URL` | Publiczny URL aplikacji | `https://twoja-aplikacja.up.railway.app` |
+| `APP_URL` | Publiczny URL aplikacji | `https://twoja-aplikacja.up.railway.app` |
+| `NODE_ENV` | Tryb pracy aplikacji | `production` |
 | `EMAIL_FROM` | Adres nadawcy e-mail | `FixIT <it@bagietka.pl>` |
 | `SMTP_HOST` | Host serwera SMTP | |
 | `SMTP_PORT` | Port SMTP | `465` |
@@ -83,7 +85,15 @@ Projekt jest skonfigurowany do automatycznego wdrożenia na **[Railway](https://
 | `S3_ACCESS_KEY_ID` | Klucz dostępu S3 | |
 | `S3_SECRET_ACCESS_KEY` | Sekretny klucz S3 | |
 | `S3_BUCKET` | Nazwa bucketa S3 | |
+| `FIXIT_DATA_PROVIDER` | Wymuszenie storage runtime | `prisma` |
 | `PORT` | Port aplikacji | `8080` |
+
+### Dostęp użytkowników
+
+- Każdy pracownik z adresem `@bagietka.pl` może samodzielnie założyć konto przez `/register`.
+- Samodzielna rejestracja tworzy konto z rolą `REPORTER`.
+- Administrator może dodać użytkownika ręcznie w `/admin/users`, wygenerować mu hasło tymczasowe i opcjonalnie wysłać dane logowania e-mailem.
+- Konta tworzone przez admina mają wymuszoną zmianę hasła przy pierwszym logowaniu.
 
 ### Wdrożenie z CLI
 
@@ -171,4 +181,3 @@ npm run test:e2e
 ## 📄 Licencja
 
 Projekt wewnętrzny — **Bagietka Sp. z o.o.**
-

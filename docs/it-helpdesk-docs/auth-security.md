@@ -68,6 +68,13 @@ Wymuszenie powinno wystepowac w:
 - OAuth / SSO callback,
 - zaproszeniach lub tworzeniu uzytkownikow przez admina.
 
+W aktualnym MVP:
+
+- `/register` pozwala pracownikowi samodzielnie zalozyc konto `REPORTER`,
+- `/admin/users` pozwala adminowi utworzyc konto z dowolna rola biznesowa,
+- tworzenie usera przez admina generuje haslo tymczasowe i ustawia wymuszona zmiane hasla przy pierwszym logowaniu,
+- wysylka danych logowania e-mailem jest opcjonalna i zalezy od konfiguracji SMTP.
+
 ## 5. Role
 
 Role:
@@ -80,6 +87,11 @@ Role:
 Sam fakt posiadania emaila `@bagietka.pl` nie daje uprawnien admina.
 
 Uprawnienia wynikaja z rekordu uzytkownika w bazie danych.
+
+Domyslne sciezki tworzenia kont:
+
+- self-registration -> `REPORTER`,
+- admin panel -> `REPORTER`, `STORE_MANAGER`, `AGENT`, `ADMIN`.
 
 ## 6. Permission matrix
 
@@ -138,5 +150,6 @@ describe("isAllowedBagietkaEmail", () => {
 - Ustawic secure cookies.
 - Nie logowac tokenow i hasel.
 - Ograniczyc rate limit logowania.
+- Ograniczyc rate limit rejestracji.
 - Dla adminow rozwazyc MFA.
 - Zapisywac audit log dla zmian statusu, roli i uprawnien.
