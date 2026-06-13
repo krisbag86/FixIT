@@ -23,6 +23,12 @@ const registerSchema = z
   });
 
 export async function registerAction(_previousState: string | undefined, formData: FormData): Promise<string | undefined> {
+  // Check if self-registration is disabled (admin-only account creation)
+  const isDisabled = process.env.DISABLE_REGISTRATION === "true" || process.env.DISABLE_REGISTRATION === "1";
+  if (isDisabled) {
+    return "Rejestracja jest wyłączona. Skontaktuj się z administratorem, aby utworzyć konto.";
+  }
+
   const input = registerSchema.safeParse({
     name: String(formData.get("name") ?? "").trim(),
     email: normalizeEmail(String(formData.get("email") ?? "")),
@@ -43,7 +49,7 @@ export async function registerAction(_previousState: string | undefined, formDat
     || headersList.get("x-real-ip")
     || "unknown";
   const rateLimitKey = `register:${input.data.email}:${ip}`;
-  const rateCheck = checkRateLimit(rateLimitKey, RATE_LIMITS.LOGIN.windowMs, RATE_LIMITS.LOGIN.maxAttempts);
+  const rateCheck = await checkRateLimit(rateLimitKey, RATE_LIMITS.LOGIN.windowMs, RATE_LIMITS.LOGIN.maxAttempts);
 
   if (!rateCheck.allowed) {
     const minutes = Math.ceil(rateCheck.resetInSeconds / 60);
@@ -69,11 +75,14 @@ export async function registerAction(_previousState: string | undefined, formDat
 
   const sessionId = await createSession(user.id);
 
+  // Determine if the connection is secure — check x-forwarded-proto for proxy environments
+  const isSecure = process.env.NODE_ENV === "production" || headersList.get("x-forwarded-proto") === "https";
+
   const cookieStore = await cookies();
   cookieStore.set(sessionCookieName, sessionId, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: isSecure,
     path: "/",
     maxAge: 60 * 60 * 24 * 14
   });

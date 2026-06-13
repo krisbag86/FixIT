@@ -9,6 +9,7 @@ import {
   describeAuditChanges,
   getCategoryAuditChanges,
   getCategoryUsageSummary,
+  getKnowledgeArticleAuditChanges,
   getStoreAuditChanges,
   getStoreUsageSummary,
   getUserAuditChanges
@@ -1779,19 +1780,42 @@ export async function createKnowledgeArticle(input: {
   categoryId?: string;
   isPublished: boolean;
   createdById: string;
+  actorId?: string;
 }): Promise<KnowledgeArticle> {
   if (shouldUsePrisma()) {
     const db = await getPrisma();
-    const article = await db.knowledgeArticle.create({
-      data: {
-        title: input.title,
-        slug: input.slug,
-        body: input.body,
-        categoryId: input.categoryId,
-        isPublished: input.isPublished,
-        createdById: input.createdById
+    const article = await db.$transaction(async (tx) => {
+      const created = await tx.knowledgeArticle.create({
+        data: {
+          title: input.title,
+          slug: input.slug,
+          body: input.body,
+          categoryId: input.categoryId,
+          isPublished: input.isPublished,
+          createdById: input.createdById
+        }
+      });
+
+      if (input.actorId) {
+        await tx.adminAuditLog.create({
+          data: {
+            actorId: input.actorId,
+            action: "KNOWLEDGE_ARTICLE_CREATED",
+            entityType: "KNOWLEDGE_ARTICLE",
+            entityId: created.id,
+            summary: `Artykuł ${created.title}: utworzono${created.isPublished ? " (opublikowany)" : " (szkic)"}`,
+            payload: {
+              tytulTo: created.title,
+              slugTo: created.slug,
+              opublikowanyTo: created.isPublished ? "tak" : "nie"
+            }
+          }
+        });
       }
+
+      return created;
     });
+
     return mapKnowledgeArticle(article);
   }
 
@@ -1805,6 +1829,22 @@ export async function createKnowledgeArticle(input: {
       isPublished: input.isPublished
     };
     database.knowledgeArticles.push(article);
+
+    if (input.actorId) {
+      appendAdminAuditLog(database, {
+        actorId: input.actorId,
+        action: "KNOWLEDGE_ARTICLE_CREATED",
+        entityType: "KNOWLEDGE_ARTICLE",
+        entityId: article.id,
+        summary: `Artykuł ${article.title}: utworzono${article.isPublished ? " (opublikowany)" : " (szkic)"}`,
+        payload: {
+          tytulTo: article.title,
+          slugTo: article.slug,
+          opublikowanyTo: article.isPublished ? "tak" : "nie"
+        }
+      });
+    }
+
     return article;
   });
 }
@@ -1817,46 +1857,135 @@ export async function updateKnowledgeArticle(input: {
   categoryId?: string;
   isPublished: boolean;
   updatedById: string;
+  actorId?: string;
 }): Promise<KnowledgeArticle | undefined> {
   if (shouldUsePrisma()) {
     const db = await getPrisma();
-    const article = await db.knowledgeArticle.update({
-      where: { id: input.id },
-      data: {
-        title: input.title,
-        slug: input.slug,
-        body: input.body,
-        categoryId: input.categoryId,
-        isPublished: input.isPublished,
-        updatedById: input.updatedById
+    const article = await db.$transaction(async (tx) => {
+      const existing = await tx.knowledgeArticle.findUnique({ where: { id: input.id } });
+
+      if (!existing) {
+        return undefined;
       }
+
+      const updated = await tx.knowledgeArticle.update({
+        where: { id: input.id },
+        data: {
+          title: input.title,
+          slug: input.slug,
+          body: input.body,
+          categoryId: input.categoryId,
+          isPublished: input.isPublished,
+          updatedById: input.updatedById
+        }
+      });
+
+      if (input.actorId) {
+        const changes = getKnowledgeArticleAuditChanges(mapKnowledgeArticle(existing), mapKnowledgeArticle(updated));
+        if (changes.length > 0) {
+          await tx.adminAuditLog.create({
+            data: {
+              actorId: input.actorId,
+              action: "KNOWLEDGE_ARTICLE_UPDATED",
+              entityType: "KNOWLEDGE_ARTICLE",
+              entityId: updated.id,
+              summary: describeAuditChanges("Artykuł", updated.title, changes),
+              payload: buildAuditPayload(changes)
+            }
+          });
+        }
+      }
+
+      return updated;
     });
-    return mapKnowledgeArticle(article);
+
+    return article ? mapKnowledgeArticle(article) : undefined;
   }
 
   return withDatabase((database) => {
     const article = database.knowledgeArticles.find((a) => a.id === input.id);
     if (!article) return undefined;
+
+    const before: KnowledgeArticle = { ...article };
+
     article.title = input.title;
     article.slug = input.slug;
     article.body = input.body;
     article.categoryId = input.categoryId;
     article.isPublished = input.isPublished;
+
+    if (input.actorId) {
+      const changes = getKnowledgeArticleAuditChanges(before, article);
+      if (changes.length > 0) {
+        appendAdminAuditLog(database, {
+          actorId: input.actorId,
+          action: "KNOWLEDGE_ARTICLE_UPDATED",
+          entityType: "KNOWLEDGE_ARTICLE",
+          entityId: article.id,
+          summary: describeAuditChanges("Artykuł", article.title, changes),
+          payload: buildAuditPayload(changes)
+        });
+      }
+    }
+
     return article;
   });
 }
 
-export async function deleteKnowledgeArticle(id: string): Promise<boolean> {
+export async function deleteKnowledgeArticle(id: string, actorId?: string): Promise<boolean> {
   if (shouldUsePrisma()) {
     const db = await getPrisma();
-    await db.knowledgeArticle.delete({ where: { id } });
+    const article = await db.knowledgeArticle.findUnique({ where: { id } });
+
+    if (!article) {
+      return false;
+    }
+
+    await db.$transaction(async (tx) => {
+      await tx.knowledgeArticle.delete({ where: { id } });
+
+      if (actorId) {
+        await tx.adminAuditLog.create({
+          data: {
+            actorId,
+            action: "KNOWLEDGE_ARTICLE_DELETED",
+            entityType: "KNOWLEDGE_ARTICLE",
+            entityId: id,
+            summary: `Artykuł ${article.title}: usunięto${article.isPublished ? " (opublikowany)" : " (szkic)"}`,
+            payload: {
+              tytul: article.title,
+              slug: article.slug,
+              opublikowany: article.isPublished ? "tak" : "nie"
+            }
+          }
+        });
+      }
+    });
+
     return true;
   }
 
   return withDatabase((database) => {
     const idx = database.knowledgeArticles.findIndex((a) => a.id === id);
     if (idx === -1) return false;
-    database.knowledgeArticles.splice(idx, 1);
+
+    const [article] = database.knowledgeArticles.splice(idx, 1);
+
+    if (actorId) {
+      appendAdminAuditLog(database, {
+        actorId,
+        action: "KNOWLEDGE_ARTICLE_DELETED",
+        entityType: "KNOWLEDGE_ARTICLE",
+        entityId: id,
+        summary: `Artykuł ${article.title}: usunięto${article.isPublished ? " (opublikowany)" : " (szkic)"}`,
+        payload: {
+          tytul: article.title,
+          slug: article.slug,
+          opublikowany: article.isPublished ? "tak" : "nie"
+        }
+      });
+    }
+
     return true;
   });
 }
@@ -2364,8 +2493,8 @@ export async function exportTicketsCSV(): Promise<string> {
 
 function escapeCSV(value: string): string {
   // Spreadsheet formula injection prevention: neutralize leading = + - @
-  // by prepending a tab character (invisible to the user, blocks formula execution)
-  const sanitized = /^[=+\-@]/.test(value) ? `\t${value}` : value;
+  // by prepending a single quote (works in Excel, Google Sheets, LibreOffice)
+  const sanitized = /^[=+\-@]/.test(value) ? `'${value}` : value;
 
   if (sanitized.includes(",") || sanitized.includes('"') || sanitized.includes("\n")) {
     return `"${sanitized.replace(/"/g, '""')}"`;

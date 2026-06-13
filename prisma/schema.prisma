@@ -249,6 +249,16 @@ model Session {
   @@index([expiresAt])
 }
 
+model RateLimit {
+  id         String   @id @default(cuid())
+  key        String   @unique
+  timestamps Json     @default("[]")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([updatedAt])
+}
+
 model AdminAuditLog {
   id         String   @id @default(cuid())
   actorId    String?

@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { findTicket, updateTicket } from "@/lib/data-store";
-import { can } from "@/lib/permissions";
+import { can, canViewTicket } from "@/lib/permissions";
 import type { TicketStatus } from "@/lib/types";
 
 export async function POST(request: Request): Promise<Response> {
@@ -37,6 +37,10 @@ export async function POST(request: Request): Promise<Response> {
   const ticket = await findTicket(ticketId);
   if (!ticket) {
     return new Response("Zgłoszenie nie istnieje.", { status: 404 });
+  }
+
+  if (!canViewTicket(user, ticket)) {
+    return new Response("Brak dostępu do zgłoszenia.", { status: 403 });
   }
 
   await updateTicket({

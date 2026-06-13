@@ -168,12 +168,12 @@ describe("CSV injection prevention", () => {
 
     const csv = await exportTicketsCSV();
 
-    // Formula values should be neutralized (prepended with tab prefix)
-    // The tab prevents spreadsheet software from executing formulas
-    expect(csv).toContain("\t=WEBSERVICE");
-    expect(csv).toContain("\t+SUM");
-    expect(csv).toContain("\t-DDE");
-    expect(csv).toContain("\t@SUM");
+    // Formula values should be neutralized (prepended with single quote prefix)
+    // The single quote prevents spreadsheet software from executing formulas
+    expect(csv).toContain("'=WEBSERVICE");
+    expect(csv).toContain("'+SUM");
+    expect(csv).toContain("'-DDE");
+    expect(csv).toContain("'@SUM");
 
     // Safe values should remain unchanged
     expect(csv).toContain("Normal title with no injection");

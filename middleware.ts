@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 /**
  * Security headers applied to all responses:
  * - CSP: restricts script/style sources to prevent XSS
+ *   - report-uri: sends violation reports to the internal endpoint
  * - HSTS: enforces HTTPS
  * - X-Frame-Options: prevents clickjacking
  * - X-Content-Type-Options: prevents MIME sniffing
@@ -16,14 +17,15 @@ const securityHeaders: Record<string, string> = {
   "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
   "Content-Security-Policy": [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "script-src 'self' 'unsafe-inline'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self'",
     "connect-src 'self'",
     "frame-ancestors 'none'",
     "base-uri 'self'",
-    "form-action 'self'"
+    "form-action 'self'",
+    "report-uri /api/csp-report"
   ].join("; ")
 };
 
@@ -46,9 +48,10 @@ function isCSRFProtected(request: NextRequest): boolean {
   const origin = request.headers.get("origin");
   const referer = request.headers.get("referer");
 
-  // Allow requests with no origin/referer (e.g., server-to-server, curl)
+  // Reject requests with no origin AND no referer for state-changing API methods
+  // (browser-initiated requests always include Origin or Referer headers)
   if (!origin && !referer) {
-    return true;
+    return false;
   }
 
   const expectedHost = request.headers.get("host") || "";

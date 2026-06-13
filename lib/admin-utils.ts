@@ -1,4 +1,4 @@
-import type { Category, Database, Store, User } from "@/lib/types";
+import type { Category, Database, KnowledgeArticle, Store, User } from "@/lib/types";
 
 export type AuditChange = {
   field: string;
@@ -106,6 +106,35 @@ export function getStoreAuditChanges(
       field: "aktywny",
       from: before.isActive ? "tak" : "nie",
       to: after.isActive ? "tak" : "nie"
+    });
+  }
+
+  return changes;
+}
+
+export function getKnowledgeArticleAuditChanges(
+  before: KnowledgeArticle,
+  after: Pick<KnowledgeArticle, "title" | "slug" | "categoryId" | "isPublished">
+): AuditChange[] {
+  const changes: AuditChange[] = [];
+
+  if (before.title !== after.title) {
+    changes.push({ field: "tytul", from: before.title, to: after.title });
+  }
+
+  if (before.slug !== after.slug) {
+    changes.push({ field: "slug", from: before.slug, to: after.slug });
+  }
+
+  if ((before.categoryId ?? "") !== (after.categoryId ?? "")) {
+    changes.push({ field: "kategoria", from: before.categoryId, to: after.categoryId });
+  }
+
+  if (before.isPublished !== after.isPublished) {
+    changes.push({
+      field: "opublikowany",
+      from: before.isPublished ? "tak" : "nie",
+      to: after.isPublished ? "tak" : "nie"
     });
   }
 

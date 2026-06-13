@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { addComment, createKnowledgeArticle, createTicket, deleteKnowledgeArticle, findTicket, readDatabase, updateKnowledgeArticle, updateNotificationLog, updateTicket } from "@/lib/data-store";
+import { sanitizeText } from "@/lib/escape-html";
 import { can, canViewTicket } from "@/lib/permissions";
 import { sendEmailWithResult } from "@/lib/email";
 import { templateTicketCreated, templateTicketResolved, templateTicketAssigned, templateCommentAdded } from "@/lib/email-templates";
@@ -13,8 +14,8 @@ import type { CommentVisibility, Database, TicketPriority, TicketStatus } from "
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter";
 import { reportError } from "@/lib/sentry";
 
-function enforceMutationRateLimit(userId: string): void {
-  const rateCheck = checkRateLimit(`mutation:${userId}`, RATE_LIMITS.MUTATION.windowMs, RATE_LIMITS.MUTATION.maxAttempts);
+async function enforceMutationRateLimit(userId: string): Promise<void> {
+  const rateCheck = await checkRateLimit(`mutation:${userId}`, RATE_LIMITS.MUTATION.windowMs, RATE_LIMITS.MUTATION.maxAttempts);
   if (!rateCheck.allowed) {
     throw new Error("Zbyt wiele żądań. Spróbuj ponownie za kilka sekund.");
   }
@@ -63,7 +64,7 @@ const ticketSchema = z.object({
 
 export async function createTicketAction(formData: FormData): Promise<void> {
   const user = await requireUser();
-  enforceMutationRateLimit(user.id);
+  await enforceMutationRateLimit(user.id);
 
   if (!can(user, "ticket:create")) {
     throw new Error("Brak uprawnień do tworzenia zgłoszeń.");
@@ -75,9 +76,9 @@ export async function createTicketAction(formData: FormData): Promise<void> {
 
   const input = ticketSchema.parse({
     categoryId,
-    title: String(formData.get("title") ?? ""),
-    description: String(formData.get("description") ?? ""),
-    contact: String(formData.get("contact") ?? ""),
+    title: sanitizeText(String(formData.get("title") ?? "")),
+    description: sanitizeText(String(formData.get("description") ?? "")),
+    contact: sanitizeText(String(formData.get("contact") ?? "")),
     storeId: String(formData.get("storeId") || user.storeId || ""),
     department: String(formData.get("department") || user.department || ""),
     blocksWork: formData.get("blocksWork") === "on",
@@ -116,7 +117,7 @@ export async function createTicketAction(formData: FormData): Promise<void> {
 
 export async function updateTicketAction(formData: FormData): Promise<void> {
   const user = await requireUser();
-  enforceMutationRateLimit(user.id);
+  await enforceMutationRateLimit(user.id);
 
   if (!can(user, "ticket:update")) {
     throw new Error("Brak uprawnień do aktualizacji zgłoszenia.");
@@ -128,6 +129,10 @@ export async function updateTicketAction(formData: FormData): Promise<void> {
   const newAssigneeId = String(formData.get("assigneeId") || "") || undefined;
 
   const oldTicket = await findTicket(ticketId);
+
+  if (!oldTicket || !canViewTicket(user, oldTicket)) {
+    throw new Error("Brak dostępu do zgłoszenia.");
+  }
 
   const updatedTicket = await updateTicket({
     ticketId,
@@ -185,7 +190,7 @@ export async function updateTicketAction(formData: FormData): Promise<void> {
 
 export async function addCommentAction(formData: FormData): Promise<void> {
   const user = await requireUser();
-  enforceMutationRateLimit(user.id);
+  await enforceMutationRateLimit(user.id);
   const ticketId = String(formData.get("ticketId") ?? "");
   const ticket = await findTicket(ticketId);
 
@@ -199,10 +204,14 @@ export async function addCommentAction(formData: FormData): Promise<void> {
     throw new Error("Brak uprawnień do notatek wewnętrznych.");
   }
 
-  const body = String(formData.get("body") ?? "").trim();
+  const body = sanitizeText(String(formData.get("body") ?? ""));
 
   if (body.length < 2) {
     throw new Error("Komentarz jest za krótki.");
+  }
+
+  if (body.length > 5000) {
+    throw new Error("Komentarz jest za długi (maks. 5000 znaków).");
   }
 
   const comment = await addComment({
@@ -252,21 +261,21 @@ const knowledgeSchema = z.object({
 
 export async function createKnowledgeArticleAction(formData: FormData): Promise<void> {
   const user = await requireUser();
-  enforceMutationRateLimit(user.id);
+  await enforceMutationRateLimit(user.id);
 
   if (!can(user, "admin:manage-faq")) {
     throw new Error("Brak uprawnień do zarządzania bazą wiedzy.");
   }
 
   const input = knowledgeSchema.parse({
-    title: String(formData.get("title") ?? ""),
+    title: sanitizeText(String(formData.get("title") ?? "")),
     slug: String(formData.get("slug") ?? ""),
-    body: String(formData.get("body") ?? ""),
+    body: sanitizeText(String(formData.get("body") ?? "")),
     categoryId: String(formData.get("categoryId") || "") || undefined,
     isPublished: formData.get("isPublished") === "on"
   });
 
-  await createKnowledgeArticle({ ...input, createdById: user.id });
+  await createKnowledgeArticle({ ...input, createdById: user.id, actorId: user.id });
 
   revalidatePath("/knowledge");
   revalidatePath("/admin/knowledge");
@@ -275,7 +284,7 @@ export async function createKnowledgeArticleAction(formData: FormData): Promise<
 
 export async function updateKnowledgeArticleAction(formData: FormData): Promise<void> {
   const user = await requireUser();
-  enforceMutationRateLimit(user.id);
+  await enforceMutationRateLimit(user.id);
 
   if (!can(user, "admin:manage-faq")) {
     throw new Error("Brak uprawnień do zarządzania bazą wiedzy.");
@@ -284,14 +293,14 @@ export async function updateKnowledgeArticleAction(formData: FormData): Promise<
   const id = String(formData.get("id") ?? "");
 
   const input = knowledgeSchema.parse({
-    title: String(formData.get("title") ?? ""),
+    title: sanitizeText(String(formData.get("title") ?? "")),
     slug: String(formData.get("slug") ?? ""),
-    body: String(formData.get("body") ?? ""),
+    body: sanitizeText(String(formData.get("body") ?? "")),
     categoryId: String(formData.get("categoryId") || "") || undefined,
     isPublished: formData.get("isPublished") === "on"
   });
 
-  await updateKnowledgeArticle({ ...input, id, updatedById: user.id });
+  await updateKnowledgeArticle({ ...input, id, updatedById: user.id, actorId: user.id });
 
   revalidatePath("/knowledge");
   revalidatePath("/admin/knowledge");
@@ -300,14 +309,14 @@ export async function updateKnowledgeArticleAction(formData: FormData): Promise<
 
 export async function deleteKnowledgeArticleAction(formData: FormData): Promise<void> {
   const user = await requireUser();
-  enforceMutationRateLimit(user.id);
+  await enforceMutationRateLimit(user.id);
 
   if (!can(user, "admin:manage-faq")) {
     throw new Error("Brak uprawnień do zarządzania bazą wiedzy.");
   }
 
   const id = String(formData.get("id") ?? "");
-  await deleteKnowledgeArticle(id);
+  await deleteKnowledgeArticle(id, user.id);
 
   revalidatePath("/knowledge");
   revalidatePath("/admin/knowledge");

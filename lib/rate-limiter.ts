@@ -1,10 +1,11 @@
 /**
- * In-memory sliding window rate limiter.
+ * Sliding window rate limiter.
  *
- * Tracks request timestamps per key (e.g. IP+email for login, userId for mutations).
- * Uses a simple Map – resets on server restart (acceptable for an internal IT tool).
+ * In production (with Prisma/PostgreSQL), uses the database as a shared store
+ * so rate limits work correctly across multiple server instances.
  *
- * For production with multiple instances, replace with Redis-based implementation.
+ * In development/JSON mode, falls back to an in-memory Map.
+ * For a fully production-grade setup, replace with Redis-based implementation.
  */
 
 interface RateLimitEntry {
@@ -17,6 +18,12 @@ interface RateLimitResult {
   allowed: boolean;
   remaining: number;
   resetInSeconds: number;
+}
+
+function shouldUsePrisma(): boolean {
+  if (process.env.FIXIT_DATA_PROVIDER === "json") return false;
+  if (process.env.FIXIT_DATA_PROVIDER === "prisma") return true;
+  return process.env.NODE_ENV === "production" && Boolean(process.env.DATABASE_URL);
 }
 
 /**
@@ -32,17 +39,72 @@ export const RATE_LIMITS = {
 /**
  * Check if a request should be rate-limited.
  *
+ * Uses the PostgreSQL database as a shared store when available (production),
+ * or falls back to an in-memory store for development/JSON mode.
+ *
  * @param key - Unique identifier for the client (e.g. "login:admin@bagietka.pl", "mutation:usr_123")
  * @param windowMs - Time window in milliseconds
  * @param maxAttempts - Maximum number of requests allowed in the window
  * @returns Object with allowed, remaining count, and reset time
  */
-export function checkRateLimit(
+export async function checkRateLimit(
   key: string,
   windowMs: number = RATE_LIMITS.LOGIN.windowMs,
   maxAttempts: number = RATE_LIMITS.LOGIN.maxAttempts
-): RateLimitResult {
+): Promise<RateLimitResult> {
   const now = Date.now();
+
+  if (shouldUsePrisma()) {
+    return checkRateLimitDatabase(key, windowMs, maxAttempts, now);
+  }
+
+  // In-memory fallback (JSON/dev mode)
+  return checkRateLimitMemory(key, windowMs, maxAttempts, now);
+}
+
+async function checkRateLimitDatabase(
+  key: string,
+  windowMs: number,
+  maxAttempts: number,
+  now: number
+): Promise<RateLimitResult> {
+  const { prisma } = await import("@/lib/prisma");
+
+  // Use a transaction to prevent race conditions between concurrent requests
+  const result = await prisma.$transaction(async (tx) => {
+    const row = await tx.rateLimit.findUnique({ where: { key } });
+    const timestamps: number[] = row ? (row.timestamps as number[]) : [];
+
+    // Filter out timestamps outside the current window
+    const valid = timestamps.filter((ts) => now - ts < windowMs);
+
+    if (valid.length >= maxAttempts) {
+      const oldest = valid[0];
+      const resetInSeconds = Math.ceil((oldest + windowMs - now) / 1000);
+      return { allowed: false as const, remaining: 0, resetInSeconds };
+    }
+
+    // Add current timestamp
+    valid.push(now);
+
+    await tx.rateLimit.upsert({
+      where: { key },
+      create: { key, timestamps: valid },
+      update: { timestamps: valid }
+    });
+
+    return { allowed: true as const, remaining: maxAttempts - valid.length, resetInSeconds: 0 };
+  });
+
+  return result;
+}
+
+function checkRateLimitMemory(
+  key: string,
+  windowMs: number,
+  maxAttempts: number,
+  now: number
+): RateLimitResult {
   let entry = stores.get(key);
 
   if (!entry) {
@@ -65,14 +127,26 @@ export function checkRateLimit(
 
 /**
  * Clear all rate limit data (useful for testing).
+ * In Prisma mode, also clears the database table.
  */
-export function resetRateLimits(): void {
+export async function resetRateLimits(): Promise<void> {
   stores.clear();
+
+  if (shouldUsePrisma()) {
+    const { prisma } = await import("@/lib/prisma");
+    await prisma.rateLimit.deleteMany({});
+  }
 }
 
 /**
- * Get store size (useful for testing/metrics).
+ * Get the total number of tracked rate limit keys (useful for testing/metrics).
+ * In Prisma mode, queries the database.
  */
-export function getRateLimitStoreSize(): number {
+export async function getRateLimitStoreSize(): Promise<number> {
+  if (shouldUsePrisma()) {
+    const { prisma } = await import("@/lib/prisma");
+    return prisma.rateLimit.count();
+  }
+
   return stores.size;
 }

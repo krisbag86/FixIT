@@ -17,6 +17,7 @@ import {
 import { sendEmailWithResult } from "@/lib/email";
 import { templateUserInvitation } from "@/lib/email-templates";
 import { normalizeEmail, isAllowedBagietkaEmail } from "@/lib/email-domain";
+import { sanitizeText } from "@/lib/escape-html";
 import { generateTemporaryPassword, hashPassword } from "@/lib/password";
 import { can } from "@/lib/permissions";
 
@@ -75,7 +76,7 @@ async function requireAdminAction(permission: "admin:manage-users" | "admin:mana
 }
 
 function normalizeOptionalText(value: FormDataEntryValue | null): string | undefined {
-  const normalized = String(value ?? "").trim();
+  const normalized = sanitizeText(String(value ?? ""));
   return normalized.length > 0 ? normalized : undefined;
 }
 
@@ -140,7 +141,7 @@ export async function createUserAdminAction(
     const actor = await requireAdminAction("admin:manage-users");
 
     const input = createUserSchema.parse({
-      name: String(formData.get("name") ?? "").trim(),
+      name: sanitizeText(String(formData.get("name") ?? "")),
       email: normalizeEmail(String(formData.get("email") ?? "")),
       role: String(formData.get("role") ?? "REPORTER"),
       storeId: normalizeOptionalText(formData.get("storeId")),
@@ -226,10 +227,10 @@ export async function createStoreAdminAction(formData: FormData): Promise<void> 
 
   const input = storeSchema.parse({
     code: String(formData.get("code") ?? "").trim().toUpperCase(),
-    name: String(formData.get("name") ?? "").trim(),
-    city: String(formData.get("city") ?? "").trim(),
-    address: String(formData.get("address") ?? "").trim(),
-    region: String(formData.get("region") ?? "").trim(),
+    name: sanitizeText(String(formData.get("name") ?? "")),
+    city: sanitizeText(String(formData.get("city") ?? "")),
+    address: sanitizeText(String(formData.get("address") ?? "")),
+    region: sanitizeText(String(formData.get("region") ?? "")),
     isActive: formData.get("isActive") === "on"
   });
 
@@ -244,10 +245,10 @@ export async function updateStoreAdminAction(formData: FormData): Promise<void> 
   const input = updateStoreSchema.parse({
     id: String(formData.get("id") ?? ""),
     code: String(formData.get("code") ?? "").trim().toUpperCase(),
-    name: String(formData.get("name") ?? "").trim(),
-    city: String(formData.get("city") ?? "").trim(),
-    address: String(formData.get("address") ?? "").trim(),
-    region: String(formData.get("region") ?? "").trim(),
+    name: sanitizeText(String(formData.get("name") ?? "")),
+    city: sanitizeText(String(formData.get("city") ?? "")),
+    address: sanitizeText(String(formData.get("address") ?? "")),
+    region: sanitizeText(String(formData.get("region") ?? "")),
     isActive: formData.get("isActive") === "on"
   });
 
@@ -273,7 +274,7 @@ export async function createCategoryAdminAction(formData: FormData): Promise<voi
   const actor = await requireAdminAction("admin:manage-categories");
 
   const input = categorySchema.parse({
-    name: String(formData.get("name") ?? "").trim(),
+    name: sanitizeText(String(formData.get("name") ?? "")),
     defaultPriority: String(formData.get("defaultPriority") ?? "NORMAL"),
     isActive: formData.get("isActive") === "on"
   });
@@ -289,7 +290,7 @@ export async function updateCategoryAdminAction(formData: FormData): Promise<voi
 
   const input = updateCategorySchema.parse({
     id: String(formData.get("id") ?? ""),
-    name: String(formData.get("name") ?? "").trim(),
+    name: sanitizeText(String(formData.get("name") ?? "")),
     defaultPriority: String(formData.get("defaultPriority") ?? "NORMAL"),
     isActive: formData.get("isActive") === "on"
   });

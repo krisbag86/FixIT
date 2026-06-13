@@ -8,6 +8,7 @@ import {
   isValidStorageKey,
   MAX_FILE_SIZE,
   sanitizeFilename,
+  validateContentType,
   UploadValidationError
 } from "@/lib/storage-utils";
 
@@ -45,6 +46,10 @@ export async function saveAttachmentFile(
   }
   if (!isAllowedMimeType(mimeType)) {
     throw new UploadValidationError(`Typ pliku ${mimeType} nie jest dozwolony.`);
+  }
+
+  if (!validateContentType(data, mimeType)) {
+    throw new UploadValidationError("Zawartość pliku nie odpowiada deklarowanemu typowi MIME.");
   }
 
   const safeName = sanitizeFilename(filename);

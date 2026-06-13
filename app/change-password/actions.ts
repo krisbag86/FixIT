@@ -2,7 +2,9 @@
 
 import { redirect } from "next/navigation";
 import { hashPassword, verifyPassword } from "@/lib/password";
+import { headers } from "next/headers";
 import { getCurrentUser } from "@/lib/auth";
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter";
 
 async function getPrisma() {
   return (await import("@/lib/prisma")).prisma;
@@ -19,6 +21,19 @@ export async function changePasswordAction(_previousState: string | undefined, f
 
   if (!user) {
     return "Musisz być zalogowany, aby zmienić hasło.";
+  }
+
+  // Rate limit: 5 attempts per 15 minutes per user
+  const headersList = await headers();
+  const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim()
+    || headersList.get("x-real-ip")
+    || "unknown";
+  const rateLimitKey = `change-password:${user.id}:${ip}`;
+  const rateCheck = await checkRateLimit(rateLimitKey, RATE_LIMITS.LOGIN.windowMs, RATE_LIMITS.LOGIN.maxAttempts);
+
+  if (!rateCheck.allowed) {
+    const minutes = Math.ceil(rateCheck.resetInSeconds / 60);
+    return `Zbyt wiele prób zmiany hasła. Spróbuj ponownie za ${minutes} min.`;
   }
 
   const currentPassword = String(formData.get("currentPassword") ?? "");

@@ -120,7 +120,7 @@ export type AdminAuditLog = {
   id: string;
   actorId?: string;
   action: string;
-  entityType: "USER" | "STORE" | "CATEGORY";
+  entityType: "USER" | "STORE" | "CATEGORY" | "KNOWLEDGE_ARTICLE";
   entityId: string;
   summary: string;
   payload?: Record<string, string>;

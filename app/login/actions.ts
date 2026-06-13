@@ -27,7 +27,7 @@ export async function loginAction(_previousState: string | undefined, formData: 
     || headersList.get("x-real-ip")
     || "unknown";
   const rateLimitKey = `login:${email}:${ip}`;
-  const rateCheck = checkRateLimit(rateLimitKey, RATE_LIMITS.LOGIN.windowMs, RATE_LIMITS.LOGIN.maxAttempts);
+  const rateCheck = await checkRateLimit(rateLimitKey, RATE_LIMITS.LOGIN.windowMs, RATE_LIMITS.LOGIN.maxAttempts);
 
   if (!rateCheck.allowed) {
     const minutes = Math.ceil(rateCheck.resetInSeconds / 60);
@@ -37,24 +37,29 @@ export async function loginAction(_previousState: string | undefined, formData: 
   const user = await findUserByEmail(email);
 
   if (!user) {
-    return "Nie znaleziono użytkownika o podanym adresie. Skontaktuj się z administratorem.";
+    // Use the same generic message for both missing user and wrong password
+    // to prevent username/email enumeration
+    return "Nieprawidłowy adres e-mail lub hasło. Spróbuj ponownie.";
   }
 
   if (!user.passwordHash) {
-    return "Konto nie ma ustawionego hasła. Skontaktuj się z administratorem.";
+    return "Nieprawidłowy adres e-mail lub hasło. Spróbuj ponownie.";
   }
 
   if (!verifyPassword(password, user.passwordHash)) {
-    return "Nieprawidłowe hasło.";
+    return "Nieprawidłowy adres e-mail lub hasło. Spróbuj ponownie.";
   }
 
   const sessionId = await createSession(user.id);
+
+  // Determine if the connection is secure — check x-forwarded-proto for proxy environments
+  const isSecure = process.env.NODE_ENV === "production" || headersList.get("x-forwarded-proto") === "https";
 
   const cookieStore = await cookies();
   cookieStore.set(sessionCookieName, sessionId, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: isSecure,
     path: "/",
     maxAge: 60 * 60 * 24 * 14
   });

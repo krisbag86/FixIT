@@ -40,7 +40,11 @@ export async function GET(
 
   try {
     const data = await readAttachmentFile(attachment.storageKey);
-    const safeName = attachment.filename.replace(/"/g, "");
+    // Sanitize filename for Content-Disposition header: strip non-printable chars,
+    // quotes, and backslashes to prevent HTTP header injection
+    const safeName = attachment.filename
+      .replace(/["\\\r\n]/g, "")
+      .replace(/[\x00-\x1f\x7f-\x9f]/g, "");
     return new NextResponse(new Uint8Array(data), {
       headers: {
         "Content-Type": attachment.mimeType,
