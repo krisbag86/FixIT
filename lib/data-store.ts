@@ -1432,8 +1432,18 @@ export async function updateTicket(input: {
           status: input.status,
           priority: input.priority,
           assigneeId: input.assigneeId,
-          ...(statusChanged && input.status === "RESOLVED" ? { resolvedAt: timestamp } : {}),
-          ...(statusChanged && input.status === "CLOSED" ? { closedAt: timestamp } : {})
+          resolvedAt:
+            statusChanged && input.status === "RESOLVED"
+              ? timestamp
+              : statusChanged && ticket.status === "RESOLVED"
+                ? null
+                : undefined,
+          closedAt:
+            statusChanged && input.status === "CLOSED"
+              ? timestamp
+              : statusChanged && ticket.status === "CLOSED"
+                ? null
+                : undefined
         }
       });
 
@@ -1506,8 +1516,8 @@ export async function updateTicket(input: {
         createdAt: timestamp
       });
       ticket.status = input.status;
-      ticket.resolvedAt = input.status === "RESOLVED" ? timestamp : ticket.resolvedAt;
-      ticket.closedAt = input.status === "CLOSED" ? timestamp : ticket.closedAt;
+      ticket.resolvedAt = input.status === "RESOLVED" ? timestamp : ticket.status === "RESOLVED" ? null : ticket.resolvedAt;
+      ticket.closedAt = input.status === "CLOSED" ? timestamp : ticket.status === "CLOSED" ? null : ticket.closedAt;
     }
 
     if (priorityChanged) {
@@ -1695,7 +1705,7 @@ export async function updateNotificationLog(
       where: { id: notificationId },
       data: {
         status,
-        sentAt: new Date(),
+        ...(status === "SENT" ? { sentAt: new Date() } : { sentAt: null }),
         error: status === "FAILED" ? error : null
       }
     });
@@ -1706,7 +1716,9 @@ export async function updateNotificationLog(
     const notification = database.notificationLogs.find((item) => item.id === notificationId);
     if (notification) {
       notification.status = status;
-      notification.sentAt = new Date().toISOString();
+      if (status === "SENT") {
+        notification.sentAt = new Date().toISOString();
+      }
       notification.error = status === "FAILED" ? error : undefined;
     }
   });

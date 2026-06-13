@@ -155,7 +155,7 @@ async function main() {
 
   await prisma.ticketCounter.upsert({
     where: { year: 2026 },
-    update: { sequence: 0 },
+    update: {},
     create: { year: 2026, sequence: 0 }
   });
 

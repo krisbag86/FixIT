@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { findAttachment, findTicket } from "@/lib/data-store";
+import { findAttachment, findTicket, listComments } from "@/lib/data-store";
 import { canViewTicket } from "@/lib/permissions";
 import { isValidStorageKey, readAttachmentFile } from "@/lib/storage";
 import { reportError } from "@/lib/sentry";
@@ -34,17 +34,27 @@ export async function GET(
     return NextResponse.json({ error: "Brak dostępu do tego pliku." }, { status: 403 });
   }
 
+  if (attachment.commentId) {
+    const comments = await listComments(ticket.id, true);
+    const comment = comments.find((c) => c.id === attachment.commentId);
+
+    if (!comment) {
+      return NextResponse.json({ error: "Nie znaleziono komentarza." }, { status: 404 });
+    }
+
+    if (comment.visibility === "INTERNAL" && !can(user, "comment:internal")) {
+      return NextResponse.json({ error: "Brak dostępu do tego pliku." }, { status: 403 });
+    }
+  }
+
   if (!isValidStorageKey(attachment.storageKey)) {
     return NextResponse.json({ error: "Nieprawidłowy klucz pliku." }, { status: 500 });
   }
 
   try {
     const data = await readAttachmentFile(attachment.storageKey);
-    // Sanitize filename for Content-Disposition header: strip non-printable chars,
-    // quotes, and backslashes to prevent HTTP header injection
     const safeName = attachment.filename
       .replace(/["\\\r\n]/g, "")
-      // eslint-disable-next-line no-control-regex
       .replace(/[\x00-\x1f\x7f-\x9f]/g, "");
     return new NextResponse(new Uint8Array(data), {
       headers: {
