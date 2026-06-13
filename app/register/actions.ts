@@ -14,7 +14,7 @@ const registerSchema = z
   .object({
     name: z.string().min(2).max(120),
     email: z.string().email(),
-    password: z.string().min(8).max(200),
+    password: z.string().min(12).max(200),
     confirmPassword: z.string().min(8).max(200)
   })
   .refine((input) => input.password === input.confirmPassword, {
@@ -58,10 +58,9 @@ export async function registerAction(_previousState: string | undefined, formDat
 
   const existingUser = await findUserByEmail(input.data.email, { includeInactive: true });
 
+  // Always return generic message to prevent email enumeration
   if (existingUser) {
-    return existingUser.isActive
-      ? "Konto z tym adresem już istnieje. Zaloguj się."
-      : "Konto z tym adresem istnieje, ale jest nieaktywne. Skontaktuj się z administratorem.";
+    return "Jeśli konto istnieje, zostanie wysłana wiadomość z instrukcjami dalszej rejestracji.";
   }
 
   const user = await createUser({

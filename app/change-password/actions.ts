@@ -48,8 +48,18 @@ export async function changePasswordAction(_previousState: string | undefined, f
     return "Podaj nowe hasło.";
   }
 
-  if (newPassword.length < 6) {
-    return "Nowe hasło musi mieć co najmniej 6 znaków.";
+  if (newPassword.length < 12) {
+    return "Nowe hasło musi mieć co najmniej 12 znaków.";
+  }
+
+  // Check for at least one uppercase, lowercase, digit, and special character
+  const hasUpper = /[A-Z]/.test(newPassword);
+  const hasLower = /[a-z]/.test(newPassword);
+  const hasDigit = /\d/.test(newPassword);
+  const hasSpecial = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(newPassword);
+
+  if (!hasUpper || !hasLower || !hasDigit || !hasSpecial) {
+    return "Hasło musi zawierać małe i wielkie litery, cyfrę oraz znak specjalny.";
   }
 
   if (newPassword !== confirmPassword) {

@@ -4,7 +4,11 @@ import { LoginForm } from "@/components/login-form";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getCurrentUser } from "@/lib/auth";
 
-export default async function LoginPage() {
+export default async function LoginPage(props: { searchParams?: Promise<{ setup?: string }> }) {
+  const searchParams = await props.searchParams;
+  const setupSuccess = searchParams?.setup === "ok";
+  const setupInvalid = searchParams?.setup === "invalid";
+
   const user = await getCurrentUser();
 
   if (user) {
@@ -39,6 +43,16 @@ export default async function LoginPage() {
             </div>
             <ThemeToggle />
           </div>
+          {setupSuccess ? (
+            <div className="mb-4 rounded-xl border border-green-500/20 bg-green-500/10 p-3.5 text-sm font-medium text-green-700 shadow-sm dark:text-green-300">
+              Hasło zostało ustawione. Możesz się teraz zalogować.
+            </div>
+          ) : null}
+          {setupInvalid ? (
+            <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3.5 text-sm font-medium text-amber-700 shadow-sm dark:text-amber-300">
+              Link aktywacyjny jest nieprawidłowy lub wygasł. Skontaktuj się z administratorem.
+            </div>
+          ) : null}
           <LoginForm />
 
           {/* Stopka */}

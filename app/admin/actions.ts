@@ -26,6 +26,7 @@ import { normalizeEmail, isAllowedBagietkaEmail } from "@/lib/email-domain";
 import { sanitizeText } from "@/lib/escape-html";
 import { generateTemporaryPassword, hashPassword } from "@/lib/password";
 import { can } from "@/lib/permissions";
+import { createSetupToken } from "@/lib/setup-token";
 
 const roleSchema = z.enum(["REPORTER", "STORE_MANAGER", "AGENT", "ADMIN"]);
 const prioritySchema = z.enum(["LOW", "NORMAL", "HIGH", "CRITICAL"]);
@@ -211,11 +212,15 @@ export async function createUserAdminAction(
       actorId: actor.id
     });
 
+    // Generate a signed setup token so the user can set their password
+    // via a secure link instead of receiving it in plain text via email
+    const setupToken = input.sendInvite ? createSetupToken(user.email) : undefined;
+
     let inviteSent = false;
     let message = `Utworzono konto dla ${user.email}.`;
 
     if (input.sendInvite) {
-      const template = templateUserInvitation(user, temporaryPassword);
+      const template = templateUserInvitation(user, temporaryPassword, setupToken);
       const result = await sendEmailWithResult({
         to: user.email,
         subject: template.subject,
@@ -225,8 +230,8 @@ export async function createUserAdminAction(
 
       inviteSent = result.ok;
       message = result.ok
-        ? `${message} Wiadomosc z danymi logowania zostala wyslana.`
-        : `${message} Nie udalo sie wyslac e-maila z danymi logowania.`;
+        ? `${message} Wiadomosc z linkiem aktywacyjnym zostala wyslana.`
+        : `${message} Nie udalo sie wyslac e-maila z linkiem aktywacyjnym.`;
     }
 
     revalidatePath("/admin/users");
@@ -235,7 +240,6 @@ export async function createUserAdminAction(
     return {
       status: "success",
       message,
-      temporaryPassword,
       createdEmail: user.email,
       inviteSent
     };
@@ -352,7 +356,7 @@ export async function createTemplateAdminAction(formData: FormData): Promise<voi
 
   const input = templateSchema.parse({
     name: sanitizeText(String(formData.get("name") ?? "")),
-    body: String(formData.get("body") ?? ""),
+    body: sanitizeText(String(formData.get("body") ?? "")),
     category: normalizeOptionalText(formData.get("category")),
     isActive: formData.get("isActive") === "on"
   });
@@ -370,7 +374,7 @@ export async function updateTemplateAdminAction(formData: FormData): Promise<voi
   const input = updateTemplateSchema.parse({
     id: String(formData.get("id") ?? ""),
     name: sanitizeText(String(formData.get("name") ?? "")),
-    body: String(formData.get("body") ?? ""),
+    body: sanitizeText(String(formData.get("body") ?? "")),
     category: normalizeOptionalText(formData.get("category")),
     isActive: formData.get("isActive") === "on"
   });

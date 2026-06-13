@@ -44,7 +44,7 @@ export function AttachmentUpload({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function makeStringId(): string {
-    return `f_${Math.random().toString(36).slice(2, 10)}`;
+    return `f_${crypto.randomUUID().slice(0, 8)}`;
   }
 
   async function uploadFile(file: File, stringId: string): Promise<void> {

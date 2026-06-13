@@ -13,11 +13,16 @@ import type { NextRequest } from "next/server";
 const securityHeaders: Record<string, string> = {
   "X-Frame-Options": "DENY",
   "X-Content-Type-Options": "nosniff",
+  "X-XSS-Protection": "1; mode=block",
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=(), interest-cohort=()",
   "Content-Security-Policy": [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline'",
+    // Next.js requires 'unsafe-inline' for client-side hydration scripts.
+    // In a future upgrade, migrate to nonce-based CSP for stricter control.
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "script-src-attr 'none'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self'",
@@ -25,6 +30,7 @@ const securityHeaders: Record<string, string> = {
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
+    "upgrade-insecure-requests",
     "report-uri /api/csp-report"
   ].join("; ")
 };

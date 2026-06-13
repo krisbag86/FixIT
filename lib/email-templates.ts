@@ -17,8 +17,10 @@ export interface EmailTemplate {
   text: string;
 }
 
-export function templateUserInvitation(user: User, temporaryPassword: string): EmailTemplate {
-  const loginUrl = getLoginUrl();
+export function templateUserInvitation(user: User, _temporaryPassword: string, setupToken?: string): EmailTemplate {
+  const setupUrl = setupToken
+    ? `${getLoginUrl().replace("/login", "")}/setup/${setupToken}`
+    : getLoginUrl();
   const subject = `[FixIT] Dostep do systemu FixIT`;
 
   const html = `
@@ -30,8 +32,8 @@ export function templateUserInvitation(user: User, temporaryPassword: string): E
           body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 0 auto; padding: 20px; }
           .header { background-color: #f0f0f0; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
-          .credentials { background-color: #eefbf7; padding: 15px; border-left: 4px solid #20b486; margin: 15px 0; }
-          .password { font-family: monospace; font-size: 1.1em; font-weight: bold; }
+          .setup-link { background-color: #eefbf7; padding: 15px; border-left: 4px solid #20b486; margin: 15px 0; }
+          .button { display: inline-block; padding: 12px 24px; background-color: #20b486; color: #fff !important; text-decoration: none; border-radius: 6px; font-weight: bold; }
           .footer { font-size: 0.9em; color: #666; margin-top: 30px; border-top: 1px solid #ddd; padding-top: 15px; }
           a { color: #007bff; text-decoration: none; }
         </style>
@@ -46,14 +48,16 @@ export function templateUserInvitation(user: User, temporaryPassword: string): E
           <p>Czesc ${escapeHtml(user.name || user.email)},</p>
           <p>Administrator utworzyl dla Ciebie konto w systemie FixIT.</p>
 
-          <div class="credentials">
+          <div class="setup-link">
             <p><strong>Login:</strong> ${escapeHtml(user.email)}</p>
-            <p><strong>Haslo tymczasowe:</strong> <span class="password">${escapeHtml(temporaryPassword)}</span></p>
+            <p style="margin-top: 16px;">
+              <a href="${setupUrl}" class="button">Ustaw haslo i aktywuj konto</a>
+            </p>
           </div>
 
-          <p>Przy pierwszym logowaniu system poprosi Cie o ustawienie nowego hasla.</p>
-          <p>
-            <a href="${loginUrl}">Przejdz do logowania</a>
+          <p>Link jest wazny przez 48 godzin. Po zalogowaniu bedziesz mogl korzystac z systemu.</p>
+          <p style="margin-top: 12px;">
+            <small>Jesli przycisk nie dziala, skopiuj ten link: ${setupUrl}</small>
           </p>
 
           <div class="footer">
@@ -73,11 +77,11 @@ Czesc ${user.name || user.email},
 Administrator utworzyl dla Ciebie konto w systemie FixIT.
 
 Login: ${user.email}
-Haslo tymczasowe: ${temporaryPassword}
 
-Przy pierwszym logowaniu system poprosi Cie o ustawienie nowego hasla.
+Aby ustawic haslo i aktywowac konto, kliknij link:
+${setupUrl}
 
-Przejdz do logowania: ${loginUrl}
+Link jest wazny przez 48 godzin.
 
 To jest automatyczna wiadomosc z systemu FixIT Helpdesk. Prosze nie odpowiadac na tego maila.
   `.trim();

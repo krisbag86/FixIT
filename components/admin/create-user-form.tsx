@@ -75,13 +75,14 @@ export function CreateUserForm({ stores }: { stores: Store[] }) {
           }`}
         >
           <div className="font-semibold">{state.message}</div>
-          {state.status === "success" && state.temporaryPassword ? (
+          {state.status === "success" && state.createdEmail ? (
             <div className="mt-3 rounded-md border border-black/10 bg-white/70 p-3 text-ink dark:border-white/10 dark:bg-white/5 dark:text-paper">
-              <div className="text-xs uppercase tracking-wide text-ink/55 dark:text-paper/55">Hasło tymczasowe</div>
-              <div className="mt-1 font-mono text-base font-bold">{state.temporaryPassword}</div>
+              <div className="text-xs uppercase tracking-wide text-ink/55 dark:text-paper/55">Konto</div>
+              <div className="mt-1 font-mono text-base font-bold">{state.createdEmail}</div>
               <div className="mt-1 text-xs text-ink/60 dark:text-paper/60">
-                Konto: {state.createdEmail}
-                {state.inviteSent ? " · dane logowania wysłane e-mailem" : " · przekaż hasło użytkownikowi ręcznie"}
+                {state.inviteSent
+                  ? "Link aktywacyjny został wysłany na adres e-mail."
+                  : "Przekaż użytkownikowi instrukcję logowania."}
               </div>
             </div>
           ) : null}

@@ -87,13 +87,26 @@ describe('Email Templates', () => {
   });
 
   describe('templateUserInvitation', () => {
-    it('should include login and temporary password details', () => {
+    it('should include login and setup link (no plain text password)', () => {
       const template = templateUserInvitation(mockUser, 'TempPass123!');
 
       expect(template.subject).toContain('FixIT');
       expect(template.html).toContain(mockUser.email);
-      expect(template.html).toContain('TempPass123!');
+      // Password should NOT be in the email body (security fix)
+      expect(template.html).not.toContain('TempPass123!');
+      // Setup link should be present
+      expect(template.html).toContain('/login');
       expect(template.text).toContain('/login');
+    });
+
+    it('should include setup token in the link when provided', () => {
+      const setupToken = 'test-setup-token-value';
+      const template = templateUserInvitation(mockUser, 'TempPass123!', setupToken);
+
+      expect(template.html).toContain(`/setup/${setupToken}`);
+      expect(template.text).toContain(`/setup/${setupToken}`);
+      // Password should still NOT be in the body
+      expect(template.html).not.toContain('TempPass123!');
     });
   });
 
