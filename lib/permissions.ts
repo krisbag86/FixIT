@@ -11,7 +11,8 @@ export type PermissionAction =
   | "admin:manage-users"
   | "admin:manage-stores"
   | "admin:manage-categories"
-  | "admin:manage-faq";
+  | "admin:manage-faq"
+  | "admin:manage-templates";
 
 const agentRoles = new Set(["AGENT", "ADMIN"]);
 

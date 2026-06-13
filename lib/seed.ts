@@ -57,7 +57,7 @@ export function createSeedDatabase(): Database {
     comments: [],
     attachments: [],
     events: [],
-    knowledgeArticles: [
+knowledgeArticles: [
       {
         id: "ka_001",
         title: "Szybki restart terminala płatniczego",
@@ -112,6 +112,90 @@ export function createSeedDatabase(): Database {
         slug: "kontakty",
         body: createStoreDirectoryMarkdown(storeDirectory),
         isPublished: true
+      }
+    ],
+    responseTemplates: [
+      {
+        id: "tpl_001",
+        name: "Hasło tymczasowe",
+        body: "Dzień dobry {{user.name}},\n\nTwoje tymczasowe hasło to: [GENERATE]\n\nPo zalogowaniu proszę o zmianę hasła.\n\nPozdrawiam,\n{{assignee.name}}",
+        category: "hasło",
+        isActive: true,
+        createdById: "usr_admin",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: "tpl_002",
+        name: "Zgłoszenie rozwiązane",
+        body: "Dzień dobry {{user.name}},\n\nSprawa {{ticket.number}} została rozwiązana. W razie problemów proszę o dopisanie komentarza.\n\nPozdrawiam,\n{{assignee.name}}",
+        category: "ogólne",
+        isActive: true,
+        createdById: "usr_admin",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: "tpl_003",
+        name: "Potrzebne informacje",
+        body: "Dzień dobry {{user.name}},\n\nProszę o podanie dodatkowych informacji:\n- System operacyjny\n- Numer stanowiska\n- Zdjęcie błędu (jeśli możliwe)\n\nPozdrawiam,\n{{assignee.name}}",
+        category: "diagnostyka",
+        isActive: true,
+        createdById: "usr_admin",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: "tpl_004",
+        name: "Przekierowanie do dostawcy",
+        body: "Wewnętrznie: Przekazano sprawę {{ticket.number}} do dostawcy [VENDOR]. Oczekujemy na odpowiedź.",
+        category: "dostawca",
+        isActive: true,
+        createdById: "usr_admin",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: "tpl_005",
+        name: "Oczekiwanie na użytkownika",
+        body: "Dzień dobry {{user.name}},\n\nProszę o potwierdzenie, czy problem w ticketcie {{ticket.number}} został rozwiązany po ostatnich zmianach.\n\nPozdrawiam,\n{{assignee.name}}",
+        category: "oczekiwanie",
+        isActive: true,
+        createdById: "usr_admin",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: "tpl_006",
+        name: "Terminał awaria",
+        body: "Sprawa {{ticket.number}} wymaga wymiany terminala płatniczego. Skontaktujemy się w celu umówienia serwisu.",
+        category: "terminal",
+        isActive: true,
+        createdById: "usr_admin",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+    ],
+    responseMacros: [
+      {
+        id: "macro_001",
+        name: "Rozwiąż i daj hasło",
+        templateId: "tpl_001",
+        newStatus: "RESOLVED",
+        isActive: true,
+        createdById: "usr_admin",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: "macro_002",
+        name: "Poproś o info",
+        templateId: "tpl_003",
+        newStatus: "WAITING_FOR_USER",
+        isActive: true,
+        createdById: "usr_admin",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       }
     ],
     notificationLogs: [],

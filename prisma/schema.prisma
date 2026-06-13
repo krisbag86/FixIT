@@ -67,6 +67,8 @@ model User {
   articlesUpdated   KnowledgeArticle[] @relation("ArticleUpdatedBy")
   sessions          Session[]
   adminAuditLogs    AdminAuditLog[]
+  responseTemplates ResponseTemplate[]
+  responseMacros    ResponseMacro[]
 
   @@index([role])
   @@index([storeId])
@@ -274,4 +276,36 @@ model AdminAuditLog {
   @@index([actorId])
   @@index([entityType, entityId])
   @@index([createdAt])
+}
+
+model ResponseTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  body        String
+  category    String?
+  isActive    Boolean  @default(true)
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  @@index([isActive])
+}
+
+model ResponseMacro {
+  id          String        @id @default(cuid())
+  name        String
+  templateId  String?
+  body        String?
+  newStatus   TicketStatus?
+  newPriority TicketPriority?
+  isActive    Boolean       @default(true)
+  createdById String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  @@index([isActive])
 }

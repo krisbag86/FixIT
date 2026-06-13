@@ -1,11 +1,12 @@
 import { MessageSquare, Save } from "lucide-react";
 import { addCommentAction, updateTicketAction } from "@/app/actions";
 import { PriorityBadge, StatusBadge, VisibilityBadge } from "@/components/badges";
+import { TemplatePicker } from "@/components/templates/template-picker";
 import { AttachmentUpload } from "@/components/tickets/attachment-upload";
 import { formatDateTime } from "@/lib/format";
 import { priorityLabels, statusLabels, ticketPriorities, ticketStatuses } from "@/lib/labels";
 import { can, isAgent } from "@/lib/permissions";
-import type { Category, Store, Ticket, TicketAttachment, TicketComment, TicketEvent, User } from "@/lib/types";
+import type { Category, ResponseMacro, ResponseTemplate, Store, Ticket, TicketAttachment, TicketComment, TicketEvent, User } from "@/lib/types";
 
 export function TicketDetail({
   currentUser,
@@ -16,7 +17,9 @@ export function TicketDetail({
   users,
   categories,
   stores,
-  adminMode = false
+  adminMode = false,
+  templates = [],
+  macros = []
 }: {
   currentUser: User;
   ticket: Ticket;
@@ -27,6 +30,8 @@ export function TicketDetail({
   categories: Category[];
   stores: Store[];
   adminMode?: boolean;
+  templates?: ResponseTemplate[];
+  macros?: ResponseMacro[];
 }) {
   const reporter = users.find((user) => user.id === ticket.reporterId);
   const assignee = users.find((user) => user.id === ticket.assigneeId);
@@ -79,31 +84,16 @@ export function TicketDetail({
             {comments.length === 0 ? <p className="text-sm text-ink/60 dark:text-paper/60">Brak komentarzy.</p> : null}
           </div>
 
-          <form action={addCommentAction} className="mt-5 space-y-3" data-testid="comment-form">
-            <input type="hidden" name="ticketId" value={ticket.id} />
-            <textarea
-              name="body"
-              className="min-h-28 w-full rounded-md border border-black/10 bg-white px-3 py-3 text-sm text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper"
-              placeholder="Dodaj odpowiedź..."
-              minLength={2}
-              required
-            />
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <select
-                name="visibility"
-                className={commentSelectClass}
-                disabled={!canAddInternal}
-                data-testid="visibility-select"
-              >
-                <option value="PUBLIC">Komentarz publiczny</option>
-                {canAddInternal ? <option value="INTERNAL">Notatka wewnętrzna</option> : null}
-              </select>
-              <button type="submit" className="inline-flex h-10 items-center gap-2 rounded-md bg-mint px-4 text-sm font-black text-white hover:bg-mint/90">
-                <MessageSquare size={16} />
-                Dodaj
-              </button>
-            </div>
-          </form>
+          <CommentForm
+            ticket={ticket}
+            reporter={reporter}
+            assignee={assignee}
+            category={category}
+            canAddInternal={canAddInternal}
+            templates={templates}
+            macros={macros}
+            currentUserId={currentUser.id}
+          />
         </div>
       </section>
 
@@ -176,6 +166,73 @@ export function TicketDetail({
           </div>
         </div>
       </aside>
+    </div>
+  );
+}
+
+function CommentForm({
+  ticket,
+  reporter,
+  assignee,
+  category,
+  canAddInternal,
+  templates,
+  macros,
+  currentUserId
+}: {
+  ticket: Ticket;
+  reporter?: User;
+  assignee?: User;
+  category?: Category;
+  canAddInternal: boolean;
+  templates: ResponseTemplate[];
+  macros: ResponseMacro[];
+  currentUserId: string;
+}) {
+  const userInfo = reporter ?? { id: currentUserId, name: "Nieznany", email: "", role: "REPORTER" as const, isActive: true, storeId: undefined, department: undefined, mustChangePassword: false };
+
+  return (
+    <div>
+      <TemplatePicker
+        templates={templates}
+        macros={macros}
+        ticket={ticket}
+        user={userInfo}
+        assignee={assignee}
+        category={category}
+        onInsert={(body) => {
+          const textarea = document.querySelector('textarea[name="body"]') as HTMLTextAreaElement;
+          if (textarea) {
+            textarea.value = body;
+            textarea.focus();
+          }
+        }}
+      />
+      <form action={addCommentAction} className="mt-5 space-y-3" data-testid="comment-form">
+        <input type="hidden" name="ticketId" value={ticket.id} />
+        <textarea
+          name="body"
+          className="min-h-28 w-full rounded-md border border-black/10 bg-white px-3 py-3 text-sm text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper"
+          placeholder="Dodaj odpowiedź..."
+          minLength={2}
+          required
+        />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <select
+            name="visibility"
+            className={commentSelectClass}
+            disabled={!canAddInternal}
+            data-testid="visibility-select"
+          >
+            <option value="PUBLIC">Komentarz publiczny</option>
+            {canAddInternal ? <option value="INTERNAL">Notatka wewnętrzna</option> : null}
+          </select>
+          <button type="submit" className="inline-flex h-10 items-center gap-2 rounded-md bg-mint px-4 text-sm font-black text-white hover:bg-mint/90">
+            <MessageSquare size={16} />
+            Dodaj
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

@@ -44,6 +44,7 @@ export async function GET(
     // quotes, and backslashes to prevent HTTP header injection
     const safeName = attachment.filename
       .replace(/["\\\r\n]/g, "")
+      // eslint-disable-next-line no-control-regex
       .replace(/[\x00-\x1f\x7f-\x9f]/g, "");
     return new NextResponse(new Uint8Array(data), {
       headers: {

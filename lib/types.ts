@@ -172,6 +172,30 @@ export type DashboardData = {
   recentEvents: (TicketEvent & { actorName?: string; ticketNumber?: string })[];
 };
 
+export type ResponseTemplate = {
+  id: string;
+  name: string;
+  body: string;
+  category?: string;
+  isActive: boolean;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ResponseMacro = {
+  id: string;
+  name: string;
+  templateId?: string;
+  body?: string;
+  newStatus?: TicketStatus;
+  newPriority?: TicketPriority;
+  isActive: boolean;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type Database = {
   meta: {
     ticketSequences: Record<string, number>;
@@ -187,4 +211,6 @@ export type Database = {
   notificationLogs: NotificationLog[];
   adminAuditLogs: AdminAuditLog[];
   sessions: Session[];
+  responseTemplates: ResponseTemplate[];
+  responseMacros: ResponseMacro[];
 };

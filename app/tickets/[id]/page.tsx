@@ -2,8 +2,8 @@ import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { TicketDetail } from "@/components/ticket-detail";
 import { requireUser } from "@/lib/auth";
-import { findTicket, listAttachments, listComments, listEvents, readDatabase } from "@/lib/data-store";
-import { can, canViewTicket } from "@/lib/permissions";
+import { findTicket, listAttachments, listComments, listEvents, listMacros, listTemplates, readDatabase } from "@/lib/data-store";
+import { canViewTicket } from "@/lib/permissions";
 
 export default async function TicketDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
@@ -14,12 +14,14 @@ export default async function TicketDetailsPage({ params }: { params: Promise<{ 
     notFound();
   }
 
-  const includeInternal = can(user, "comment:internal");
-  const [database, comments, events, attachments] = await Promise.all([
+  const includeInternal = user.role === "AGENT" || user.role === "ADMIN";
+  const [database, comments, events, attachments, templates, macros] = await Promise.all([
     readDatabase(),
     listComments(ticket.id, includeInternal),
     listEvents(ticket.id),
-    listAttachments(ticket.id)
+    listAttachments(ticket.id),
+    listTemplates(),
+    listMacros()
   ]);
 
   return (
@@ -33,6 +35,8 @@ export default async function TicketDetailsPage({ params }: { params: Promise<{ 
         users={database.users}
         categories={database.categories}
         stores={database.stores}
+        templates={templates}
+        macros={macros}
       />
     </AppShell>
   );

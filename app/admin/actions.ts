@@ -9,10 +9,16 @@ import {
   createUser,
   deleteCategoryAdmin,
   deleteStoreAdmin,
-  listStoresAdmin,
   updateCategoryAdmin,
   updateStoreAdmin,
-  updateUserAdmin
+  updateUserAdmin,
+  createTemplate,
+  createMacro,
+  deleteTemplate,
+  deleteMacro,
+  updateTemplate,
+  updateMacro,
+  listStoresAdmin
 } from "@/lib/data-store";
 import { sendEmailWithResult } from "@/lib/email";
 import { templateUserInvitation } from "@/lib/email-templates";
@@ -65,7 +71,33 @@ const updateCategorySchema = categorySchema.extend({
   id: z.string().min(1)
 });
 
-async function requireAdminAction(permission: "admin:manage-users" | "admin:manage-stores" | "admin:manage-categories") {
+const templateSchema = z.object({
+  name: z.string().min(3).max(120),
+  body: z.string().min(1),
+  category: z.string().max(120).optional(),
+  isActive: z.boolean()
+});
+
+const updateTemplateSchema = templateSchema.extend({
+  id: z.string().min(1)
+});
+
+const macroSchema = z.object({
+  name: z.string().min(3).max(120),
+  templateId: z.string().optional(),
+  body: z.string().optional(),
+  newStatus: z.enum(["NEW", "TRIAGED", "IN_PROGRESS", "WAITING_FOR_USER", "WAITING_FOR_VENDOR", "RESOLVED", "CLOSED", "CANCELLED"]).optional(),
+  newPriority: prioritySchema.optional(),
+  isActive: z.boolean()
+});
+
+const updateMacroSchema = macroSchema.extend({
+  id: z.string().min(1)
+});
+
+async function requireAdminAction(
+  permission: "admin:manage-users" | "admin:manage-stores" | "admin:manage-categories" | "admin:manage-templates"
+) {
   const user = await requireUser();
 
   if (!can(user, permission)) {
@@ -313,4 +345,114 @@ export async function deleteCategoryAdminAction(formData: FormData): Promise<voi
   revalidatePath("/admin/categories");
   revalidatePath("/tickets/new");
   revalidatePath("/knowledge");
+}
+
+export async function createTemplateAdminAction(formData: FormData): Promise<void> {
+  const actor = await requireAdminAction("admin:manage-templates");
+
+  const input = templateSchema.parse({
+    name: sanitizeText(String(formData.get("name") ?? "")),
+    body: String(formData.get("body") ?? ""),
+    category: normalizeOptionalText(formData.get("category")),
+    isActive: formData.get("isActive") === "on"
+  });
+
+  await createTemplate({
+    ...input,
+    createdById: actor.id
+  });
+  revalidatePath("/admin/templates");
+}
+
+export async function updateTemplateAdminAction(formData: FormData): Promise<void> {
+  await requireAdminAction("admin:manage-templates");
+
+  const input = updateTemplateSchema.parse({
+    id: String(formData.get("id") ?? ""),
+    name: sanitizeText(String(formData.get("name") ?? "")),
+    body: String(formData.get("body") ?? ""),
+    category: normalizeOptionalText(formData.get("category")),
+    isActive: formData.get("isActive") === "on"
+  });
+
+  await updateTemplate(input);
+  revalidatePath("/admin/templates");
+}
+
+export async function deleteTemplateAdminAction(formData: FormData): Promise<void> {
+  await requireAdminAction("admin:manage-templates");
+  const id = String(formData.get("id") ?? "");
+
+  if (!id) {
+    throw new Error("Brak identyfikatora szablonu.");
+  }
+
+  await deleteTemplate(id);
+  revalidatePath("/admin/templates");
+}
+
+export async function createMacroAdminAction(formData: FormData): Promise<void> {
+  const actor = await requireAdminAction("admin:manage-templates");
+
+  const input = macroSchema.parse({
+    name: sanitizeText(String(formData.get("name") ?? "")),
+    templateId: normalizeOptionalText(formData.get("templateId")),
+    body: normalizeOptionalText(formData.get("body")),
+    newStatus: normalizeOptionalText(formData.get("newStatus")) as
+      | "NEW"
+      | "TRIAGED"
+      | "IN_PROGRESS"
+      | "WAITING_FOR_USER"
+      | "WAITING_FOR_VENDOR"
+      | "RESOLVED"
+      | "CLOSED"
+      | "CANCELLED"
+      | undefined,
+    newPriority: normalizeOptionalText(formData.get("newPriority")) as "LOW" | "NORMAL" | "HIGH" | "CRITICAL" | undefined,
+    isActive: formData.get("isActive") === "on"
+  });
+
+  await createMacro({
+    ...input,
+    createdById: actor.id
+  });
+  revalidatePath("/admin/templates");
+}
+
+export async function updateMacroAdminAction(formData: FormData): Promise<void> {
+  await requireAdminAction("admin:manage-templates");
+
+  const input = updateMacroSchema.parse({
+    id: String(formData.get("id") ?? ""),
+    name: sanitizeText(String(formData.get("name") ?? "")),
+    templateId: normalizeOptionalText(formData.get("templateId")),
+    body: normalizeOptionalText(formData.get("body")),
+    newStatus: normalizeOptionalText(formData.get("newStatus")) as
+      | "NEW"
+      | "TRIAGED"
+      | "IN_PROGRESS"
+      | "WAITING_FOR_USER"
+      | "WAITING_FOR_VENDOR"
+      | "RESOLVED"
+      | "CLOSED"
+      | "CANCELLED"
+      | undefined,
+    newPriority: normalizeOptionalText(formData.get("newPriority")) as "LOW" | "NORMAL" | "HIGH" | "CRITICAL" | undefined,
+    isActive: formData.get("isActive") === "on"
+  });
+
+  await updateMacro(input);
+  revalidatePath("/admin/templates");
+}
+
+export async function deleteMacroAdminAction(formData: FormData): Promise<void> {
+  await requireAdminAction("admin:manage-templates");
+  const id = String(formData.get("id") ?? "");
+
+  if (!id) {
+    throw new Error("Brak identyfikatora makra.");
+  }
+
+  await deleteMacro(id);
+  revalidatePath("/admin/templates");
 }

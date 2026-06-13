@@ -280,6 +280,92 @@ async function main() {
   });
 
   await upsertContactsArticle(storeDirectory, admin.id);
+
+  // Seed response templates
+  const templates = [
+    {
+      id: "tpl_001",
+      name: "Hasło tymczasowe",
+      body: "Dzień dobry {{user.name}},\n\nTwoje tymczasowe hasło to: [GENERATE]\n\nPo zalogowaniu proszę o zmianę hasła.\n\nPozdrawiam,\n{{assignee.name}}",
+      category: "hasło"
+    },
+    {
+      id: "tpl_002",
+      name: "Zgłoszenie rozwiązane",
+      body: "Dzień dobry {{user.name}},\n\nSprawa {{ticket.number}} została rozwiązana. W razie problemów proszę o dopisanie komentarza.\n\nPozdrawiam,\n{{assignee.name}}",
+      category: "ogólne"
+    },
+    {
+      id: "tpl_003",
+      name: "Potrzebne informacje",
+      body: "Dzień dobry {{user.name}},\n\nProszę o podanie dodatkowych informacji:\n- System operacyjny\n- Numer stanowiska\n- Zdjęcie błędu (jeśli możliwe)\n\nPozdrawiam,\n{{assignee.name}}",
+      category: "diagnostyka"
+    },
+    {
+      id: "tpl_004",
+      name: "Przekierowanie do dostawcy",
+      body: "Wewnętrznie: Przekazano sprawę {{ticket.number}} do dostawcy [VENDOR]. Oczekujemy na odpowiedź.",
+      category: "dostawca"
+    },
+    {
+      id: "tpl_005",
+      name: "Oczekiwanie na użytkownika",
+      body: "Dzień dobry {{user.name}},\n\nProszę o potwierdzenie, czy problem w ticketcie {{ticket.number}} został rozwiązany po ostatnich zmianach.\n\nPozdrawiam,\n{{assignee.name}}",
+      category: "oczekiwanie"
+    },
+    {
+      id: "tpl_006",
+      name: "Terminał awaria",
+      body: "Sprawa {{ticket.number}} wymaga wymiany terminala płatniczego. Skontaktujemy się w celu umówienia serwisu.",
+      category: "terminal"
+    }
+  ];
+
+  for (const tpl of templates) {
+    await prisma.responseTemplate.upsert({
+      where: { id: tpl.id },
+      update: {
+        name: tpl.name,
+        body: tpl.body,
+        category: tpl.category
+      },
+      create: {
+        ...tpl,
+        createdById: admin.id
+      }
+    });
+  }
+
+  // Seed response macros
+  const macros = [
+    {
+      id: "macro_001",
+      name: "Rozwiąż i daj hasło",
+      templateId: "tpl_001",
+      newStatus: "RESOLVED"
+    },
+    {
+      id: "macro_002",
+      name: "Poproś o info",
+      templateId: "tpl_003",
+      newStatus: "WAITING_FOR_USER"
+    }
+  ];
+
+  for (const macro of macros) {
+    await prisma.responseMacro.upsert({
+      where: { id: macro.id },
+      update: {
+        name: macro.name,
+        templateId: macro.templateId,
+        newStatus: macro.newStatus
+      },
+      create: {
+        ...macro,
+        createdById: admin.id
+      }
+    });
+  }
 }
 
 main()

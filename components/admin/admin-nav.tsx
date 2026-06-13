@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BarChart3, BookOpen, Building2, ClipboardList, Columns3, LayoutDashboard, Tags, Users } from "lucide-react";
+import { BarChart3, BookOpen, Building2, ClipboardList, Columns3, LayoutDashboard, Tags, Users, FileText } from "lucide-react";
 import type { User } from "@/lib/types";
 
 const links = [
@@ -8,6 +8,7 @@ const links = [
   { href: "/admin/kanban", label: "Kanban", icon: Columns3, adminOnly: false },
   { href: "/admin/reports", label: "Raporty", icon: BarChart3, adminOnly: false },
   { href: "/admin/knowledge", label: "Baza wiedzy", icon: BookOpen, adminOnly: false },
+  { href: "/admin/templates", label: "Szablony", icon: FileText, adminOnly: true },
   { href: "/admin/users", label: "Użytkownicy", icon: Users, adminOnly: true },
   { href: "/admin/stores", label: "Sklepy", icon: Building2, adminOnly: true },
   { href: "/admin/categories", label: "Kategorie", icon: Tags, adminOnly: true }
