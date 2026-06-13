@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { findAttachment, findTicket, listComments } from "@/lib/data-store";
-import { canViewTicket } from "@/lib/permissions";
+import { can, canViewTicket } from "@/lib/permissions";
 import { isValidStorageKey, readAttachmentFile } from "@/lib/storage";
 import { reportError } from "@/lib/sentry";
 
@@ -55,6 +55,7 @@ export async function GET(
     const data = await readAttachmentFile(attachment.storageKey);
     const safeName = attachment.filename
       .replace(/["\\\r\n]/g, "")
+      // eslint-disable-next-line no-control-regex
       .replace(/[\x00-\x1f\x7f-\x9f]/g, "");
     return new NextResponse(new Uint8Array(data), {
       headers: {
