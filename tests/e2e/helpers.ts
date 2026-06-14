@@ -6,7 +6,7 @@ export async function loginAs(page: Page, email: string) {
   await page.context().clearCookies();
   await page.goto('/login');
   await page.fill('input[name="email"]', email);
-  await page.click('button:has-text("Wejdz do FixIT")');
+  await page.click('button:has-text("Zaloguj się")');
   await page.getByTestId('logout-button').waitFor({ timeout: 10000 });
 }
 

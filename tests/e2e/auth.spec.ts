@@ -16,7 +16,7 @@ test.describe('Authentication - bagietka.pl domain', () => {
     await page.fill('input[name="email"]', 'admin@bagietka.pl');
     
     // Submit form
-    await page.click('button:has-text("Wejdz do FixIT")');
+    await page.click('button:has-text("Zaloguj się")');
     
     // Should redirect to home page
     await page.waitForURL('/admin/tickets', { timeout: 10000 });
@@ -28,7 +28,7 @@ test.describe('Authentication - bagietka.pl domain', () => {
     
     // Try to login with non-bagietka.pl email
     await page.fill('input[name="email"]', 'user@example.com');
-    await page.click('button:has-text("Wejdz do FixIT")');
+    await page.click('button:has-text("Zaloguj się")');
     
     // Should show error message
     const errorMessage = page.getByTestId('login-error');
@@ -44,7 +44,7 @@ test.describe('Authentication - bagietka.pl domain', () => {
     
     // Try to login with bagietka.com
     await page.fill('input[name="email"]', 'user@bagietka.com');
-    await page.click('button:has-text("Wejdz do FixIT")');
+    await page.click('button:has-text("Zaloguj się")');
     
     // Should show error message
     const errorMessage = page.getByTestId('login-error');
@@ -57,7 +57,7 @@ test.describe('Authentication - bagietka.pl domain', () => {
     
     // Try with uppercase and spaces
     await page.fill('input[name="email"]', '  ADMIN@BAGIETKA.PL  ');
-    await page.click('button:has-text("Wejdz do FixIT")');
+    await page.click('button:has-text("Zaloguj się")');
     
     // Should still work (normalize to lowercase)
     await page.waitForURL('/admin/tickets', { timeout: 10000 });
@@ -70,7 +70,7 @@ test.describe('Authentication - logout', () => {
     // Login first
     await page.goto('/login');
     await page.fill('input[name="email"]', 'admin@bagietka.pl');
-    await page.click('button:has-text("Wejdz do FixIT")');
+    await page.click('button:has-text("Zaloguj się")');
     await page.waitForURL('/admin/tickets');
     
     // Find and click logout button
