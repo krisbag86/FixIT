@@ -9,7 +9,11 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 FROM base AS deps
 COPY package.json package-lock.json* ./
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+# Playwright is used only for local E2E tests. The current alpha release does
+# not satisfy Next's optional peer dependency under npm 10, so keep it out of
+# the production image dependency graph.
+RUN npm pkg delete devDependencies.@playwright/test \
+  && if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
