@@ -1,5 +1,0 @@
-- [x] `docs/it-helpdesk-docs/remaining-tasks.md` no longer lists Email (Priority 3) as remaining work.
-- [x] `docs/it-helpdesk-docs/remaining-tasks.md` no longer lists npm audit (Priority 4) as remaining work.
-- [x] Backlog contains decomposed tasks for Priority 1, 2, 5, 6, 7, 8 (each task has a concrete outcome).
-- [x] Backlog tasks include explicit validation steps (tests/commands/smoke checks) where applicable.
-- [x] `docs/it-helpdesk-docs/build-status.md` does not claim Email or npm audit are still pending.

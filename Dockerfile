@@ -9,8 +9,7 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 FROM base AS deps
 COPY package.json package-lock.json* ./
-# Playwright is used only for local E2E tests. Skip dev dependencies in production.
-RUN npm ci --omit=dev
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
