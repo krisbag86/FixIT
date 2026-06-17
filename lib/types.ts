@@ -134,6 +134,15 @@ export type Session = {
   expiresAt: string;
 };
 
+export type SetupToken = {
+  id: string;
+  tokenHash: string;
+  email: string;
+  expiresAt: string;
+  usedAt?: string;
+  createdAt: string;
+};
+
 export type DashboardMetrics = {
   totalTickets: number;
   openTickets: number;
@@ -211,6 +220,7 @@ export type Database = {
   notificationLogs: NotificationLog[];
   adminAuditLogs: AdminAuditLog[];
   sessions: Session[];
+  setupTokens: SetupToken[];
   responseTemplates: ResponseTemplate[];
   responseMacros: ResponseMacro[];
 };

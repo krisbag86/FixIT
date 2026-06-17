@@ -1,4 +1,5 @@
 import { error as logError } from "node:console";
+import { pbkdf2Sync, randomBytes } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import process from "node:process";
@@ -7,6 +8,35 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 const rootDir = join(dirname(fileURLToPath(import.meta.url)), "..");
+const DEFAULT_DEV_ADMIN_EMAIL = "krzysztofgraczyk@bagietka.pl";
+const DEFAULT_DEV_ADMIN_PASSWORD = "admin1234";
+const DEFAULT_ADMIN_NAME = "Krzysztof Graczyk";
+const PASSWORD_ITERATIONS = 100_000;
+const PASSWORD_KEY_LENGTH = 64;
+const PASSWORD_DIGEST = "sha512";
+const PASSWORD_SALT_LENGTH = 16;
+
+function hashPassword(password) {
+  const salt = randomBytes(PASSWORD_SALT_LENGTH).toString("hex");
+  const hash = pbkdf2Sync(password, salt, PASSWORD_ITERATIONS, PASSWORD_KEY_LENGTH, PASSWORD_DIGEST).toString("hex");
+  return `${salt}:${hash}`;
+}
+
+function getBootstrapAdminConfig() {
+  const isProduction = process.env.NODE_ENV === "production";
+  const email = (process.env.FIXIT_BOOTSTRAP_ADMIN_EMAIL || (!isProduction ? DEFAULT_DEV_ADMIN_EMAIL : "")).trim().toLowerCase();
+  const password = process.env.FIXIT_BOOTSTRAP_ADMIN_PASSWORD || (!isProduction ? DEFAULT_DEV_ADMIN_PASSWORD : "");
+  const name = process.env.FIXIT_BOOTSTRAP_ADMIN_NAME || DEFAULT_ADMIN_NAME;
+
+  if (!email || !password) {
+    throw new Error(
+      "Production seed requires FIXIT_BOOTSTRAP_ADMIN_EMAIL and FIXIT_BOOTSTRAP_ADMIN_PASSWORD. " +
+        "Do not seed a production database with default credentials."
+    );
+  }
+
+  return { email, password, name };
+}
 
 async function readJson(relativePath) {
   return JSON.parse(await readFile(join(rootDir, relativePath), "utf8"));
@@ -112,24 +142,24 @@ async function main() {
     });
   }
 
-  // Single admin account — all other users must be added manually via admin panel
+  // Bootstrap admin account. Production must provide explicit credentials via env.
+  const bootstrapAdmin = getBootstrapAdminConfig();
   const admin = await prisma.user.upsert({
-    where: { email: "krzysztofgraczyk@bagietka.pl" },
+    where: { email: bootstrapAdmin.email },
     update: {
-      name: "Krzysztof Graczyk",
+      name: bootstrapAdmin.name,
       role: "ADMIN",
       department: "IT",
-      isActive: true,
-      mustChangePassword: false
+      isActive: true
     },
     create: {
       id: "usr_admin",
-      name: "Krzysztof Graczyk",
-      email: "krzysztofgraczyk@bagietka.pl",
+      name: bootstrapAdmin.name,
+      email: bootstrapAdmin.email,
       role: "ADMIN",
       department: "IT",
       isActive: true,
-      passwordHash: "a1d23467081c9be78f2d21b46d6b0342:722284589a896330acf291b4cbc73757a040d39ff8526f24f1ae5c30a732a46620b36334c36ded2d54ec43fed36b957e0704c800ba6c145c6913427390a50c91",
+      passwordHash: hashPassword(bootstrapAdmin.password),
       mustChangePassword: true
     }
   });

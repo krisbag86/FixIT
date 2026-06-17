@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { hashPassword } from "@/lib/password";
 import { z } from "zod";
-import { verifySetupToken } from "@/lib/setup-token";
+import { consumeSetupToken } from "@/lib/setup-token";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter";
 import { headers } from "next/headers";
 
@@ -52,7 +52,7 @@ export async function setupPasswordAction(
     return "Zbyt wiele prób. Spróbuj ponownie za kilka minut.";
   }
 
-  const email = verifySetupToken(input.data.token);
+  const email = await consumeSetupToken(input.data.token);
   if (!email) {
     return "Link jest nieprawidłowy lub wygasł. Skontaktuj się z administratorem.";
   }

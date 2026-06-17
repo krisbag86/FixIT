@@ -212,9 +212,9 @@ export async function createUserAdminAction(
       actorId: actor.id
     });
 
-    // Generate a signed setup token so the user can set their password
-    // via a secure link instead of receiving it in plain text via email
-    const setupToken = input.sendInvite ? createSetupToken(user.email) : undefined;
+    // Generate a one-time setup token so the user can set their password
+    // via a secure link instead of receiving it in plain text via email.
+    const setupToken = input.sendInvite ? await createSetupToken(user.email) : undefined;
 
     let inviteSent = false;
     let message = `Utworzono konto dla ${user.email}.`;

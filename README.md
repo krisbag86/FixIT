@@ -86,6 +86,9 @@ Produkcyjny auto-deploy jest uruchamiany z brancha `main`.
 | `S3_SECRET_ACCESS_KEY` | Sekretny klucz S3 | |
 | `S3_BUCKET` | Nazwa bucketa S3 | |
 | `FIXIT_DATA_PROVIDER` | Wymuszenie storage runtime | `prisma` |
+| `FIXIT_RUN_SEED` | Jawne uruchomienie seeda/bootstrapu | `true` tylko jednorazowo |
+| `FIXIT_BOOTSTRAP_ADMIN_EMAIL` | E-mail admina tworzonego przez seed | `admin@bagietka.pl` |
+| `FIXIT_BOOTSTRAP_ADMIN_PASSWORD` | Tymczasowe hasło bootstrap admina | silne hasło jednorazowe |
 | `PORT` | Port aplikacji | `8080` |
 
 ### Dostęp użytkowników
@@ -94,6 +97,7 @@ Produkcyjny auto-deploy jest uruchamiany z brancha `main`.
 - Samodzielna rejestracja tworzy konto z rolą `REPORTER`.
 - Administrator może dodać użytkownika ręcznie w `/admin/users`, wygenerować mu hasło tymczasowe i opcjonalnie wysłać dane logowania e-mailem.
 - Konta tworzone przez admina mają wymuszoną zmianę hasła przy pierwszym logowaniu.
+- Seed produkcyjny jest wyłączony domyślnie. Bootstrap admina uruchamiaj tylko świadomie przez `FIXIT_RUN_SEED=true` i silne tymczasowe hasło w `FIXIT_BOOTSTRAP_ADMIN_PASSWORD`.
 
 ### Wdrożenie z CLI
 

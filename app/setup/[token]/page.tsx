@@ -11,7 +11,7 @@ export default async function SetupPage({
   const { token } = await params;
 
   // Validate the token server-side before rendering the form
-  const email = verifySetupToken(token);
+  const email = await verifySetupToken(token);
 
   if (!email) {
     redirect("/login?setup=invalid");

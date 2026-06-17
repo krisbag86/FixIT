@@ -200,6 +200,7 @@ knowledgeArticles: [
     ],
     notificationLogs: [],
     adminAuditLogs: [],
-    sessions: []
+    sessions: [],
+    setupTokens: []
   };
 }

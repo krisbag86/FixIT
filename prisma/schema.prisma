@@ -66,6 +66,7 @@ model User {
   articlesCreated   KnowledgeArticle[] @relation("ArticleCreatedBy")
   articlesUpdated   KnowledgeArticle[] @relation("ArticleUpdatedBy")
   sessions          Session[]
+  setupTokens       SetupToken[]
   adminAuditLogs    AdminAuditLog[]
   responseTemplates ResponseTemplate[]
   responseMacros    ResponseMacro[]
@@ -251,6 +252,20 @@ model Session {
   @@index([expiresAt])
 }
 
+model SetupToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  email     String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [email], references: [email], onDelete: Cascade)
+
+  @@index([email])
+  @@index([expiresAt])
+}
+
 model RateLimit {
   id         String   @id @default(cuid())
   key        String   @unique
@@ -289,6 +304,7 @@ model ResponseTemplate {
   updatedAt   DateTime @updatedAt
 
   createdBy User @relation(fields: [createdById], references: [id])
+  macros    ResponseMacro[]
 
   @@index([isActive])
 }
@@ -306,6 +322,8 @@ model ResponseMacro {
   updatedAt   DateTime      @updatedAt
 
   createdBy User @relation(fields: [createdById], references: [id])
+  template  ResponseTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
 
   @@index([isActive])
+  @@index([templateId])
 }

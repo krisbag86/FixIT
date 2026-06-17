@@ -17,7 +17,7 @@ export function ChangePasswordForm() {
           id="currentPassword"
           name="currentPassword"
           type="password"
-          placeholder="admin1234"
+          placeholder="Obecne hasło"
           className="h-13 w-full rounded-xl border border-white/20 bg-white/80 px-4 text-ink outline-none ring-mint/20 transition-all duration-300 focus:border-mint focus:ring-4 dark:border-white/5 dark:bg-white/5 dark:text-paper"
           required
         />
