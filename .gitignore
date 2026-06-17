@@ -5,7 +5,7 @@ node_modules
 .env.local
 coverage
 dist
-tsconfig.tsbuildinfo
+tsconfig.tsbuild.json
 .vitest-cache
 playwright-report
 test-results
