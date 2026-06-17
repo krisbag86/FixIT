@@ -28,6 +28,7 @@ import type {
   ResponseMacro,
   ResponseTemplate,
   Session,
+  SetupToken,
   Store,
   Ticket,
   TicketAttachment,
@@ -197,6 +198,17 @@ function mapSession(session: Prisma.SessionGetPayload<object>): Session {
   };
 }
 
+function mapSetupToken(token: Prisma.SetupTokenGetPayload<object>): SetupToken {
+  return {
+    id: token.id,
+    tokenHash: token.tokenHash,
+    email: token.email,
+    expiresAt: iso(token.expiresAt) ?? "",
+    usedAt: iso(token.usedAt),
+    createdAt: iso(token.createdAt) ?? ""
+  };
+}
+
 function mapNotificationLog(log: Prisma.NotificationLogGetPayload<object>): NotificationLog {
   return {
     id: log.id,
@@ -244,6 +256,9 @@ async function ensureDatabase(): Promise<Database> {
     if (!Array.isArray(parsed.responseMacros)) {
       parsed.responseMacros = [];
     }
+    if (!Array.isArray(parsed.setupTokens)) {
+      parsed.setupTokens = [];
+    }
     if (Array.isArray(parsed.stores)) {
       parsed.stores = parsed.stores.map((store) => ({
         ...store,
@@ -262,7 +277,7 @@ export async function readDatabase(): Promise<Database> {
   noStore();
   if (shouldUsePrisma()) {
     const db = await getPrisma();
-    const [users, stores, categories, tickets, comments, attachments, events, knowledgeArticles, notificationLogs, adminAuditLogs, counters, sessions, responseTemplates, responseMacros] =
+    const [users, stores, categories, tickets, comments, attachments, events, knowledgeArticles, notificationLogs, adminAuditLogs, counters, sessions, setupTokens, responseTemplates, responseMacros] =
       await Promise.all([
         db.user.findMany(),
         db.store.findMany(),
@@ -276,6 +291,7 @@ export async function readDatabase(): Promise<Database> {
         db.adminAuditLog.findMany(),
         db.ticketCounter.findMany(),
         db.session.findMany(),
+        db.setupToken.findMany(),
         db.responseTemplate.findMany(),
         db.responseMacro.findMany()
       ]);
@@ -295,6 +311,7 @@ export async function readDatabase(): Promise<Database> {
       notificationLogs: notificationLogs.map(mapNotificationLog),
       adminAuditLogs: adminAuditLogs.map(mapAdminAuditLog),
       sessions: sessions.map(mapSession),
+      setupTokens: setupTokens.map(mapSetupToken),
       responseTemplates: responseTemplates.map(mapTemplate),
       responseMacros: responseMacros.map(mapMacro)
     };

@@ -44,7 +44,10 @@ EMAIL_FROM="IT Helpdesk <it@bagietka.pl>"
 # S3_BUCKET="nazwa-bucketu"
 
 # --- Tylko przy pierwszym deployu ---
-# FIXIT_RUN_SEED=true   # odkomentuj, potem zakomentuj/usun
+# FIXIT_RUN_SEED=true
+# FIXIT_BOOTSTRAP_ADMIN_EMAIL="admin@bagietka.pl"
+# FIXIT_BOOTSTRAP_ADMIN_PASSWORD="silne-haslo-tymczasowe"
+# Po bootstrapie usun te zmienne albo ustaw FIXIT_RUN_SEED=false.
 ```
 
 ## 3. Railway setup krok po kroku
@@ -71,11 +74,10 @@ W Railway Dashboard → project → Variables, ustaw:
 1. Railway automatycznie zbuduje obraz Dockerem (DOCKERFILE builder z `railway.json`)
 2. `railway.json` wykonuje pre-deploy command:
    - `npx prisma migrate deploy`
-   - `npx prisma db seed`
 3. `docker-entrypoint.sh` przy starcie kontenera:
    - Generuje klienta Prisma (`npx prisma generate`)
    - Wykonuje migracje (`npx prisma migrate deploy`)
-   - Uruchamia seed (`npx prisma db seed`)
+   - Pomija seed, chyba ze ustawiono `FIXIT_RUN_SEED=true`
 
 ### Krok 5: Sprawdz czy dziala
 - Odwiedz `https://twoja-aplikacja.railway.app/api/health` - powinien zwrocic JSON z `"status": "ok"` i `"database": "connected"`
@@ -86,9 +88,9 @@ W Railway Dashboard → project → Variables, ustaw:
 | Mechanizm | Jak dziala |
 |-----------|-----------|
 | Auto-deploy | Railway obserwuje branch `main` w repo GitHub |
-| Pre-deploy | `railway.json` uruchamia `npx prisma migrate deploy && npx prisma db seed` |
+| Pre-deploy | `railway.json` uruchamia `npx prisma migrate deploy` |
 | Migracje Prisma | `docker-entrypoint.sh` uruchamia `prisma migrate deploy` przy starcie |
-| Seed danych | `docker-entrypoint.sh` uruchamia `prisma db seed` przy starcie; seed jest idempotentny |
+| Seed danych | `docker-entrypoint.sh` uruchamia `prisma db seed` tylko przy `FIXIT_RUN_SEED=true` |
 | SSL do bazy | Entrypoint automatycznie dodaje `?sslmode=require` jesli brak |
 | Healthcheck | Endpoint `GET /api/health` sprawdza baze i zwraca status |
 | Data provider | Automatycznie wybiera Prisma gdy `NODE_ENV=production` i `DATABASE_URL` ustawiony |

@@ -1,70 +1,123 @@
 import "server-only";
 
-import { createHmac } from "node:crypto";
-
-/**
- * Creates a signed, time-limited setup token for new user onboarding.
- *
- * The token encodes the user's email and expiry timestamp, signed with an
- * HMAC-SHA256 key derived from the COOKIE_SECRET. The token is stateless
- * (no database storage needed) and self-validating.
- *
- * Format (base64url-encoded):
- *   email:expiry:hmac
- */
-
-function getSecret(): string {
-  return process.env.COOKIE_SECRET || "fixit-setup-fallback-change-in-production";
-}
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 const TOKEN_DURATION_MS = 48 * 60 * 60 * 1000; // 48 hours
+const TOKEN_BYTES = 32;
 
-export interface SetupTokenPayload {
-  email: string;
-  expiry: number;
+function shouldUsePrisma(): boolean {
+  if (process.env.FIXIT_DATA_PROVIDER === "json") return false;
+  if (process.env.FIXIT_DATA_PROVIDER === "prisma") return true;
+  return process.env.NODE_ENV === "production" && Boolean(process.env.DATABASE_URL);
+}
+
+function hashToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+function isExpired(expiresAt: Date | string): boolean {
+  return new Date() > new Date(expiresAt);
+}
+
+async function getPrisma() {
+  return (await import("@/lib/prisma")).prisma;
 }
 
 /**
- * Generate a signed setup token for a given email.
- * The token expires after 48 hours.
+ * Generate an opaque, single-use setup token for a user onboarding link.
+ *
+ * Only a SHA-256 hash is persisted, so a database leak does not reveal usable
+ * setup links. The raw token is returned once for the invitation email.
  */
-export function createSetupToken(email: string): string {
-  const secret = getSecret();
-  const expiry = Date.now() + TOKEN_DURATION_MS;
-  const payload = `${email}:${expiry}`;
-  const hmac = createHmac("sha256", secret).update(payload).digest("hex");
-  const token = `${payload}:${hmac}`;
-  return Buffer.from(token, "utf-8").toString("base64url");
-}
+export async function createSetupToken(email: string): Promise<string> {
+  const token = randomBytes(TOKEN_BYTES).toString("base64url");
+  const tokenHash = hashToken(token);
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + TOKEN_DURATION_MS);
 
-/**
- * Verify and decode a setup token.
- * Returns the email if valid, or null if the token is expired or tampered with.
- */
-export function verifySetupToken(token: string): string | null {
-  try {
-    const decoded = Buffer.from(token, "base64url").toString("utf-8");
-    const separatorIndex = decoded.lastIndexOf(":");
-    if (separatorIndex === -1) return null;
-
-    const hmac = decoded.slice(separatorIndex + 1);
-    const payload = decoded.slice(0, separatorIndex);
-
-    const payloadParts = payload.split(":");
-    if (payloadParts.length < 2) return null;
-
-    const expiry = Number(payloadParts.pop());
-    const email = payloadParts.join(":");
-
-    if (Number.isNaN(expiry) || Date.now() > expiry) return null;
-
-    const secret = getSecret();
-    const expectedHmac = createHmac("sha256", secret).update(payload).digest("hex");
-
-    if (hmac !== expectedHmac) return null;
-
-    return email;
-  } catch {
-    return null;
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    await db.setupToken.create({
+      data: {
+        tokenHash,
+        email,
+        expiresAt,
+        createdAt: now
+      }
+    });
+    return token;
   }
+
+  const { withDatabase } = await import("@/lib/data-store");
+  await withDatabase((database) => {
+    database.setupTokens.push({
+      id: `setup_${randomUUID().slice(0, 8)}`,
+      tokenHash,
+      email,
+      expiresAt: expiresAt.toISOString(),
+      createdAt: now.toISOString()
+    });
+  });
+
+  return token;
+}
+
+/**
+ * Validate a setup token without consuming it. Used by the setup page to show
+ * the account email before the user submits a new password.
+ */
+export async function verifySetupToken(token: string): Promise<string | null> {
+  if (!token || token.length > 256) return null;
+
+  const tokenHash = hashToken(token);
+
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const row = await db.setupToken.findUnique({ where: { tokenHash } });
+    if (!row || row.usedAt || isExpired(row.expiresAt)) return null;
+    return row.email;
+  }
+
+  const { readDatabase } = await import("@/lib/data-store");
+  const database = await readDatabase();
+  const row = database.setupTokens.find((item) => item.tokenHash === tokenHash);
+  if (!row || row.usedAt || isExpired(row.expiresAt)) return null;
+  return row.email;
+}
+
+/**
+ * Consume a setup token exactly once and return the associated email.
+ */
+export async function consumeSetupToken(token: string): Promise<string | null> {
+  if (!token || token.length > 256) return null;
+
+  const tokenHash = hashToken(token);
+  const now = new Date();
+
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    return db.$transaction(async (tx) => {
+      const row = await tx.setupToken.findUnique({ where: { tokenHash } });
+      if (!row || row.usedAt || isExpired(row.expiresAt)) return null;
+
+      await tx.setupToken.update({
+        where: { tokenHash },
+        data: { usedAt: now }
+      });
+
+      return row.email;
+    });
+  }
+
+  const { withDatabase } = await import("@/lib/data-store");
+  let email: string | null = null;
+  await withDatabase((database) => {
+    const row = database.setupTokens.find((item) => item.tokenHash === tokenHash);
+    if (!row || row.usedAt || isExpired(row.expiresAt)) return;
+
+    row.usedAt = now.toISOString();
+    email = row.email;
+  });
+
+  return email;
 }
