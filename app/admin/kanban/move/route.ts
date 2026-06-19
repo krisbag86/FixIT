@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { findTicket, updateTicket } from "@/lib/data-store";
+import { notifyTicketUpdated } from "@/lib/notifications";
 import { can, canViewTicket } from "@/lib/permissions";
 import type { TicketStatus } from "@/lib/types";
 
@@ -43,13 +44,17 @@ export async function POST(request: Request): Promise<Response> {
     return new Response("Brak dostępu do zgłoszenia.", { status: 403 });
   }
 
-  await updateTicket({
+  const updatedTicket = await updateTicket({
     ticketId,
     actorId: user.id,
     status: newStatus,
     priority: ticket.priority,
     assigneeId: ticket.assigneeId
   });
+
+  if (updatedTicket) {
+    await notifyTicketUpdated({ before: ticket, after: updatedTicket, actorId: user.id });
+  }
 
   revalidatePath("/admin/kanban");
   revalidatePath("/admin/tickets");

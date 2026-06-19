@@ -4,50 +4,17 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
-import { addComment, createKnowledgeArticle, createTicket, deleteKnowledgeArticle, findTicket, readDatabase, updateKnowledgeArticle, updateNotificationLog, updateTicket } from "@/lib/data-store";
+import { addComment, createKnowledgeArticle, createTicket, deleteKnowledgeArticle, findTicket, readDatabase, updateKnowledgeArticle, updateTicket } from "@/lib/data-store";
 import { sanitizeText } from "@/lib/escape-html";
+import { notifyCommentAdded, notifyTicketCreated, notifyTicketUpdated } from "@/lib/notifications";
 import { can, canViewTicket } from "@/lib/permissions";
-import { sendEmailWithResult } from "@/lib/email";
-import { templateTicketCreated, templateTicketResolved, templateTicketAssigned, templateCommentAdded } from "@/lib/email-templates";
-import type { EmailTemplate } from "@/lib/email-templates";
-import type { CommentVisibility, Database, TicketPriority, TicketStatus } from "@/lib/types";
+import type { CommentVisibility, TicketPriority, TicketStatus } from "@/lib/types";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter";
-import { reportError } from "@/lib/sentry";
 
 async function enforceMutationRateLimit(userId: string): Promise<void> {
   const rateCheck = await checkRateLimit(`mutation:${userId}`, RATE_LIMITS.MUTATION.windowMs, RATE_LIMITS.MUTATION.maxAttempts);
   if (!rateCheck.allowed) {
     throw new Error("Zbyt wiele żądań. Spróbuj ponownie za kilka sekund.");
-  }
-}
-
-function findLatestQueuedNotification(database: Database, input: { ticketId: string; type: string; recipientEmail: string }) {
-  return database.notificationLogs
-    .filter((log) => log.ticketId === input.ticketId)
-    .filter((log) => log.type === input.type)
-    .filter((log) => log.recipientEmail === input.recipientEmail)
-    .filter((log) => log.status === "QUEUED")
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
-}
-
-async function sendTrackedEmail(input: {
-  notification?: ReturnType<typeof findLatestQueuedNotification>;
-  to: string;
-  template: EmailTemplate;
-}): Promise<void> {
-  const result = await sendEmailWithResult({
-    to: input.to,
-    subject: input.template.subject,
-    html: input.template.html,
-    text: input.template.text
-  });
-
-  if (input.notification) {
-    await updateNotificationLog(
-      input.notification.id,
-      result.ok ? "SENT" : "FAILED",
-      result.error
-    );
   }
 }
 
@@ -92,24 +59,7 @@ export async function createTicketAction(formData: FormData): Promise<void> {
     reporterId: user.id
   });
 
-  // Send email notification (in background, don't block)
-  try {
-    const db = await readDatabase();
-    const reporter = db.users.find((u) => u.id === user.id);
-    if (reporter) {
-      const template = templateTicketCreated(ticket, reporter);
-      const notification = findLatestQueuedNotification(db, {
-        ticketId: ticket.id,
-        type: "TICKET_CREATED",
-        recipientEmail: reporter.email
-      });
-      await sendTrackedEmail({ notification, to: reporter.email, template });
-    }
-  } catch (error) {
-    console.error("Failed to initiate ticket creation email:", error);
-    reportError(error, { context: "createTicketAction", ticketId: ticket.id });
-    // Don't throw - ticket was already created
-  }
+  await notifyTicketCreated(ticket, user);
 
   revalidatePath("/tickets");
   redirect(`/tickets/${ticket.id}`);
@@ -142,46 +92,8 @@ export async function updateTicketAction(formData: FormData): Promise<void> {
     assigneeId: newAssigneeId
   });
 
-  // Send email notifications for status changes
-  if (updatedTicket && oldTicket) {
-    try {
-      // If status changed to RESOLVED, send email to reporter (in background)
-      if (oldTicket.status !== "RESOLVED" && newStatus === "RESOLVED") {
-        const db = await readDatabase();
-        const resolver = db.users.find((u) => u.id === user.id);
-        const recipient = db.users.find((u) => u.id === oldTicket.reporterId);
-
-        if (resolver && recipient) {
-          const template = templateTicketResolved(updatedTicket, resolver);
-          const notification = findLatestQueuedNotification(db, {
-            ticketId: updatedTicket.id,
-            type: "TICKET_RESOLVED",
-            recipientEmail: recipient.email
-          });
-          await sendTrackedEmail({ notification, to: recipient.email, template });
-        }
-      }
-
-      // If assignee changed, send email to new assignee (in background)
-      if (oldTicket.assigneeId !== newAssigneeId && newAssigneeId) {
-        const db = await readDatabase();
-        const newAssignee = db.users.find((u) => u.id === newAssigneeId);
-
-        if (newAssignee && updatedTicket) {
-          const template = templateTicketAssigned(updatedTicket, newAssignee);
-          const notification = findLatestQueuedNotification(db, {
-            ticketId: updatedTicket.id,
-            type: "TICKET_ASSIGNED",
-            recipientEmail: newAssignee.email
-          });
-          await sendTrackedEmail({ notification, to: newAssignee.email, template });
-        }
-      }
-    } catch (error) {
-      console.error("Failed to send ticket update email:", error);
-      reportError(error, { context: "updateTicketAction", ticketId: ticketId });
-      // Don't throw - ticket was already updated
-    }
+  if (updatedTicket) {
+    await notifyTicketUpdated({ before: oldTicket, after: updatedTicket, actorId: user.id });
   }
 
   revalidatePath("/tickets");
@@ -221,30 +133,8 @@ export async function addCommentAction(formData: FormData): Promise<void> {
     visibility
   });
 
-  // Send email notification for public comments (in background, don't block)
   if (comment && visibility === "PUBLIC") {
-    try {
-      const db = await readDatabase();
-      const author = db.users.find((u) => u.id === user.id);
-      
-      // Determine recipient: if author is reporter, send to assignee; otherwise send to reporter
-      const recipientId = ticket.reporterId === user.id ? ticket.assigneeId : ticket.reporterId;
-      const recipient = recipientId ? db.users.find((u) => u.id === recipientId) : null;
-
-      if (author && recipient) {
-        const template = templateCommentAdded(ticket, comment, author);
-        const notification = findLatestQueuedNotification(db, {
-          ticketId: ticket.id,
-          type: "COMMENT_CREATED",
-          recipientEmail: recipient.email
-        });
-        await sendTrackedEmail({ notification, to: recipient.email, template });
-      }
-    } catch (error) {
-      console.error("Failed to initiate comment email:", error);
-      reportError(error, { context: "addCommentAction", ticketId: ticket.id });
-      // Don't throw - comment was already added
-    }
+    await notifyCommentAdded({ ticket, comment, authorId: user.id });
   }
 
   revalidatePath(`/tickets/${ticket.id}`);
