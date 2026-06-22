@@ -11,7 +11,7 @@ Aktualna lista prac pozostalych po Etapie 7, czyli po dodaniu runtime data-store
 
 ## Zrobione (po Etapie 7)
 
-- Priorytet 3 (Email) zostal zrealizowany: prawdziwa wysylka maili, szablony oraz aktualizacja `NotificationLog` na `SENT`/`FAILED`.
+- Priorytet 3 (Email) zostal zrealizowany: prawdziwa wysylka maili przez Brevo API na Railway, fallback SMTP, szablony oraz aktualizacja `NotificationLog` na `SENT`/`FAILED`.
 - Priorytet 4 (Audyt npm) zostal zrealizowany: `npm audit` jest czysty.
 - Priorytet 1 (Railway/runtime PostgreSQL) zostal zrealizowany po stronie kodu:
   - `Users`, `Stores`, `Categories`, `Tickets`, `Comments`, `TicketEvent` i `NotificationLog` maja runtime Prisma w `lib/data-store.ts`.
@@ -21,7 +21,7 @@ Aktualna lista prac pozostalych po Etapie 7, czyli po dodaniu runtime data-store
 - Priorytet 2 (Testy e2e) zostal zrealizowany:
   - Playwright jest skonfigurowany w repo, a `npm run test:e2e` przechodzi lokalnie.
   - Testy obejmuja logowanie domenowe, odrzucenie obcych domen, tworzenie ticketu, liste ticketow, panel IT, przypisanie/status oraz regresje notatek wewnetrznych.
-  - E2e uruchamia dev server z wylaczonym SMTP, zeby testy nie wykonywaly realnych prob wysylki.
+  - E2e uruchamia dev server z wylaczona wysylka email, zeby testy nie wykonywaly realnych prob wysylki.
 - Priorytet 6 (FAQ / baza wiedzy) zostal zrealizowany:
   - `lib/data-store.ts`: `listPublishedKnowledgeArticles` (z wyszukiwaniem i filtrem kategorii), `listKnowledgeArticles`, `findKnowledgeArticleBySlug`, `findKnowledgeArticleById`, `createKnowledgeArticle`, `updateKnowledgeArticle`, `deleteKnowledgeArticle` — oba runtimes (JSON + Prisma).
   - `lib/types.ts`: rozszerzony `KnowledgeArticle` o `createdById`/`updatedById`.
@@ -68,10 +68,10 @@ Aktualna lista prac pozostalych po Etapie 7, czyli po dodaniu runtime data-store
   - runtime Node zostal przypiety do `20.20.2` w `Dockerfile`, `docker-compose.yml`, `.nvmrc`, `.node-version` i `package.json#engines`,
   - Railway pozostaje na `DOCKERFILE` builderze z `railway.json`; nie trzeba ustawiac `RAILPACK_NODE_VERSION`,
   - adminowski onboarding uzywa jednorazowych linkow aktywacyjnych zamiast wysylania hasla,
-  - gdy SMTP nie dziala, `/admin/users` pokazuje awaryjny link aktywacyjny,
+  - gdy provider email nie dziala, `/admin/users` pokazuje awaryjny link aktywacyjny,
   - przycisk `Link` w tabeli uzytkownikow regeneruje token i ponawia wysylke dla aktywnych kont z `mustChangePassword=true`.
   - przycisk `Usuń` usuwa tylko konta bez historii; konta z powiazanymi ticketami/komentarzami/trescia trzeba dezaktywowac.
-  - wysylka na Railway powinna preferowac Brevo API przez `BREVO_API_KEY`; SMTP zostaje jako fallback, ale moze timeoutowac.
+  - wysylka na Railway uzywa Brevo API przez `BREVO_API_KEY`; SMTP zostaje jako fallback, ale moze timeoutowac.
 
 ## Walidacja Etapu 7 + Priorytet 6 + Priorytet 5
 
@@ -83,10 +83,10 @@ Aktualna lista prac pozostalych po Etapie 7, czyli po dodaniu runtime data-store
 
 ## Pozostale zadania deploymentowe Railway
 
-- Skonfigurowac env vars: `DATABASE_URL`, `APP_URL`, `EMAIL_FROM`, `SMTP_*`, `FIXIT_DATA_PROVIDER=prisma`.
+- Skonfigurowac env vars: `DATABASE_URL`, `APP_URL`, `BREVO_API_KEY`, zweryfikowany `EMAIL_FROM`, `FIXIT_DATA_PROVIDER=prisma`.
 - Ustalic polityke seedowania produkcji, zeby seed testowy nie tworzyl danych na produkcji.
 - Po merge do `main` sprawdzic Railway build log pod katem obrazu `node:20.20.2-bookworm-slim`.
-- Jesli SMTP nadal nie jest gotowe, uzyc awaryjnego linku aktywacyjnego z `/admin/users` dla nowo tworzonych kont.
+- SMTP nie jest wymagane na Railway, jesli dziala `BREVO_API_KEY`. Awaryjny link aktywacyjny w `/admin/users` zostaje fallbackiem przy problemach z providerem email.
 - Smoke test po kolejnych zmianach: logowanie + rejestracja + utworzenie ticketu + przypisanie/status + komentarz na staging/production.
 
 ## Priorytet 5 - Zalaczniki [ZROBIONE]
@@ -136,7 +136,7 @@ Zrealizowane:
   - Dezaktywacja/reaktywacja.
   - Przypisywanie rol, sklepu i dzialu.
   - Tworzenie nowego konta przez admina.
-  - Generowanie hasla tymczasowego i opcjonalna wysylka danych logowania e-mailem.
+  - Generowanie jednorazowego linku aktywacyjnego i opcjonalna wysylka e-mailem przez Brevo API.
 - Slowniki:
   - CRUD sklepow z blokada usuniecia przy aktywnych powiazaniach.
   - CRUD kategorii z blokada usuniecia przy aktywnych powiazaniach.

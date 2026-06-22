@@ -16,7 +16,7 @@ Stan na 2026-06-22:
 - merge `v-1.1` -> `main` uruchomil deploy na Railway poprawnie,
 - healthcheck aplikacji pozostaje oparty o `GET /api/health`.
 - Railway korzysta z `DOCKERFILE` buildera z `railway.json`; runtime Node jest przypiety w repo do `20.20.2` przez `Dockerfile`, `.nvmrc`, `.node-version` i `package.json#engines`.
-- Onboarding adminowski uzywa jednorazowych linkow aktywacyjnych. Jesli SMTP nie wysle wiadomosci, panel pokazuje awaryjny link i pozwala wygenerowac nowy link przy uzytkowniku.
+- Onboarding adminowski uzywa jednorazowych linkow aktywacyjnych. Jesli provider email nie wysle wiadomosci, panel pokazuje awaryjny link i pozwala wygenerowac nowy link przy uzytkowniku.
 
 ## 2. Wymagane zmienne srodowiskowe
 
@@ -29,11 +29,12 @@ DATABASE_URL="postgresql://..."    # Railway PostgreSQL auto-injectuje to
 APP_URL="https://twoja-aplikacja.railway.app"
 NODE_ENV=production
 
-# --- Rekomendowane do emaili na Railway: Brevo API po HTTPS ---
+# --- Email na Railway: Brevo API po HTTPS ---
 BREVO_API_KEY="xkeysib-..."
 EMAIL_FROM="FixIT <zweryfikowany-sender@proton.me>"
 
-# --- Alternatywnie: SMTP ---
+# --- Legacy fallback: SMTP ---
+# Zostaw puste/usun, jesli dziala BREVO_API_KEY. Klasyczne SMTP moze timeoutowac z Railway.
 SMTP_HOST="smtp.example.com"
 SMTP_PORT="465"
 SMTP_SECURE="true"
@@ -72,8 +73,8 @@ SMTP_TIMEOUT_MS="20000"
 W Railway Dashboard → project → Variables, ustaw:
 - `APP_URL` = URL twojej aplikacji (np. `https://fixit.up.railway.app`)
 - `NODE_ENV` = `production`
-- `BREVO_API_KEY`, `EMAIL_FROM` dla wysylki przez Brevo API po HTTPS
-- albo `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM` dla klasycznego SMTP
+- `BREVO_API_KEY`, `EMAIL_FROM` dla wysylki przez Brevo API po HTTPS.
+- `SMTP_*` nie jest potrzebne, jesli `BREVO_API_KEY` jest ustawiony. Zostaje tylko jako fallback diagnostyczny.
 
 **Nie ustawiaj `NEXTAUTH_URL` ani `NEXTAUTH_SECRET`** - aplikacja nie uzywa NextAuth.
 
@@ -127,9 +128,9 @@ Nie ma potrzeby recznego uruchamiania migracji na Railway, chyba ze diagnozujesz
 - Samodzielna rejestracja tworzy aktywne konto `REPORTER`.
 - Admin moze tworzyc konta recznie z `/admin/users`, nadawac role i wysylac jednorazowe linki aktywacyjne.
 - Admin wysyla jednorazowy link aktywacyjny e-mailem. Haslo tymczasowe nie jest wysylane w tresci wiadomosci.
-- Jesli SMTP jest skonfigurowane, panel admina wysle link automatycznie.
-- Na Railway rekomendowana jest wysylka przez Brevo API (`BREVO_API_KEY`), bo klasyczne porty SMTP moga timeoutowac.
-- Jesli Brevo API/SMTP nie jest skonfigurowane albo wysylka sie nie powiedzie, panel pokazuje awaryjny link aktywacyjny do recznego przekazania.
+- Na Railway wysylka produkcyjna jest skonfigurowana przez Brevo API (`BREVO_API_KEY`) i zweryfikowany `EMAIL_FROM`.
+- Klasyczne SMTP zostaje tylko jako fallback, bo porty SMTP potrafia timeoutowac z cloud networks.
+- Jesli Brevo API nie jest skonfigurowane albo wysylka sie nie powiedzie, panel pokazuje awaryjny link aktywacyjny do recznego przekazania.
 - Przy aktywnym koncie z `mustChangePassword=true` przycisk `Link` w `/admin/users` regeneruje token i ponawia wysylke.
 - Usuniecie konta jest twarde tylko dla uzytkownikow bez historii. Konta z ticketami, komentarzami, artykulami, szablonami lub makrami nalezy dezaktywowac.
 
@@ -151,12 +152,12 @@ Rozwiazania:
 - [ ] Wszystkie env vars ustawione w Railway Dashboard
 - [ ] `DATABASE_URL` wskazuje na Railway PostgreSQL (auto-injected)
 - [ ] `NODE_ENV=production` ustawione
-- [ ] `SMTP_*` skonfigurowane (jesli potrzebujesz powiadomien email)
+- [ ] `BREVO_API_KEY` i zweryfikowany `EMAIL_FROM` skonfigurowane dla powiadomien email
 - [ ] Railway Bucket S3 skonfigurowany (jesli potrzebujesz persistent zalacznikow)
 - [ ] Domena `bagietka.pl` wymuszona po stronie serwera (dziala domyslnie)
 - [ ] Healthcheck dziala: `GET /api/health` → `{"status":"ok","database":"connected"}`
 - [ ] Publiczna rejestracja `/register` dziala dla `@bagietka.pl`
-- [ ] Tworzenie usera z `/admin/users` wysyla mail poprawnie (jesli SMTP wlaczone)
+- [ ] Tworzenie usera z `/admin/users` wysyla mail poprawnie przez Brevo API
 
 ## 8. Backupy i bezpieczenstwo
 
@@ -177,7 +178,7 @@ Przed uzyciem produkcyjnym warto ustalic:
 | Blad SSL przy laczniu z baza | Railway wymaga SSL | Entrypoint automatycznie dodaje `?sslmode=require` |
 | Brak tabel po deployu | Migracje nie dzialaja | Sprawdz logi: `npx prisma migrate deploy` |
 | Zalaczniki zniknely po redeploy | Brak S3 Bucket | Skonfiguruj Railway Bucket (zobacz sekcje 6) |
-| Email nie dziala | Brak `BREVO_API_KEY`/SMTP albo blad autoryzacji providera | Na Railway ustaw `BREVO_API_KEY` i `EMAIL_FROM`; do czasu naprawy uzyj awaryjnego linku aktywacyjnego w `/admin/users` |
+| Email nie dziala | Brak `BREVO_API_KEY`, niezweryfikowany `EMAIL_FROM` albo blad autoryzacji Brevo | Na Railway ustaw `BREVO_API_KEY` i zweryfikowany `EMAIL_FROM`; do czasu naprawy uzyj awaryjnego linku aktywacyjnego w `/admin/users` |
 | Email konczy sie `SMTP timeout` | Serwer SMTP nie odpowiada z Railway albo handshake trwa dluzej niz timeout | Sprawdz `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`; ustaw `SMTP_TIMEOUT_MS=20000` lub `30000`; jesli dalej timeout, provider/port jest niedostepny z Railway |
 | Vitest/rolldown sypie bledem `node:util styleText` | Uruchomiono testy na Node 18 | Przelacz na Node.js `20.20.2` (`nvm use`) albo uruchom testy w Dockerze |
 | Strona laduje sie bez danych | `FIXIT_DATA_PROVIDER` wymusza JSON | Usun zmienna lub ustaw na `prisma` |

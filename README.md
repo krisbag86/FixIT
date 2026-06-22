@@ -79,14 +79,14 @@ Produkcyjny auto-deploy jest uruchamiany z brancha `main`.
 | `DATABASE_URL` | URL połączenia z PostgreSQL | `postgresql://...` |
 | `APP_URL` | Publiczny URL aplikacji | `https://twoja-aplikacja.up.railway.app` |
 | `NODE_ENV` | Tryb pracy aplikacji | `production` |
-| `EMAIL_FROM` | Adres nadawcy e-mail | `FixIT <it@bagietka.pl>` |
-| `BREVO_API_KEY` | Klucz Brevo API do wysyłki przez HTTPS, rekomendowane na Railway | |
-| `SMTP_HOST` | Host serwera SMTP | |
-| `SMTP_PORT` | Port SMTP | `465` |
-| `SMTP_SECURE` | Czy używać TLS/SSL dla SMTP | `true` |
-| `SMTP_USER` | Użytkownik SMTP | |
-| `SMTP_PASSWORD` | Hasło SMTP | |
-| `SMTP_TIMEOUT_MS` | Timeout połączenia i wysyłki SMTP | `20000` |
+| `EMAIL_FROM` | Zweryfikowany nadawca Brevo | `FixIT <sender@proton.me>` |
+| `BREVO_API_KEY` | Klucz Brevo API do wysyłki przez HTTPS, rekomendowane na Railway | `xkeysib-...` |
+| `SMTP_HOST` | Opcjonalny fallback SMTP, ignorowany gdy ustawiono `BREVO_API_KEY` | |
+| `SMTP_PORT` | Opcjonalny port SMTP | `465` |
+| `SMTP_SECURE` | Opcjonalny TLS/SSL dla SMTP | `true` |
+| `SMTP_USER` | Opcjonalny użytkownik SMTP | |
+| `SMTP_PASSWORD` | Opcjonalne hasło SMTP | |
+| `SMTP_TIMEOUT_MS` | Timeout SMTP/Brevo API | `20000` |
 | `S3_ENDPOINT` | Endpoint S3 (Railway Bucket) | |
 | `S3_ACCESS_KEY_ID` | Klucz dostępu S3 | |
 | `S3_SECRET_ACCESS_KEY` | Sekretny klucz S3 | |
@@ -102,7 +102,7 @@ Produkcyjny auto-deploy jest uruchamiany z brancha `main`.
 - Każdy pracownik z adresem `@bagietka.pl` może samodzielnie założyć konto przez `/register`.
 - Samodzielna rejestracja tworzy konto z rolą `REPORTER`.
 - Administrator może dodać użytkownika ręcznie w `/admin/users` i opcjonalnie wysłać jednorazowy link aktywacyjny e-mailem.
-- Jeśli Brevo API/SMTP nie jest skonfigurowane albo wysyłka się nie powiedzie, panel pokaże awaryjny link aktywacyjny. Przy istniejącym aktywnym koncie bez ustawionego hasła można kliknąć `Link`, aby wygenerować i wysłać nowy link.
+- Produkcyjna wysyłka na Railway działa przez Brevo API (`BREVO_API_KEY`) i zweryfikowany `EMAIL_FROM`. Jeśli wysyłka się nie powiedzie, panel pokaże awaryjny link aktywacyjny. Przy istniejącym aktywnym koncie bez ustawionego hasła można kliknąć `Link`, aby wygenerować i wysłać nowy link.
 - Usunięcie konta jest dostępne tylko dla użytkowników bez historii zgłoszeń/komentarzy/treści. Konta z historią należy dezaktywować, aby zachować spójność danych.
 - Konta tworzone przez admina mają wymuszoną zmianę hasła przy pierwszym logowaniu.
 - Seed produkcyjny jest wyłączony domyślnie. Bootstrap admina uruchamiaj tylko świadomie przez `FIXIT_RUN_SEED=true` i silne tymczasowe hasło w `FIXIT_BOOTSTRAP_ADMIN_PASSWORD`.
@@ -184,7 +184,7 @@ npm run test:e2e
 | **TypeScript** | Typowanie |
 | **Railway** | Hosting i infrastruktura |
 | **AWS SDK S3** | Przechowywanie załączników |
-| **Nodemailer** | Wysyłanie e-maili |
+| **Brevo API / Nodemailer** | Wysyłanie e-maili (Brevo API na Railway, SMTP jako fallback) |
 | **Playwright** | Testy E2E |
 | **Vitest** | Testy jednostkowe |
 

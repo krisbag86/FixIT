@@ -72,8 +72,8 @@ W aktualnym MVP:
 
 - `/register` pozwala pracownikowi samodzielnie zalozyc konto `REPORTER`,
 - `/admin/users` pozwala adminowi utworzyc konto z dowolna rola biznesowa,
-- tworzenie usera przez admina generuje haslo tymczasowe i ustawia wymuszona zmiane hasla przy pierwszym logowaniu,
-- wysylka danych logowania e-mailem jest opcjonalna i zalezy od konfiguracji SMTP.
+- tworzenie usera przez admina generuje jednorazowy link aktywacyjny i ustawia wymuszona zmiane hasla przy pierwszym logowaniu,
+- wysylka linku aktywacyjnego e-mailem uzywa Brevo API na Railway, a SMTP zostaje tylko jako fallback.
 
 ## 5. Role
 

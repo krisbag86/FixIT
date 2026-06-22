@@ -25,7 +25,7 @@ Dokumentacja startowa dla wewnetrznej aplikacji webowej do obslugi zgloszen IT d
 - Prisma
 - PostgreSQL
 - Railway
-- Email provider: Resend, SMTP lub firmowy provider
+- Email provider: Brevo API na Railway, SMTP jako fallback
 
 ## Glowny cel MVP
 

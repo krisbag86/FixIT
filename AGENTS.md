@@ -41,7 +41,7 @@ The app uses dual storage—JSON file (dev/fallback) or Prisma/PostgreSQL. Contr
 - **Ticket numbers:** Format `IT-YYYY-NNNN` (see `lib/ticket-number.ts`)
 - **Internal notes:** Never exposed to users with `visibility: PUBLIC` filter
 - **Admin protection:** Cannot delete the last active admin (enforced in `lib/data-store.ts`)
-- **Admin invites:** Setup links are one-time tokens. If SMTP fails, `/admin/users` shows a fallback activation link and the `Link` button can regenerate a token for active users with `mustChangePassword=true`.
+- **Admin invites:** Setup links are one-time tokens. If the email provider fails, `/admin/users` shows a fallback activation link and the `Link` button can regenerate a token for active users with `mustChangePassword=true`.
 - **Email provider:** Prefer Brevo API via `BREVO_API_KEY` on Railway; SMTP can timeout from cloud networks.
 - **User deletion:** Hard delete is allowed only for users without historical records; users with tickets/comments/content should be deactivated.
 

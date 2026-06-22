@@ -29,7 +29,7 @@ Rekomendowany cykl:
 - PostgreSQL
 - Railway
 - Auth.js lub magic link / credentials auth dla MVP
-- Resend/SMTP do maili
+- Brevo API do maili na Railway, SMTP jako fallback
 
 ## 3. Faza 0 - Fundament
 
