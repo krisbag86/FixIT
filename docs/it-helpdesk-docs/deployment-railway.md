@@ -29,14 +29,17 @@ DATABASE_URL="postgresql://..."    # Railway PostgreSQL auto-injectuje to
 APP_URL="https://twoja-aplikacja.railway.app"
 NODE_ENV=production
 
-# --- Wymagane do emaili ---
+# --- Rekomendowane do emaili na Railway: Brevo API po HTTPS ---
+BREVO_API_KEY="xkeysib-..."
+EMAIL_FROM="FixIT <zweryfikowany-sender@proton.me>"
+
+# --- Alternatywnie: SMTP ---
 SMTP_HOST="smtp.example.com"
 SMTP_PORT="465"
 SMTP_SECURE="true"
 SMTP_USER="nadawca@example.com"
 SMTP_PASSWORD="twoje-haslo"
 SMTP_TIMEOUT_MS="20000"
-EMAIL_FROM="IT Helpdesk <it@bagietka.pl>"
 
 # --- Opcjonalnie: Railway S3 Bucket do zalacznikow ---
 # Bez tego zalaczniki sa przechowywane lokalnie i giną przy redeploy.
@@ -69,7 +72,8 @@ EMAIL_FROM="IT Helpdesk <it@bagietka.pl>"
 W Railway Dashboard → project → Variables, ustaw:
 - `APP_URL` = URL twojej aplikacji (np. `https://fixit.up.railway.app`)
 - `NODE_ENV` = `production`
-- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM`
+- `BREVO_API_KEY`, `EMAIL_FROM` dla wysylki przez Brevo API po HTTPS
+- albo `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM` dla klasycznego SMTP
 
 **Nie ustawiaj `NEXTAUTH_URL` ani `NEXTAUTH_SECRET`** - aplikacja nie uzywa NextAuth.
 
@@ -124,7 +128,8 @@ Nie ma potrzeby recznego uruchamiania migracji na Railway, chyba ze diagnozujesz
 - Admin moze tworzyc konta recznie z `/admin/users`, nadawac role i wysylac jednorazowe linki aktywacyjne.
 - Admin wysyla jednorazowy link aktywacyjny e-mailem. Haslo tymczasowe nie jest wysylane w tresci wiadomosci.
 - Jesli SMTP jest skonfigurowane, panel admina wysle link automatycznie.
-- Jesli SMTP nie jest skonfigurowane albo wysylka sie nie powiedzie, panel pokazuje awaryjny link aktywacyjny do recznego przekazania.
+- Na Railway rekomendowana jest wysylka przez Brevo API (`BREVO_API_KEY`), bo klasyczne porty SMTP moga timeoutowac.
+- Jesli Brevo API/SMTP nie jest skonfigurowane albo wysylka sie nie powiedzie, panel pokazuje awaryjny link aktywacyjny do recznego przekazania.
 - Przy aktywnym koncie z `mustChangePassword=true` przycisk `Link` w `/admin/users` regeneruje token i ponawia wysylke.
 - Usuniecie konta jest twarde tylko dla uzytkownikow bez historii. Konta z ticketami, komentarzami, artykulami, szablonami lub makrami nalezy dezaktywowac.
 
@@ -172,7 +177,7 @@ Przed uzyciem produkcyjnym warto ustalic:
 | Blad SSL przy laczniu z baza | Railway wymaga SSL | Entrypoint automatycznie dodaje `?sslmode=require` |
 | Brak tabel po deployu | Migracje nie dzialaja | Sprawdz logi: `npx prisma migrate deploy` |
 | Zalaczniki zniknely po redeploy | Brak S3 Bucket | Skonfiguruj Railway Bucket (zobacz sekcje 6) |
-| Email nie dziala | Brak SMTP albo blad autoryzacji SMTP | Skonfiguruj SMTP w zmiennych srodowiskowych; do czasu naprawy uzyj awaryjnego linku aktywacyjnego w `/admin/users` |
+| Email nie dziala | Brak `BREVO_API_KEY`/SMTP albo blad autoryzacji providera | Na Railway ustaw `BREVO_API_KEY` i `EMAIL_FROM`; do czasu naprawy uzyj awaryjnego linku aktywacyjnego w `/admin/users` |
 | Email konczy sie `SMTP timeout` | Serwer SMTP nie odpowiada z Railway albo handshake trwa dluzej niz timeout | Sprawdz `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`; ustaw `SMTP_TIMEOUT_MS=20000` lub `30000`; jesli dalej timeout, provider/port jest niedostepny z Railway |
 | Vitest/rolldown sypie bledem `node:util styleText` | Uruchomiono testy na Node 18 | Przelacz na Node.js `20.20.2` (`nvm use`) albo uruchom testy w Dockerze |
 | Strona laduje sie bez danych | `FIXIT_DATA_PROVIDER` wymusza JSON | Usun zmienna lub ustaw na `prisma` |

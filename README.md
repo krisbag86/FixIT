@@ -80,6 +80,7 @@ Produkcyjny auto-deploy jest uruchamiany z brancha `main`.
 | `APP_URL` | Publiczny URL aplikacji | `https://twoja-aplikacja.up.railway.app` |
 | `NODE_ENV` | Tryb pracy aplikacji | `production` |
 | `EMAIL_FROM` | Adres nadawcy e-mail | `FixIT <it@bagietka.pl>` |
+| `BREVO_API_KEY` | Klucz Brevo API do wysyłki przez HTTPS, rekomendowane na Railway | |
 | `SMTP_HOST` | Host serwera SMTP | |
 | `SMTP_PORT` | Port SMTP | `465` |
 | `SMTP_SECURE` | Czy używać TLS/SSL dla SMTP | `true` |
@@ -101,7 +102,7 @@ Produkcyjny auto-deploy jest uruchamiany z brancha `main`.
 - Każdy pracownik z adresem `@bagietka.pl` może samodzielnie założyć konto przez `/register`.
 - Samodzielna rejestracja tworzy konto z rolą `REPORTER`.
 - Administrator może dodać użytkownika ręcznie w `/admin/users` i opcjonalnie wysłać jednorazowy link aktywacyjny e-mailem.
-- Jeśli SMTP nie jest skonfigurowane albo wysyłka się nie powiedzie, panel pokaże awaryjny link aktywacyjny. Przy istniejącym aktywnym koncie bez ustawionego hasła można kliknąć `Link`, aby wygenerować i wysłać nowy link.
+- Jeśli Brevo API/SMTP nie jest skonfigurowane albo wysyłka się nie powiedzie, panel pokaże awaryjny link aktywacyjny. Przy istniejącym aktywnym koncie bez ustawionego hasła można kliknąć `Link`, aby wygenerować i wysłać nowy link.
 - Usunięcie konta jest dostępne tylko dla użytkowników bez historii zgłoszeń/komentarzy/treści. Konta z historią należy dezaktywować, aby zachować spójność danych.
 - Konta tworzone przez admina mają wymuszoną zmianę hasła przy pierwszym logowaniu.
 - Seed produkcyjny jest wyłączony domyślnie. Bootstrap admina uruchamiaj tylko świadomie przez `FIXIT_RUN_SEED=true` i silne tymczasowe hasło w `FIXIT_BOOTSTRAP_ADMIN_PASSWORD`.

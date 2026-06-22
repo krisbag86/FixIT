@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { sendEmail } from '@/lib/email';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { sendEmail, sendEmailWithResult } from '@/lib/email';
 import {
   templateUserInvitation,
   templateTicketCreated,
@@ -195,8 +195,16 @@ describe('Email Templates', () => {
 });
 
 describe('Email Sending', () => {
+  const originalFetch = global.fetch;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env.BREVO_API_KEY;
+    delete process.env.EMAIL_FROM;
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
   });
 
   it('should return false when SMTP is not configured', async () => {
@@ -222,5 +230,55 @@ describe('Email Sending', () => {
     expect(payload.to).toBeDefined();
     expect(payload.subject).toBeDefined();
     expect(payload.html).toBeDefined();
+  });
+
+  it('should send through Brevo API when BREVO_API_KEY is configured', async () => {
+    process.env.BREVO_API_KEY = 'test-api-key';
+    process.env.EMAIL_FROM = 'FixIT <sender@proton.me>';
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ messageId: 'msg-123' }), { status: 201 }));
+    global.fetch = fetchMock;
+
+    const result = await sendEmailWithResult({
+      to: 'test@bagietka.pl',
+      subject: 'Test Email',
+      html: '<p>This is a test</p>',
+      text: 'This is a test'
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.brevo.com/v3/smtp/email',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          'api-key': 'test-api-key',
+          'content-type': 'application/json'
+        }),
+        body: JSON.stringify({
+          sender: { name: 'FixIT', email: 'sender@proton.me' },
+          to: [{ email: 'test@bagietka.pl' }],
+          subject: 'Test Email',
+          htmlContent: '<p>This is a test</p>',
+          textContent: 'This is a test'
+        })
+      })
+    );
+  });
+
+  it('should return Brevo API errors', async () => {
+    process.env.BREVO_API_KEY = 'test-api-key';
+    process.env.EMAIL_FROM = 'FixIT <sender@proton.me>';
+    global.fetch = vi.fn(async () => new Response('invalid sender', { status: 400, statusText: 'Bad Request' }));
+
+    const result = await sendEmailWithResult({
+      to: 'test@bagietka.pl',
+      subject: 'Test Email',
+      html: '<p>This is a test</p>'
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: 'Brevo API error 400: invalid sender'
+    });
   });
 });

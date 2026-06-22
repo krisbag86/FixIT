@@ -71,6 +71,7 @@ Aktualna lista prac pozostalych po Etapie 7, czyli po dodaniu runtime data-store
   - gdy SMTP nie dziala, `/admin/users` pokazuje awaryjny link aktywacyjny,
   - przycisk `Link` w tabeli uzytkownikow regeneruje token i ponawia wysylke dla aktywnych kont z `mustChangePassword=true`.
   - przycisk `Usuń` usuwa tylko konta bez historii; konta z powiazanymi ticketami/komentarzami/trescia trzeba dezaktywowac.
+  - wysylka na Railway powinna preferowac Brevo API przez `BREVO_API_KEY`; SMTP zostaje jako fallback, ale moze timeoutowac.
 
 ## Walidacja Etapu 7 + Priorytet 6 + Priorytet 5
 
