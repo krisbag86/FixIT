@@ -11,6 +11,10 @@ export function getLoginUrl(): string {
   return `${baseUrl}/login`;
 }
 
+export function getSetupUrl(setupToken: string): string {
+  return `${baseUrl}/setup/${encodeURIComponent(setupToken)}`;
+}
+
 export interface EmailTemplate {
   subject: string;
   html: string;
@@ -18,9 +22,7 @@ export interface EmailTemplate {
 }
 
 export function templateUserInvitation(user: User, _temporaryPassword: string, setupToken?: string): EmailTemplate {
-  const setupUrl = setupToken
-    ? `${getLoginUrl().replace("/login", "")}/setup/${setupToken}`
-    : getLoginUrl();
+  const setupUrl = setupToken ? getSetupUrl(setupToken) : getLoginUrl();
   const subject = `[FixIT] Dostep do systemu FixIT`;
 
   const html = `

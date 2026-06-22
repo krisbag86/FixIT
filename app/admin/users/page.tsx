@@ -3,6 +3,8 @@ import { Shield, ShieldOff, Users } from "lucide-react";
 import { updateUserAdminAction } from "@/app/admin/actions";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { CreateUserForm } from "@/components/admin/create-user-form";
+import { UserDeleteButton } from "@/components/admin/user-delete-button";
+import { UserInviteButton } from "@/components/admin/user-invite-button";
 import { AppShell } from "@/components/app-shell";
 import { RoleBadge } from "@/components/badges";
 import { requireUser } from "@/lib/auth";
@@ -60,8 +62,8 @@ export default async function AdminUsersPage({
       </form>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)]">
-        <div className="overflow-hidden rounded-md border border-black/10 dark:border-white/10">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-md border border-black/10 dark:border-white/10">
+          <table className="w-full min-w-[76rem] text-sm">
             <thead>
               <tr className="bg-white/70 text-left dark:bg-white/10">
                 <th className="px-4 py-3 font-bold">Użytkownik</th>
@@ -102,38 +104,49 @@ export default async function AdminUsersPage({
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <form action={updateUserAdminAction} className="grid gap-2 lg:grid-cols-[minmax(9rem,1fr)_minmax(11rem,1fr)_minmax(9rem,1fr)_auto_auto]">
-                        <input type="hidden" name="id" value={item.id} />
-                        <select name="role" defaultValue={item.role} className={fieldClass}>
-                          {roleOptions.map((role) => (
-                            <option key={role} value={role}>
-                              {roleLabels[role]}
-                            </option>
-                          ))}
-                        </select>
-                        <select name="storeId" defaultValue={item.storeId ?? ""} className={fieldClass}>
-                          <option value="">Bez sklepu</option>
-                          {stores.map((entry) => (
-                            <option key={entry.id} value={entry.id}>
-                              {entry.code} - {entry.name}
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          type="text"
-                          name="department"
-                          defaultValue={item.department ?? ""}
-                          placeholder="Dział"
-                          className={fieldClass}
-                        />
-                        <label className="inline-flex items-center gap-2 rounded-md border border-black/10 bg-white px-3 text-xs font-bold dark:border-white/10 dark:bg-white/10">
-                          <input type="checkbox" name="isActive" defaultChecked={item.isActive} className="h-4 w-4" />
-                          Aktywny
-                        </label>
-                        <button className="h-10 rounded-md bg-mint px-4 text-sm font-bold text-white transition hover:bg-mint/90" type="submit">
-                          Zapisz
-                        </button>
-                      </form>
+                      <div className="grid gap-2">
+                        <form action={updateUserAdminAction} className="grid gap-2 xl:grid-cols-[minmax(9rem,1fr)_minmax(11rem,1fr)_minmax(9rem,1fr)_auto_auto]">
+                          <input type="hidden" name="id" value={item.id} />
+                          <select name="role" defaultValue={item.role} className={fieldClass}>
+                            {roleOptions.map((role) => (
+                              <option key={role} value={role}>
+                                {roleLabels[role]}
+                              </option>
+                            ))}
+                          </select>
+                          <select name="storeId" defaultValue={item.storeId ?? ""} className={fieldClass}>
+                            <option value="">Bez sklepu</option>
+                            {stores.map((entry) => (
+                              <option key={entry.id} value={entry.id}>
+                                {entry.code} - {entry.name}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            type="text"
+                            name="department"
+                            defaultValue={item.department ?? ""}
+                            placeholder="Dział"
+                            className={fieldClass}
+                          />
+                          <label className="inline-flex items-center gap-2 rounded-md border border-black/10 bg-white px-3 text-xs font-bold dark:border-white/10 dark:bg-white/10">
+                            <input type="checkbox" name="isActive" defaultChecked={item.isActive} className="h-4 w-4" />
+                            Aktywny
+                          </label>
+                          <button className="h-10 rounded-md bg-mint px-4 text-sm font-bold text-white transition hover:bg-mint/90" type="submit">
+                            Zapisz
+                          </button>
+                        </form>
+                        <div className="flex flex-wrap items-start gap-2">
+                          <UserInviteButton userId={item.id} disabled={!item.isActive || !item.mustChangePassword} />
+                          <UserDeleteButton
+                            userId={item.id}
+                            userEmail={item.email}
+                            disabled={item.id === user.id}
+                            disabledReason="Nie możesz usunąć własnego konta."
+                          />
+                        </div>
+                      </div>
                     </td>
                   </tr>
                 );

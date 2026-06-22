@@ -236,4 +236,52 @@ describe("user creation", () => {
     expect(logs[0]?.action).toBe("USER_CREATED");
     expect(logs[0]?.entityId).toBe(user.id);
   });
+
+  it("deletes a user without historical records and writes an audit log", async () => {
+    const { createUser, deleteUserAdmin, findUserByEmail, listAdminAuditLogs } = await import("@/lib/data-store");
+
+    const user = await createUser({
+      name: "Jan Kowalski",
+      email: "jan.kowalski@bagietka.pl",
+      role: "REPORTER",
+      isActive: true,
+      passwordHash: "salt:hash",
+      mustChangePassword: true,
+      actorId: "usr_admin"
+    });
+
+    await expect(deleteUserAdmin({ userId: user.id, actorId: "usr_admin" })).resolves.toBe(true);
+
+    expect(await findUserByEmail("jan.kowalski@bagietka.pl", { includeInactive: true })).toBeUndefined();
+    const logs = await listAdminAuditLogs(5);
+    expect(logs[0]?.action).toBe("USER_DELETED");
+    expect(logs[0]?.entityId).toBe(user.id);
+  });
+
+  it("blocks deleting a user with reported tickets", async () => {
+    const { createTicket, createUser, deleteUserAdmin } = await import("@/lib/data-store");
+
+    const user = await createUser({
+      name: "Jan Kowalski",
+      email: "jan.kowalski@bagietka.pl",
+      role: "REPORTER",
+      isActive: true,
+      passwordHash: "salt:hash",
+      mustChangePassword: false
+    });
+
+    await createTicket({
+      title: "Test",
+      description: "Ticket created by reporter",
+      blocksWork: false,
+      contact: user.email,
+      categoryId: "cat_other",
+      reporterId: user.id,
+      priority: "NORMAL"
+    });
+
+    await expect(deleteUserAdmin({ userId: user.id, actorId: "usr_admin" })).rejects.toThrow(
+      "Dezaktywuj konto zamiast usuwać"
+    );
+  });
 });

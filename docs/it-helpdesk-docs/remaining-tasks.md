@@ -62,8 +62,15 @@ Aktualna lista prac pozostalych po Etapie 7, czyli po dodaniu runtime data-store
 - Auth / onboarding uzytkownikow zostaly rozszerzone:
   - publiczna rejestracja `/register` dla adresow w domenie `bagietka.pl`,
   - self-registration tworzy konto `REPORTER` i od razu loguje do aplikacji,
-  - `/admin/users` pozwala utworzyc konto recznie, wygenerowac haslo tymczasowe i opcjonalnie wyslac je e-mailem,
+  - `/admin/users` pozwala utworzyc konto recznie i opcjonalnie wyslac jednorazowy link aktywacyjny e-mailem,
   - konta tworzone przez admina maja wymuszona zmiane hasla przy pierwszym logowaniu.
+- Aktualizacja 2026-06-22:
+  - runtime Node zostal przypiety do `20.20.2` w `Dockerfile`, `docker-compose.yml`, `.nvmrc`, `.node-version` i `package.json#engines`,
+  - Railway pozostaje na `DOCKERFILE` builderze z `railway.json`; nie trzeba ustawiac `RAILPACK_NODE_VERSION`,
+  - adminowski onboarding uzywa jednorazowych linkow aktywacyjnych zamiast wysylania hasla,
+  - gdy SMTP nie dziala, `/admin/users` pokazuje awaryjny link aktywacyjny,
+  - przycisk `Link` w tabeli uzytkownikow regeneruje token i ponawia wysylke dla aktywnych kont z `mustChangePassword=true`.
+  - przycisk `Usuń` usuwa tylko konta bez historii; konta z powiazanymi ticketami/komentarzami/trescia trzeba dezaktywowac.
 
 ## Walidacja Etapu 7 + Priorytet 6 + Priorytet 5
 
@@ -77,6 +84,8 @@ Aktualna lista prac pozostalych po Etapie 7, czyli po dodaniu runtime data-store
 
 - Skonfigurowac env vars: `DATABASE_URL`, `APP_URL`, `EMAIL_FROM`, `SMTP_*`, `FIXIT_DATA_PROVIDER=prisma`.
 - Ustalic polityke seedowania produkcji, zeby seed testowy nie tworzyl danych na produkcji.
+- Po merge do `main` sprawdzic Railway build log pod katem obrazu `node:20.20.2-bookworm-slim`.
+- Jesli SMTP nadal nie jest gotowe, uzyc awaryjnego linku aktywacyjnego z `/admin/users` dla nowo tworzonych kont.
 - Smoke test po kolejnych zmianach: logowanie + rejestracja + utworzenie ticketu + przypisanie/status + komentarz na staging/production.
 
 ## Priorytet 5 - Zalaczniki [ZROBIONE]

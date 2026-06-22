@@ -1,6 +1,6 @@
 services:
   app:
-    image: node:20-bookworm-slim
+    image: node:20.20.2-bookworm-slim
     working_dir: /app
     command: sh -c "npm install && npm run dev -- --hostname 0.0.0.0"
     environment:
@@ -24,7 +24,7 @@ services:
         condition: service_completed_successfully
 
   migrate:
-    image: node:20-bookworm-slim
+    image: node:20.20.2-bookworm-slim
     working_dir: /app
     command: sh -c "npm install && npm run db:migrate:deploy"
     environment:
@@ -37,7 +37,7 @@ services:
         condition: service_healthy
 
   seed:
-    image: node:20-bookworm-slim
+    image: node:20.20.2-bookworm-slim
     working_dir: /app
     command: sh -c "npm run db:generate && npm run db:seed"
     environment:

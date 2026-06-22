@@ -2,6 +2,8 @@
 
 Docker jest rekomendowanym trybem lokalnym dla FixIT, szczegolnie na Windows/WSL.
 
+Aktualny runtime projektu: Node.js `20.20.2`.
+
 ## Dlaczego Docker
 
 - izoluje wersje Node.js i npm,
@@ -15,6 +17,8 @@ Docker jest rekomendowanym trybem lokalnym dla FixIT, szczegolnie na Windows/WSL
 ```bash
 docker compose up
 ```
+
+`docker-compose.yml` uzywa obrazu `node:20.20.2-bookworm-slim`, czyli tej samej wersji Node co produkcyjny `Dockerfile`.
 
 Aplikacja bedzie dostepna pod:
 

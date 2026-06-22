@@ -649,6 +649,154 @@ export async function updateUserAdmin(input: {
   });
 }
 
+function formatUserDeleteBlockers(blockers: string[]): string {
+  return `Nie można usunąć użytkownika z powiązaną historią (${blockers.join(", ")}). Dezaktywuj konto zamiast usuwać.`;
+}
+
+function getJsonUserDeleteBlockers(database: Database, userId: string): string[] {
+  const blockers: string[] = [];
+
+  if (database.tickets.some((ticket) => ticket.reporterId === userId)) blockers.push("zgłoszenia jako zgłaszający");
+  if (database.comments.some((comment) => comment.authorId === userId)) blockers.push("komentarze");
+  if (database.knowledgeArticles.some((article) => article.createdById === userId)) blockers.push("artykuły bazy wiedzy");
+  if (database.responseTemplates.some((template) => template.createdById === userId)) blockers.push("szablony odpowiedzi");
+  if (database.responseMacros.some((macro) => macro.createdById === userId)) blockers.push("makra odpowiedzi");
+
+  return blockers;
+}
+
+export async function deleteUserAdmin(input: { userId: string; actorId: string }): Promise<boolean> {
+  if (input.userId === input.actorId) {
+    throw new Error("Nie możesz usunąć własnego konta.");
+  }
+
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const existing = await db.user.findUnique({ where: { id: input.userId } });
+
+    if (!existing) {
+      return false;
+    }
+
+    if (existing.role === "ADMIN" && existing.isActive) {
+      await ensureActiveAdminRemains(existing.id, "REPORTER", false);
+    }
+
+    const [reportedTickets, comments, articlesCreated, responseTemplates, responseMacros] = await Promise.all([
+      db.ticket.count({ where: { reporterId: input.userId } }),
+      db.ticketComment.count({ where: { authorId: input.userId } }),
+      db.knowledgeArticle.count({ where: { createdById: input.userId } }),
+      db.responseTemplate.count({ where: { createdById: input.userId } }),
+      db.responseMacro.count({ where: { createdById: input.userId } })
+    ]);
+    const blockers = [
+      reportedTickets > 0 ? "zgłoszenia jako zgłaszający" : undefined,
+      comments > 0 ? "komentarze" : undefined,
+      articlesCreated > 0 ? "artykuły bazy wiedzy" : undefined,
+      responseTemplates > 0 ? "szablony odpowiedzi" : undefined,
+      responseMacros > 0 ? "makra odpowiedzi" : undefined
+    ].filter((blocker): blocker is string => Boolean(blocker));
+
+    if (blockers.length > 0) {
+      throw new Error(formatUserDeleteBlockers(blockers));
+    }
+
+    await db.$transaction(async (tx) => {
+      await tx.ticket.updateMany({
+        where: { assigneeId: input.userId },
+        data: { assigneeId: null }
+      });
+      await tx.ticketEvent.updateMany({
+        where: { actorId: input.userId },
+        data: { actorId: null }
+      });
+      await tx.category.updateMany({
+        where: { defaultAssigneeId: input.userId },
+        data: { defaultAssigneeId: null }
+      });
+
+      await tx.adminAuditLog.create({
+        data: {
+          actorId: input.actorId,
+          action: "USER_DELETED",
+          entityType: "USER",
+          entityId: existing.id,
+          summary: `Użytkownik ${existing.email}: usunięto konto`,
+          payload: {
+            email: existing.email,
+            rola: existing.role,
+            aktywny: existing.isActive ? "tak" : "nie"
+          }
+        }
+      });
+
+      await tx.user.delete({ where: { id: input.userId } });
+    });
+
+    return true;
+  }
+
+  return withDatabase((database) => {
+    const user = database.users.find((item) => item.id === input.userId);
+
+    if (!user) {
+      return false;
+    }
+
+    if (user.role === "ADMIN" && user.isActive) {
+      const activeAdminCount = database.users.filter((item) => item.role === "ADMIN" && item.isActive && item.id !== user.id).length;
+
+      if (activeAdminCount === 0) {
+        throw new Error("Nie można odebrać ostatniego aktywnego administratora.");
+      }
+    }
+
+    const blockers = getJsonUserDeleteBlockers(database, input.userId);
+    if (blockers.length > 0) {
+      throw new Error(formatUserDeleteBlockers(blockers));
+    }
+
+    database.tickets.forEach((ticket) => {
+      if (ticket.assigneeId === input.userId) {
+        ticket.assigneeId = undefined;
+      }
+    });
+    database.events.forEach((event) => {
+      if (event.actorId === input.userId) {
+        event.actorId = undefined;
+      }
+    });
+    database.attachments.forEach((attachment) => {
+      if (attachment.uploadedById === input.userId) {
+        attachment.uploadedById = undefined;
+      }
+    });
+    database.sessions = database.sessions.filter((session) => session.userId !== input.userId);
+    database.setupTokens = database.setupTokens.filter((token) => token.email !== user.email);
+    database.adminAuditLogs.forEach((log) => {
+      if (log.actorId === input.userId) {
+        log.actorId = undefined;
+      }
+    });
+
+    appendAdminAuditLog(database, {
+      actorId: input.actorId,
+      action: "USER_DELETED",
+      entityType: "USER",
+      entityId: user.id,
+      summary: `Użytkownik ${user.email}: usunięto konto`,
+      payload: {
+        email: user.email,
+        rola: user.role,
+        aktywny: user.isActive ? "tak" : "nie"
+      }
+    });
+
+    database.users = database.users.filter((item) => item.id !== input.userId);
+    return true;
+  });
+}
+
 export async function createUser(input: {
   name: string;
   email: string;

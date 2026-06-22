@@ -20,7 +20,7 @@ export function CreateUserForm({ stores }: { stores: Store[] }) {
         <h2 className="text-lg font-black">Dodaj użytkownika</h2>
       </div>
 
-      <form action={formAction} className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_12rem_12rem_minmax(0,0.9fr)_auto_auto_auto]">
+      <form action={formAction} className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_12rem_12rem_minmax(0,0.9fr)]">
         <input name="name" placeholder="Imię i nazwisko" className={fieldClass} required />
         <label className="relative block">
           <Mail size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink/35 dark:text-paper/35" />
@@ -48,22 +48,24 @@ export function CreateUserForm({ stores }: { stores: Store[] }) {
           ))}
         </select>
         <input name="department" placeholder="Dział" className={fieldClass} />
-        <label className="inline-flex items-center gap-2 rounded-md border border-black/10 bg-white px-3 text-xs font-bold dark:border-white/10 dark:bg-white/10">
-          <input type="checkbox" name="isActive" defaultChecked className="h-4 w-4" />
-          Aktywny
-        </label>
-        <label className="inline-flex items-center gap-2 rounded-md border border-black/10 bg-white px-3 text-xs font-bold dark:border-white/10 dark:bg-white/10">
-          <input type="checkbox" name="sendInvite" defaultChecked className="h-4 w-4" />
-          Wyślij e-mail
-        </label>
-        <button
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-mint px-4 text-sm font-bold text-white transition hover:bg-mint/90 disabled:cursor-not-allowed disabled:opacity-60"
-          type="submit"
-          disabled={pending}
-        >
-          <Plus size={16} />
-          {pending ? "Dodawanie..." : "Dodaj"}
-        </button>
+        <div className="flex flex-wrap items-center gap-2 md:col-span-2 xl:col-span-5">
+          <label className="inline-flex h-10 items-center gap-2 rounded-md border border-black/10 bg-white px-3 text-xs font-bold dark:border-white/10 dark:bg-white/10">
+            <input type="checkbox" name="isActive" defaultChecked className="h-4 w-4" />
+            Aktywny
+          </label>
+          <label className="inline-flex h-10 items-center gap-2 rounded-md border border-black/10 bg-white px-3 text-xs font-bold dark:border-white/10 dark:bg-white/10">
+            <input type="checkbox" name="sendInvite" defaultChecked className="h-4 w-4" />
+            Wyślij e-mail
+          </label>
+          <button
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-mint px-4 text-sm font-bold text-white transition hover:bg-mint/90 disabled:cursor-not-allowed disabled:opacity-60"
+            type="submit"
+            disabled={pending}
+          >
+            <Plus size={16} />
+            {pending ? "Dodawanie..." : "Dodaj"}
+          </button>
+        </div>
       </form>
 
       {state.status !== "idle" ? (
@@ -82,8 +84,23 @@ export function CreateUserForm({ stores }: { stores: Store[] }) {
               <div className="mt-1 text-xs text-ink/60 dark:text-paper/60">
                 {state.inviteSent
                   ? "Link aktywacyjny został wysłany na adres e-mail."
-                  : "Przekaż użytkownikowi instrukcję logowania."}
+                  : state.activationLink
+                    ? "E-mail nie został wysłany. Dostępny jest awaryjny link aktywacyjny."
+                    : "Przekaż użytkownikowi instrukcję logowania."}
               </div>
+              {state.inviteError ? (
+                <div className="mt-2 rounded-md border border-amber-500/20 bg-amber-500/10 p-2 text-xs text-amber-800 dark:text-amber-200">
+                  SMTP: {state.inviteError}
+                </div>
+              ) : null}
+              {state.activationLink ? (
+                <input
+                  className="mt-2 h-10 w-full min-w-0 rounded-md border border-black/10 bg-white px-3 font-mono text-xs text-ink dark:border-white/10 dark:bg-white/10 dark:text-paper"
+                  readOnly
+                  value={state.activationLink}
+                  onFocus={(event) => event.currentTarget.select()}
+                />
+              ) : null}
             </div>
           ) : null}
         </div>

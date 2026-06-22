@@ -8,9 +8,11 @@ docker compose up
 # App: http://localhost:3001
 # DB: localhost:5433 (internal: postgres:5432)
 ```
+Docker and Railway are pinned to Node.js 20.20.2. Without Docker, run `nvm use` first.
 
 **Without Docker:**
 ```bash
+nvm use
 npm install
 npm run db:generate
 npm run dev
@@ -39,6 +41,8 @@ The app uses dual storage—JSON file (dev/fallback) or Prisma/PostgreSQL. Contr
 - **Ticket numbers:** Format `IT-YYYY-NNNN` (see `lib/ticket-number.ts`)
 - **Internal notes:** Never exposed to users with `visibility: PUBLIC` filter
 - **Admin protection:** Cannot delete the last active admin (enforced in `lib/data-store.ts`)
+- **Admin invites:** Setup links are one-time tokens. If SMTP fails, `/admin/users` shows a fallback activation link and the `Link` button can regenerate a token for active users with `mustChangePassword=true`.
+- **User deletion:** Hard delete is allowed only for users without historical records; users with tickets/comments/content should be deactivated.
 
 ## Deployment
 

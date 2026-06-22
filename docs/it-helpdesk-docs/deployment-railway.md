@@ -10,11 +10,13 @@ Dla MVP rekomendowany deployment:
 - Osobny projekt dla production,
 - Opcjonalnie osobny projekt dla staging.
 
-Stan na 2026-06-09:
+Stan na 2026-06-22:
 
 - produkcyjny auto-deploy dziala po pushu na branch `main`,
 - merge `v-1.1` -> `main` uruchomil deploy na Railway poprawnie,
 - healthcheck aplikacji pozostaje oparty o `GET /api/health`.
+- Railway korzysta z `DOCKERFILE` buildera z `railway.json`; runtime Node jest przypiety w repo do `20.20.2` przez `Dockerfile`, `.nvmrc`, `.node-version` i `package.json#engines`.
+- Onboarding adminowski uzywa jednorazowych linkow aktywacyjnych. Jesli SMTP nie wysle wiadomosci, panel pokazuje awaryjny link i pozwala wygenerowac nowy link przy uzytkowniku.
 
 ## 2. Wymagane zmienne srodowiskowe
 
@@ -72,6 +74,8 @@ W Railway Dashboard → project → Variables, ustaw:
 
 ### Krok 4: Pierwszy deploy
 1. Railway automatycznie zbuduje obraz Dockerem (DOCKERFILE builder z `railway.json`)
+   - `Dockerfile` uzywa Node.js `20.20.2`
+   - nie ustawiaj `RAILPACK_NODE_VERSION`, dopoki builderem pozostaje `DOCKERFILE`
 2. `railway.json` wykonuje pre-deploy command:
    - `npx prisma migrate deploy`
 3. `docker-entrypoint.sh` przy starcie kontenera:
@@ -88,6 +92,7 @@ W Railway Dashboard → project → Variables, ustaw:
 | Mechanizm | Jak dziala |
 |-----------|-----------|
 | Auto-deploy | Railway obserwuje branch `main` w repo GitHub |
+| Node runtime | `Dockerfile` buduje obraz na Node.js `20.20.2` |
 | Pre-deploy | `railway.json` uruchamia `npx prisma migrate deploy` |
 | Migracje Prisma | `docker-entrypoint.sh` uruchamia `prisma migrate deploy` przy starcie |
 | Seed danych | `docker-entrypoint.sh` uruchamia `prisma db seed` tylko przy `FIXIT_RUN_SEED=true` |
@@ -115,8 +120,12 @@ Nie ma potrzeby recznego uruchamiania migracji na Railway, chyba ze diagnozujesz
 - Publiczna rejestracja jest dostepna pod `/register`.
 - Rejestracja akceptuje tylko adresy z dokladnej domeny `bagietka.pl`.
 - Samodzielna rejestracja tworzy aktywne konto `REPORTER`.
-- Admin moze tworzyc konta recznie z `/admin/users`, nadawac role i generowac hasla tymczasowe.
-- Jesli SMTP jest skonfigurowane, panel admina moze wyslac dane logowania e-mailem.
+- Admin moze tworzyc konta recznie z `/admin/users`, nadawac role i wysylac jednorazowe linki aktywacyjne.
+- Admin wysyla jednorazowy link aktywacyjny e-mailem. Haslo tymczasowe nie jest wysylane w tresci wiadomosci.
+- Jesli SMTP jest skonfigurowane, panel admina wysle link automatycznie.
+- Jesli SMTP nie jest skonfigurowane albo wysylka sie nie powiedzie, panel pokazuje awaryjny link aktywacyjny do recznego przekazania.
+- Przy aktywnym koncie z `mustChangePassword=true` przycisk `Link` w `/admin/users` regeneruje token i ponawia wysylke.
+- Usuniecie konta jest twarde tylko dla uzytkownikow bez historii. Konta z ticketami, komentarzami, artykulami, szablonami lub makrami nalezy dezaktywowac.
 
 ## 6. Zalaczniki i Railway
 
@@ -132,6 +141,7 @@ Rozwiazania:
 - [ ] `npm run lint` przechodzi
 - [ ] `npm run typecheck` przechodzi
 - [ ] `npm run test` przechodzi
+- [ ] Lokalny runtime to Node.js `20.20.2` (`nvm use` albo Docker)
 - [ ] Wszystkie env vars ustawione w Railway Dashboard
 - [ ] `DATABASE_URL` wskazuje na Railway PostgreSQL (auto-injected)
 - [ ] `NODE_ENV=production` ustawione
@@ -161,7 +171,8 @@ Przed uzyciem produkcyjnym warto ustalic:
 | Blad SSL przy laczniu z baza | Railway wymaga SSL | Entrypoint automatycznie dodaje `?sslmode=require` |
 | Brak tabel po deployu | Migracje nie dzialaja | Sprawdz logi: `npx prisma migrate deploy` |
 | Zalaczniki zniknely po redeploy | Brak S3 Bucket | Skonfiguruj Railway Bucket (zobacz sekcje 6) |
-| Email nie dziala | Brak SMTP | Skonfiguruj SMTP w zmiennych srodowiskowych |
+| Email nie dziala | Brak SMTP albo blad autoryzacji SMTP | Skonfiguruj SMTP w zmiennych srodowiskowych; do czasu naprawy uzyj awaryjnego linku aktywacyjnego w `/admin/users` |
+| Vitest/rolldown sypie bledem `node:util styleText` | Uruchomiono testy na Node 18 | Przelacz na Node.js `20.20.2` (`nvm use`) albo uruchom testy w Dockerze |
 | Strona laduje sie bez danych | `FIXIT_DATA_PROVIDER` wymusza JSON | Usun zmienna lub ustaw na `prisma` |
 | Push nie uruchamia deployu | Railway obserwuje inny branch | Sprawdz `Service -> Source` i ustaw auto-deploy z `main` |
 

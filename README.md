@@ -11,7 +11,7 @@ Wewnętrzny system helpdesk IT dla sklepów i biura **Bagietka**. Nowoczesna apl
 - **Kanban** — Wizualne zarządzanie zgłoszeniami metodą przeciągnij i upuść
 - **Baza wiedzy** — Artykuły FAQ dla użytkowników
 - **Autoryzacja** — Logowanie i rejestracja tylko dla adresów w domenie `bagietka.pl`
-- **Administracja użytkownikami** — Admin może tworzyć konta, nadawać role i wysyłać dane logowania
+- **Administracja użytkownikami** — Admin może tworzyć, usuwać i dezaktywować konta, nadawać role oraz wysyłać lub regenerować link aktywacyjny
 - **Tryb ciemny** — Wsparcie dla jasnego i ciemnego motywu
 - **Załączniki** — Przesyłanie plików przez S3 (Railway Bucket)
 - **Powiadomienia e-mail** — Automatyczne powiadomienia o zmianach statusu
@@ -22,7 +22,7 @@ Wewnętrzny system helpdesk IT dla sklepów i biura **Bagietka**. Nowoczesna apl
 
 ### Wymagania
 
-- **Node.js** 20+
+- **Node.js** 20.20.2 (`.nvmrc` / `.node-version`)
 - **Docker** (opcjonalnie, dla PostgreSQL)
 - **npm**
 
@@ -37,10 +37,14 @@ docker compose up
 ```
 
 Compose uruchamia Next.js na porcie `3001` (mapowanym na `3000` w kontenerze) oraz PostgreSQL na porcie `5433`.
+Obraz developerski i produkcyjny używa Node.js `20.20.2`, tak samo jak `.nvmrc`.
 
 ### Uruchomienie bez Dockera
 
 ```bash
+# Przełącz Node, jeśli używasz nvm
+nvm use
+
 # Zainstaluj zależności
 npm install
 
@@ -95,7 +99,9 @@ Produkcyjny auto-deploy jest uruchamiany z brancha `main`.
 
 - Każdy pracownik z adresem `@bagietka.pl` może samodzielnie założyć konto przez `/register`.
 - Samodzielna rejestracja tworzy konto z rolą `REPORTER`.
-- Administrator może dodać użytkownika ręcznie w `/admin/users`, wygenerować mu hasło tymczasowe i opcjonalnie wysłać dane logowania e-mailem.
+- Administrator może dodać użytkownika ręcznie w `/admin/users` i opcjonalnie wysłać jednorazowy link aktywacyjny e-mailem.
+- Jeśli SMTP nie jest skonfigurowane albo wysyłka się nie powiedzie, panel pokaże awaryjny link aktywacyjny. Przy istniejącym aktywnym koncie bez ustawionego hasła można kliknąć `Link`, aby wygenerować i wysłać nowy link.
+- Usunięcie konta jest dostępne tylko dla użytkowników bez historii zgłoszeń/komentarzy/treści. Konta z historią należy dezaktywować, aby zachować spójność danych.
 - Konta tworzone przez admina mają wymuszoną zmianę hasła przy pierwszym logowaniu.
 - Seed produkcyjny jest wyłączony domyślnie. Bootstrap admina uruchamiaj tylko świadomie przez `FIXIT_RUN_SEED=true` i silne tymczasowe hasło w `FIXIT_BOOTSTRAP_ADMIN_PASSWORD`.
 

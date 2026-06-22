@@ -1,4 +1,5 @@
-FROM node:20-bookworm-slim AS base
+ARG NODE_VERSION=20.20.2
+FROM node:${NODE_VERSION}-bookworm-slim AS base
 
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1

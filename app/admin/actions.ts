@@ -18,15 +18,18 @@ import {
   deleteMacro,
   updateTemplate,
   updateMacro,
-  listStoresAdmin
+  listStoresAdmin,
+  findUserById,
+  deleteUserAdmin
 } from "@/lib/data-store";
 import { sendEmailWithResult } from "@/lib/email";
-import { templateUserInvitation } from "@/lib/email-templates";
+import { getSetupUrl, templateUserInvitation } from "@/lib/email-templates";
 import { normalizeEmail, isAllowedBagietkaEmail } from "@/lib/email-domain";
 import { sanitizeText } from "@/lib/escape-html";
 import { generateTemporaryPassword, hashPassword } from "@/lib/password";
 import { can } from "@/lib/permissions";
 import { createSetupToken } from "@/lib/setup-token";
+import type { User } from "@/lib/types";
 
 const roleSchema = z.enum(["REPORTER", "STORE_MANAGER", "AGENT", "ADMIN"]);
 const prioritySchema = z.enum(["LOW", "NORMAL", "HIGH", "CRITICAL"]);
@@ -47,6 +50,14 @@ const createUserSchema = z.object({
   department: z.string().max(120).optional(),
   isActive: z.boolean(),
   sendInvite: z.boolean()
+});
+
+const resendInviteSchema = z.object({
+  id: z.string().min(1)
+});
+
+const deleteUserSchema = z.object({
+  id: z.string().min(1)
 });
 
 const storeSchema = z.object({
@@ -130,7 +141,32 @@ export type CreateUserAdminState = {
   temporaryPassword?: string;
   createdEmail?: string;
   inviteSent?: boolean;
+  inviteError?: string;
+  activationLink?: string;
 };
+
+export type ResendUserInviteAdminState = {
+  status: "idle" | "success" | "error";
+  message?: string;
+  inviteSent?: boolean;
+  inviteError?: string;
+  activationLink?: string;
+};
+
+export type DeleteUserAdminState = {
+  status: "idle" | "success" | "error";
+  message?: string;
+};
+
+async function sendUserInvitationEmail(user: User, setupToken: string) {
+  const template = templateUserInvitation(user, "", setupToken);
+  return sendEmailWithResult({
+    to: user.email,
+    subject: template.subject,
+    html: template.html,
+    text: template.text
+  });
+}
 
 export async function updateUserAdminAction(formData: FormData): Promise<void> {
   const actor = await requireAdminAction("admin:manage-users");
@@ -164,6 +200,44 @@ export async function updateUserAdminAction(formData: FormData): Promise<void> {
 
   revalidatePath("/admin/users");
   revalidatePath("/admin/tickets");
+}
+
+export async function deleteUserAdminAction(
+  _previousState: DeleteUserAdminState,
+  formData: FormData
+): Promise<DeleteUserAdminState> {
+  try {
+    const actor = await requireAdminAction("admin:manage-users");
+
+    const input = deleteUserSchema.parse({
+      id: String(formData.get("id") ?? "")
+    });
+
+    const deleted = await deleteUserAdmin({
+      userId: input.id,
+      actorId: actor.id
+    });
+
+    revalidatePath("/admin/users");
+    revalidatePath("/admin/tickets");
+
+    return {
+      status: deleted ? "success" : "error",
+      message: deleted ? "Usunięto użytkownika." : "Użytkownik nie istnieje."
+    };
+  } catch (error) {
+    const message =
+      error instanceof z.ZodError
+        ? error.issues[0]?.message ?? "Nie udało się usunąć użytkownika."
+        : error instanceof Error
+          ? error.message
+          : "Nie udało się usunąć użytkownika.";
+
+    return {
+      status: "error",
+      message
+    };
+  }
 }
 
 export async function createUserAdminAction(
@@ -217,21 +291,19 @@ export async function createUserAdminAction(
     const setupToken = input.sendInvite ? await createSetupToken(user.email) : undefined;
 
     let inviteSent = false;
+    let inviteError: string | undefined;
+    let activationLink: string | undefined;
     let message = `Utworzono konto dla ${user.email}.`;
 
-    if (input.sendInvite) {
-      const template = templateUserInvitation(user, temporaryPassword, setupToken);
-      const result = await sendEmailWithResult({
-        to: user.email,
-        subject: template.subject,
-        html: template.html,
-        text: template.text
-      });
+    if (input.sendInvite && setupToken) {
+      const result = await sendUserInvitationEmail(user, setupToken);
 
       inviteSent = result.ok;
+      inviteError = result.ok ? undefined : result.error;
+      activationLink = result.ok ? undefined : getSetupUrl(setupToken);
       message = result.ok
         ? `${message} Wiadomosc z linkiem aktywacyjnym zostala wyslana.`
-        : `${message} Nie udalo sie wyslac e-maila z linkiem aktywacyjnym.`;
+        : `${message} Nie udalo sie wyslac e-maila z linkiem aktywacyjnym. Skopiuj awaryjny link z panelu.`;
     }
 
     revalidatePath("/admin/users");
@@ -241,7 +313,9 @@ export async function createUserAdminAction(
       status: "success",
       message,
       createdEmail: user.email,
-      inviteSent
+      inviteSent,
+      inviteError,
+      activationLink
     };
   } catch (error) {
     const message =
@@ -250,6 +324,68 @@ export async function createUserAdminAction(
         : error instanceof Error
           ? error.message
           : "Nie udalo sie utworzyc uzytkownika.";
+
+    return {
+      status: "error",
+      message
+    };
+  }
+}
+
+export async function resendUserInviteAdminAction(
+  _previousState: ResendUserInviteAdminState,
+  formData: FormData
+): Promise<ResendUserInviteAdminState> {
+  try {
+    await requireAdminAction("admin:manage-users");
+
+    const input = resendInviteSchema.parse({
+      id: String(formData.get("id") ?? "")
+    });
+
+    const user = await findUserById(input.id);
+    if (!user) {
+      return {
+        status: "error",
+        message: "Uzytkownik nie istnieje albo jest nieaktywny."
+      };
+    }
+
+    if (!user.mustChangePassword) {
+      return {
+        status: "error",
+        message: "Ten uzytkownik ma juz ustawione haslo."
+      };
+    }
+
+    const setupToken = await createSetupToken(user.email);
+    const result = await sendUserInvitationEmail(user, setupToken);
+    const activationLink = result.ok ? undefined : getSetupUrl(setupToken);
+
+    revalidatePath("/admin/users");
+
+    if (result.ok) {
+      return {
+        status: "success",
+        message: "Wyslano nowy link aktywacyjny.",
+        inviteSent: true
+      };
+    }
+
+    return {
+      status: "error",
+      message: "Nie udalo sie wyslac e-maila. Skopiuj awaryjny link.",
+      inviteSent: false,
+      inviteError: result.error,
+      activationLink
+    };
+  } catch (error) {
+    const message =
+      error instanceof z.ZodError
+        ? error.issues[0]?.message ?? "Nie udalo sie wyslac linku aktywacyjnego."
+        : error instanceof Error
+          ? error.message
+          : "Nie udalo sie wyslac linku aktywacyjnego.";
 
     return {
       status: "error",
