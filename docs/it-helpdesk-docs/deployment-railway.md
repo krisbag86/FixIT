@@ -35,6 +35,7 @@ SMTP_PORT="465"
 SMTP_SECURE="true"
 SMTP_USER="nadawca@example.com"
 SMTP_PASSWORD="twoje-haslo"
+SMTP_TIMEOUT_MS="20000"
 EMAIL_FROM="IT Helpdesk <it@bagietka.pl>"
 
 # --- Opcjonalnie: Railway S3 Bucket do zalacznikow ---
@@ -172,6 +173,7 @@ Przed uzyciem produkcyjnym warto ustalic:
 | Brak tabel po deployu | Migracje nie dzialaja | Sprawdz logi: `npx prisma migrate deploy` |
 | Zalaczniki zniknely po redeploy | Brak S3 Bucket | Skonfiguruj Railway Bucket (zobacz sekcje 6) |
 | Email nie dziala | Brak SMTP albo blad autoryzacji SMTP | Skonfiguruj SMTP w zmiennych srodowiskowych; do czasu naprawy uzyj awaryjnego linku aktywacyjnego w `/admin/users` |
+| Email konczy sie `SMTP timeout` | Serwer SMTP nie odpowiada z Railway albo handshake trwa dluzej niz timeout | Sprawdz `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`; ustaw `SMTP_TIMEOUT_MS=20000` lub `30000`; jesli dalej timeout, provider/port jest niedostepny z Railway |
 | Vitest/rolldown sypie bledem `node:util styleText` | Uruchomiono testy na Node 18 | Przelacz na Node.js `20.20.2` (`nvm use`) albo uruchom testy w Dockerze |
 | Strona laduje sie bez danych | `FIXIT_DATA_PROVIDER` wymusza JSON | Usun zmienna lub ustaw na `prisma` |
 | Push nie uruchamia deployu | Railway obserwuje inny branch | Sprawdz `Service -> Source` i ustaw auto-deploy z `main` |

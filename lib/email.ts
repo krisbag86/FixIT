@@ -15,6 +15,11 @@ function getSmtpSecure(port: number): boolean {
   return port === 465;
 }
 
+function getSmtpTimeoutMs(): number {
+  const parsedTimeout = Number.parseInt(process.env.SMTP_TIMEOUT_MS || '20000', 10);
+  return Number.isNaN(parsedTimeout) || parsedTimeout < 1000 ? 20000 : parsedTimeout;
+}
+
 function formatEmailError(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
@@ -31,6 +36,7 @@ export function getEmailTransporter() {
     }
 
     const port = getSmtpPort();
+    const timeoutMs = getSmtpTimeoutMs();
 
     transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
@@ -40,8 +46,9 @@ export function getEmailTransporter() {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASSWORD,
       },
-      connectionTimeout: 5000, // 5 seconds
-      socketTimeout: 5000, // 5 seconds
+      connectionTimeout: timeoutMs,
+      greetingTimeout: timeoutMs,
+      socketTimeout: timeoutMs,
     });
   }
   return transporter;
@@ -79,9 +86,19 @@ export async function sendEmailWithResult(payload: EmailPayload): Promise<EmailS
       text: payload.text,
     });
 
+    const timeoutMs = getSmtpTimeoutMs();
+
     // Race against timeout
     const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('SMTP timeout after 5s')), 5000)
+      setTimeout(
+        () =>
+          reject(
+            new Error(
+              `SMTP timeout after ${Math.round(timeoutMs / 1000)}s (host=${process.env.SMTP_HOST}, port=${getSmtpPort()}, secure=${getSmtpSecure(getSmtpPort())})`
+            )
+          ),
+        timeoutMs
+      )
     );
 
     const result = await Promise.race([sendPromise, timeoutPromise]);

@@ -85,6 +85,7 @@ Produkcyjny auto-deploy jest uruchamiany z brancha `main`.
 | `SMTP_SECURE` | Czy używać TLS/SSL dla SMTP | `true` |
 | `SMTP_USER` | Użytkownik SMTP | |
 | `SMTP_PASSWORD` | Hasło SMTP | |
+| `SMTP_TIMEOUT_MS` | Timeout połączenia i wysyłki SMTP | `20000` |
 | `S3_ENDPOINT` | Endpoint S3 (Railway Bucket) | |
 | `S3_ACCESS_KEY_ID` | Klucz dostępu S3 | |
 | `S3_SECRET_ACCESS_KEY` | Sekretny klucz S3 | |
