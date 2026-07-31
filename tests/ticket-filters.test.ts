@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isTicketOverdue, matchesTicketFilters, parseTicketListFilters } from "@/lib/ticket-filters";
+import { getTicketSlaState, isTicketOverdue, matchesTicketFilters, parseTicketListFilters } from "@/lib/ticket-filters";
 import type { Ticket } from "@/lib/types";
 
 const baseTicket: Ticket = {
@@ -67,5 +67,14 @@ describe("ticket list filters", () => {
     expect(isTicketOverdue(baseTicket, now)).toBe(true);
     expect(matchesTicketFilters(baseTicket, { overdue: true }, "agent-1", now)).toBe(true);
     expect(matchesTicketFilters({ ...baseTicket, status: "RESOLVED" }, { overdue: true }, "agent-1", now)).toBe(false);
+  });
+
+  it("classifies SLA as on track, at risk, breached or completed", () => {
+    const now = new Date("2026-07-31T12:00:00.000Z");
+
+    expect(getTicketSlaState({ ...baseTicket, createdAt: "2026-07-31T06:00:00.000Z" }, now)).toBe("AT_RISK");
+    expect(getTicketSlaState({ ...baseTicket, createdAt: "2026-07-31T04:00:00.000Z" }, now)).toBe("BREACHED");
+    expect(getTicketSlaState({ ...baseTicket, createdAt: "2026-07-31T11:00:00.000Z" }, now)).toBe("ON_TRACK");
+    expect(getTicketSlaState({ ...baseTicket, status: "CLOSED" }, now)).toBe("COMPLETED");
   });
 });

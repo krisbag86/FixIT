@@ -1,6 +1,7 @@
 import { MessageSquare, Save } from "lucide-react";
 import { confirmTicketResolutionAction, updateTicketAction } from "@/app/actions";
 import { PriorityBadge, StatusBadge, VisibilityBadge } from "@/components/badges";
+import { SlaBadge } from "@/components/sla-badge";
 import { TicketCommentForm } from "@/components/ticket-comment-form";
 import { AttachmentUpload } from "@/components/tickets/attachment-upload";
 import { formatDateTime } from "@/lib/format";
@@ -53,6 +54,7 @@ export function TicketDetail({
             <div className="flex flex-wrap gap-2">
               <StatusBadge status={ticket.status} />
               <PriorityBadge priority={ticket.priority} />
+              <SlaBadge ticket={ticket} />
             </div>
           </div>
           <p className="whitespace-pre-wrap leading-7 text-ink/80 dark:text-paper/80">{ticket.description}</p>

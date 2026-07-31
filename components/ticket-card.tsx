@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { PriorityBadge, StatusBadge } from "@/components/badges";
+import { SlaBadge } from "@/components/sla-badge";
 import { formatDateTime } from "@/lib/format";
 import type { Category, Store, Ticket, User } from "@/lib/types";
 
@@ -44,6 +45,7 @@ export function TicketCard({
       <div className="flex flex-wrap gap-1.5">
         <StatusBadge status={ticket.status} />
         <PriorityBadge priority={ticket.priority} />
+        <SlaBadge ticket={ticket} compact />
       </div>
 
       <div className="space-y-1 text-sm leading-relaxed text-ink/60 dark:text-paper/60">

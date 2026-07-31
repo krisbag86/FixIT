@@ -36,6 +36,8 @@ const slaHours: Record<TicketPriority, number> = {
 
 const closedStatuses = new Set<TicketStatus>(["RESOLVED", "CLOSED", "CANCELLED"]);
 
+export type TicketSlaState = "ON_TRACK" | "AT_RISK" | "BREACHED" | "COMPLETED";
+
 function firstParam(value: string | string[] | undefined): string | undefined {
   const first = Array.isArray(value) ? value[0] : value;
   return first?.trim() || undefined;
@@ -83,6 +85,18 @@ export function getTicketSlaDeadline(ticket: Pick<Ticket, "createdAt" | "dueAt" 
 
 export function isTicketOverdue(ticket: Pick<Ticket, "createdAt" | "dueAt" | "priority" | "status">, now = new Date()): boolean {
   return !closedStatuses.has(ticket.status) && getTicketSlaDeadline(ticket).getTime() < now.getTime();
+}
+
+export function getTicketSlaState(
+  ticket: Pick<Ticket, "createdAt" | "dueAt" | "priority" | "status">,
+  now = new Date()
+): TicketSlaState {
+  if (closedStatuses.has(ticket.status)) return "COMPLETED";
+
+  const remainingHours = (getTicketSlaDeadline(ticket).getTime() - now.getTime()) / (60 * 60 * 1000);
+  if (remainingHours <= 0) return "BREACHED";
+
+  return remainingHours <= Math.max(2, slaHours[ticket.priority] * 0.25) ? "AT_RISK" : "ON_TRACK";
 }
 
 export function matchesTicketFilters(ticket: Ticket, filters: TicketListFilters, currentUserId?: string, now = new Date()): boolean {
