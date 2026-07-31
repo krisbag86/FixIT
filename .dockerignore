@@ -1,3 +1,24 @@
-.trae
+# Local and CI-only directories
 .git
-.dockerignore
+.trae
+.agents
+.codex
+.vscode
+node_modules
+.next
+.data
+.vitest-cache
+coverage
+playwright-report
+
+# Tests and documentation are not needed in the production image
+tests
+specs
+docs
+it-helpdesk-docs.zip
+
+# Local configuration and generated files
+.env*
+!.env.example
+*.log
+*.tsbuildinfo
