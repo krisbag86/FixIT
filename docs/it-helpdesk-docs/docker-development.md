@@ -40,7 +40,9 @@ postgres:5432
 
 ## Obecny stan danych
 
-MVP uzywa lokalnego JSON-store w `.data/fixit-db.json`, zapisanego w wolumenie `fixit_data`. Serwis PostgreSQL jest dodany juz teraz, bo docelowy schemat Prisma znajduje sie w `prisma/schema.prisma` i bedzie kolejnym naturalnym etapem.
+Docker Compose uruchamia aplikacje w trybie Prisma/PostgreSQL, tak jak runtime produkcyjny. PostgreSQL dziala w serwisie `postgres`, a dane sa przechowywane w wolumenie `postgres_data`.
+
+JSON-store w `.data/fixit-db.json` pozostaje fallbackiem developerskim, gdy aplikacja nie ma `DATABASE_URL` albo ma ustawione `FIXIT_DATA_PROVIDER=json`.
 
 ## Prisma w kontenerze
 
@@ -49,7 +51,9 @@ MVP uzywa lokalnego JSON-store w `.data/fixit-db.json`, zapisanego w wolumenie `
 - `migrate` - wykonuje `npm run db:migrate:deploy`,
 - `seed` - wykonuje `npm run db:generate` i `npm run db:seed`.
 
-Te joby przygotowuja baze PostgreSQL pod docelowy runtime Prisma. Aplikacja MVP nadal czyta i zapisuje dane w lokalnym JSON-store do czasu osobnej migracji runtime.
+Te joby przygotowuja baze PostgreSQL przed uruchomieniem aplikacji. Serwis `app` ma ustawione `FIXIT_DATA_PROVIDER=prisma`, wiec lokalny Docker korzysta z tego samego storage runtime co produkcja.
+
+Lokalny admin bootstrapowy to `admin@bagietka.pl` z haslem `admin1234`. Po pierwszym logowaniu aplikacja wymusza zmiane hasla.
 
 ## Reset danych developerskich
 

@@ -66,17 +66,24 @@ async function upsertBootstrapAdmin(bootstrapAdmin) {
   // Prefer the configured email when it already exists. Otherwise reuse the
   // stable seed id so databases created by the JSON seed remain compatible.
   // Existing passwords are intentionally preserved; only a newly created
-  // bootstrap account receives the configured temporary password.
+  // bootstrap account receives the configured temporary password. An existing
+  // account without a password is treated as an unfinished bootstrap.
   if (existingByEmail) {
     return prisma.user.update({
       where: { id: existingByEmail.id },
-      data: adminData
+      data: existingByEmail.passwordHash
+        ? adminData
+        : { ...adminData, passwordHash: hashPassword(bootstrapAdmin.password), mustChangePassword: true }
     });
   }
 
+  const existingById = await prisma.user.findUnique({ where: { id: "usr_admin" } });
+
   return prisma.user.upsert({
     where: { id: "usr_admin" },
-    update: adminData,
+    update: existingById?.passwordHash
+      ? adminData
+      : { ...adminData, passwordHash: hashPassword(bootstrapAdmin.password), mustChangePassword: true },
     create: {
       id: "usr_admin",
       ...adminData,

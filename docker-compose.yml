@@ -5,6 +5,7 @@ services:
     command: sh -c "npm install && npm run dev -- --hostname 0.0.0.0"
     environment:
       NEXT_TELEMETRY_DISABLED: "1"
+      FIXIT_DATA_PROVIDER: "prisma"
       APP_URL: "http://localhost:3001"
       DATABASE_URL: "postgresql://fixit:fixit@postgres:5432/fixit"
       SMTP_HOST: "${SMTP_HOST:-}"
