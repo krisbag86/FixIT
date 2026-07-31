@@ -16,6 +16,7 @@ import {
 } from "@/lib/admin-utils";
 import { createSeedDatabase } from "@/lib/seed";
 import { generateTicketNumber } from "@/lib/ticket-number";
+import { closedStatuses, matchesTicketFilters, type TicketListFilters } from "@/lib/ticket-filters";
 import type {
   AdminAuditLog,
   Category,
@@ -1339,10 +1340,10 @@ export async function deleteCategoryAdmin(id: string, actorId: string): Promise<
   });
 }
 
-export async function listVisibleTickets(user: User): Promise<Ticket[]> {
+export async function listVisibleTickets(user: User, filters: TicketListFilters = {}): Promise<Ticket[]> {
   if (shouldUsePrisma()) {
     const db = await getPrisma();
-    const where: Prisma.TicketWhereInput =
+    const visibilityWhere: Prisma.TicketWhereInput =
       user.role === "AGENT" || user.role === "ADMIN"
         ? {}
         : {
@@ -1351,6 +1352,48 @@ export async function listVisibleTickets(user: User): Promise<Ticket[]> {
               ...(user.role === "STORE_MANAGER" && user.storeId ? [{ storeId: user.storeId }] : [])
             ]
           };
+
+    const query = filters.query?.trim();
+    const now = new Date();
+    const filterWhere: Prisma.TicketWhereInput[] = [visibilityWhere];
+
+    if (query) {
+      filterWhere.push({
+        OR: [
+          { number: { contains: query, mode: "insensitive" } },
+          { title: { contains: query, mode: "insensitive" } },
+          { description: { contains: query, mode: "insensitive" } }
+        ]
+      });
+    }
+
+    if (filters.status) filterWhere.push({ status: filters.status });
+    if (filters.priority) filterWhere.push({ priority: filters.priority });
+    if (filters.assigneeId) filterWhere.push({ assigneeId: filters.assigneeId });
+    if (filters.storeId) filterWhere.push({ storeId: filters.storeId });
+    if (filters.categoryId) filterWhere.push({ categoryId: filters.categoryId });
+    if (filters.mine) filterWhere.push({ assigneeId: user.id });
+    if (filters.unassigned) filterWhere.push({ assigneeId: null });
+
+    if (filters.overdue) {
+      filterWhere.push({
+        status: { notIn: [...closedStatuses] },
+        OR: [
+          { dueAt: { lt: now } },
+          {
+            dueAt: null,
+            OR: [
+              { priority: "CRITICAL", createdAt: { lt: new Date(now.getTime() - 4 * 60 * 60 * 1000) } },
+              { priority: "HIGH", createdAt: { lt: new Date(now.getTime() - 8 * 60 * 60 * 1000) } },
+              { priority: "NORMAL", createdAt: { lt: new Date(now.getTime() - 24 * 60 * 60 * 1000) } },
+              { priority: "LOW", createdAt: { lt: new Date(now.getTime() - 48 * 60 * 60 * 1000) } }
+            ]
+          }
+        ]
+      });
+    }
+
+    const where: Prisma.TicketWhereInput = { AND: filterWhere };
 
     const tickets = await db.ticket.findMany({
       where,
@@ -1363,14 +1406,12 @@ export async function listVisibleTickets(user: User): Promise<Ticket[]> {
   const database = await readDatabase();
   const tickets = database.tickets.filter((ticket) => {
     if (user.role === "AGENT" || user.role === "ADMIN") {
-      return true;
+      return matchesTicketFilters(ticket, filters, user.id);
     }
 
-    if (ticket.reporterId === user.id) {
-      return true;
-    }
+    const visibleToUser = ticket.reporterId === user.id || (user.role === "STORE_MANAGER" && Boolean(user.storeId) && user.storeId === ticket.storeId);
 
-    return user.role === "STORE_MANAGER" && Boolean(user.storeId) && user.storeId === ticket.storeId;
+    return visibleToUser && matchesTicketFilters(ticket, filters, user.id);
   });
 
   return tickets.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));

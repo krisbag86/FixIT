@@ -23,15 +23,18 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { formatDateTime } from "@/lib/format";
+import { APP_TIME_ZONE, formatDateTime } from "@/lib/format";
 import type {
   DashboardData,
   User,
 } from "@/lib/types";
 
 function formatShortDate(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getDate()}.${d.getMonth() + 1}`;
+  return new Intl.DateTimeFormat("pl-PL", {
+    day: "numeric",
+    month: "numeric",
+    timeZone: APP_TIME_ZONE
+  }).format(new Date(iso));
 }
 
 function CustomTooltip({

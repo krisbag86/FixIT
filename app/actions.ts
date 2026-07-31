@@ -100,6 +100,38 @@ export async function updateTicketAction(formData: FormData): Promise<void> {
   revalidatePath("/admin/tickets");
 }
 
+export async function confirmTicketResolutionAction(formData: FormData): Promise<void> {
+  const user = await requireUser();
+  await enforceMutationRateLimit(user.id);
+
+  if (!can(user, "ticket:confirm-resolution")) {
+    throw new Error("Brak uprawnień do potwierdzenia rozwiązania zgłoszenia.");
+  }
+
+  const ticketId = String(formData.get("ticketId") ?? "");
+  const ticket = await findTicket(ticketId);
+
+  if (!ticket || ticket.status !== "RESOLVED" || !canViewTicket(user, ticket)) {
+    throw new Error("Można potwierdzić tylko widoczne zgłoszenie ze statusem Rozwiązane.");
+  }
+
+  const updatedTicket = await updateTicket({
+    ticketId: ticket.id,
+    actorId: user.id,
+    status: "CLOSED",
+    priority: ticket.priority,
+    assigneeId: ticket.assigneeId
+  });
+
+  if (updatedTicket) {
+    await notifyTicketUpdated({ before: ticket, after: updatedTicket, actorId: user.id });
+  }
+
+  revalidatePath(`/tickets/${ticket.id}`);
+  revalidatePath("/tickets");
+  revalidatePath("/admin/tickets");
+}
+
 export async function addCommentAction(formData: FormData): Promise<void> {
   const user = await requireUser();
   await enforceMutationRateLimit(user.id);

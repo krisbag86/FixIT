@@ -1,18 +1,20 @@
 import { redirect } from "next/navigation";
 import { Filter, LayoutDashboard } from "lucide-react";
+import Link from "next/link";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { AppShell } from "@/components/app-shell";
 import { TicketCard } from "@/components/ticket-card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { requireUser } from "@/lib/auth";
 import { listVisibleTickets, readDatabase } from "@/lib/data-store";
 import { priorityLabels, statusLabels, ticketPriorities, ticketStatuses } from "@/lib/labels";
+import { parseTicketListFilters, type TicketListSearchParams } from "@/lib/ticket-filters";
 import { canUseAdmin } from "@/lib/permissions";
-import type { TicketPriority, TicketStatus } from "@/lib/types";
 
 export default async function AdminTicketsPage({
   searchParams
 }: {
-  searchParams: Promise<{ status?: string; priority?: string; assignee?: string }>;
+  searchParams: Promise<TicketListSearchParams>;
 }) {
   const user = await requireUser();
 
@@ -21,13 +23,9 @@ export default async function AdminTicketsPage({
   }
 
   const params = await searchParams;
+  const filters = parseTicketListFilters(params);
   const database = await readDatabase();
-  const tickets = (await listVisibleTickets(user)).filter((ticket) => {
-    const statusMatch = !params.status || ticket.status === (params.status as TicketStatus);
-    const priorityMatch = !params.priority || ticket.priority === (params.priority as TicketPriority);
-    const assigneeMatch = !params.assignee || ticket.assigneeId === params.assignee;
-    return statusMatch && priorityMatch && assigneeMatch;
-  });
+  const tickets = await listVisibleTickets(user, filters);
   const openTickets = database.tickets.filter((ticket) => !["RESOLVED", "CLOSED", "CANCELLED"].includes(ticket.status)).length;
   const criticalTickets = database.tickets.filter((ticket) => ticket.priority === "CRITICAL").length;
 
@@ -51,9 +49,16 @@ export default async function AdminTicketsPage({
 
       <AdminNav user={user} currentPath="/admin/tickets" />
 
-      <form className="control-panel mb-5 flex flex-wrap items-center gap-2 rounded-md p-3">
+      <form method="get" className="control-panel mb-5 flex flex-wrap items-center gap-2 rounded-md p-3">
         <Filter size={18} className="text-ink/50 dark:text-paper/50" />
-        <select name="status" defaultValue={params.status ?? ""} className={filterClass}>
+        <input
+          name="q"
+          defaultValue={filters.query ?? ""}
+          placeholder="Szukaj numeru, tytułu lub opisu"
+          className={`${filterClass} min-w-64`}
+          aria-label="Szukaj ticketów"
+        />
+        <select name="status" defaultValue={filters.status ?? ""} className={filterClass}>
           <option value="">Status</option>
           {ticketStatuses.map((status) => (
             <option key={status} value={status}>
@@ -61,7 +66,7 @@ export default async function AdminTicketsPage({
             </option>
           ))}
         </select>
-        <select name="priority" defaultValue={params.priority ?? ""} className={filterClass}>
+        <select name="priority" defaultValue={filters.priority ?? ""} className={filterClass}>
           <option value="">Priorytet</option>
           {ticketPriorities.map((priority) => (
             <option key={priority} value={priority}>
@@ -69,40 +74,88 @@ export default async function AdminTicketsPage({
             </option>
           ))}
         </select>
-        <select name="assignee" defaultValue={params.assignee ?? ""} className={filterClass}>
+        <select name="assignee" defaultValue={filters.assigneeId ?? ""} className={filterClass}>
           <option value="">Wykonawca</option>
           {database.users
-            .filter((item) => item.role === "AGENT" || item.role === "ADMIN")
+            .filter((item) => item.isActive && (item.role === "AGENT" || item.role === "ADMIN"))
             .map((item) => (
               <option key={item.id} value={item.id}>
                 {item.name}
               </option>
             ))}
         </select>
+        <select name="store" defaultValue={filters.storeId ?? ""} className={filterClass}>
+          <option value="">Sklep</option>
+          {database.stores
+            .filter((item) => item.isActive)
+            .map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.code} — {item.name}
+              </option>
+            ))}
+        </select>
+        <select name="category" defaultValue={filters.categoryId ?? ""} className={filterClass}>
+          <option value="">Kategoria</option>
+          {database.categories
+            .filter((item) => item.isActive)
+            .map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+        </select>
+        <label className={checkLabelClass}>
+          <input type="checkbox" name="mine" value="1" defaultChecked={filters.mine} />
+          Moje
+        </label>
+        <label className={checkLabelClass}>
+          <input type="checkbox" name="unassigned" value="1" defaultChecked={filters.unassigned} />
+          Nieprzypisane
+        </label>
+        <label className={checkLabelClass}>
+          <input type="checkbox" name="overdue" value="1" defaultChecked={filters.overdue} />
+          Po SLA
+        </label>
         <button className="inline-flex h-10 items-center justify-center rounded-md bg-ink px-4 text-sm font-bold text-white dark:bg-paper dark:text-ink" type="submit">
           Filtruj
         </button>
+        <Link href="/admin/tickets" className="inline-flex h-10 items-center justify-center rounded-md px-3 text-sm font-bold text-ink/65 hover:text-ink dark:text-paper/65 dark:hover:text-paper">
+          Wyczyść
+        </Link>
       </form>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {tickets.map((ticket) => (
-          <TicketCard
-            key={ticket.id}
-            ticket={ticket}
-            href={`/admin/tickets/${ticket.id}`}
-            reporter={database.users.find((item) => item.id === ticket.reporterId)}
-            assignee={database.users.find((item) => item.id === ticket.assigneeId)}
-            category={database.categories.find((item) => item.id === ticket.categoryId)}
-            store={database.stores.find((item) => item.id === ticket.storeId)}
-          />
-        ))}
-      </div>
+      {tickets.length > 0 ? (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {tickets.map((ticket) => (
+            <TicketCard
+              key={ticket.id}
+              ticket={ticket}
+              href={`/admin/tickets/${ticket.id}`}
+              reporter={database.users.find((item) => item.id === ticket.reporterId)}
+              assignee={database.users.find((item) => item.id === ticket.assigneeId)}
+              category={database.categories.find((item) => item.id === ticket.categoryId)}
+              store={database.stores.find((item) => item.id === ticket.storeId)}
+            />
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          variant="search"
+          title="Brak wyników"
+          description={Object.keys(filters).length > 0 ? "Zmień filtry albo wyczyść wyszukiwanie." : "Kolejka nie zawiera jeszcze żadnych zgłoszeń."}
+          actionHref="/admin/tickets"
+          actionLabel="Wyczyść filtry"
+        />
+      )}
     </AppShell>
   );
 }
 
 const filterClass =
   "h-10 min-w-40 rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper";
+
+const checkLabelClass =
+  "inline-flex h-10 items-center gap-2 rounded-md border border-black/10 px-3 text-sm font-semibold text-ink/70 dark:border-white/10 dark:text-paper/70";
 
 function Metric({ label, value }: { label: string; value: number }) {
   return (

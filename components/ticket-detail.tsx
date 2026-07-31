@@ -1,5 +1,5 @@
 import { MessageSquare, Save } from "lucide-react";
-import { updateTicketAction } from "@/app/actions";
+import { confirmTicketResolutionAction, updateTicketAction } from "@/app/actions";
 import { PriorityBadge, StatusBadge, VisibilityBadge } from "@/components/badges";
 import { TicketCommentForm } from "@/components/ticket-comment-form";
 import { AttachmentUpload } from "@/components/tickets/attachment-upload";
@@ -39,6 +39,7 @@ export function TicketDetail({
   const store = stores.find((item) => item.id === ticket.storeId);
   const canEdit = can(currentUser, "ticket:update");
   const canAddInternal = can(currentUser, "comment:internal");
+  const canConfirmResolution = !adminMode && ticket.status === "RESOLVED" && can(currentUser, "ticket:confirm-resolution");
 
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
@@ -145,6 +146,19 @@ export function TicketDetail({
             <button type="submit" className="mt-2 inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-ink px-4 text-sm font-black text-white hover:bg-ink/90 dark:bg-paper dark:text-ink">
               <Save size={16} />
               Zapisz zmiany
+            </button>
+          </form>
+        ) : null}
+
+        {canConfirmResolution ? (
+          <form action={confirmTicketResolutionAction} className="rounded-md border border-emerald-500/25 bg-emerald-500/5 p-5 dark:border-emerald-400/25 dark:bg-emerald-400/5">
+            <input type="hidden" name="ticketId" value={ticket.id} />
+            <h2 className="text-lg font-black">Czy problem został rozwiązany?</h2>
+            <p className="mt-2 text-sm leading-6 text-ink/65 dark:text-paper/65">
+              Potwierdzenie zamknie zgłoszenie. Jeśli problem nadal występuje, dodaj komentarz zamiast zamykać ticket.
+            </p>
+            <button type="submit" className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-md bg-emerald-600 px-4 text-sm font-black text-white hover:bg-emerald-700">
+              Potwierdź i zamknij zgłoszenie
             </button>
           </form>
         ) : null}

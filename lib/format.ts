@@ -1,7 +1,10 @@
+export const APP_TIME_ZONE = "Europe/Warsaw";
+
 export function formatDateTime(value: string): string {
   return new Intl.DateTimeFormat("pl-PL", {
     dateStyle: "medium",
-    timeStyle: "short"
+    timeStyle: "short",
+    timeZone: APP_TIME_ZONE
   }).format(new Date(value));
 }
 

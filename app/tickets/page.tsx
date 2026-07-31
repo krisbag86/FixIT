@@ -5,14 +5,14 @@ import { TicketCard } from "@/components/ticket-card";
 import { requireUser } from "@/lib/auth";
 import { listVisibleTickets, readDatabase } from "@/lib/data-store";
 import { statusLabels, ticketStatuses } from "@/lib/labels";
-import type { TicketStatus } from "@/lib/types";
+import { parseTicketListFilters, type TicketListSearchParams } from "@/lib/ticket-filters";
 
-export default async function TicketsPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
+export default async function TicketsPage({ searchParams }: { searchParams: Promise<TicketListSearchParams> }) {
   const user = await requireUser();
   const params = await searchParams;
+  const filters = parseTicketListFilters(params);
   const database = await readDatabase();
-  const status = params.status as TicketStatus | undefined;
-  const tickets = (await listVisibleTickets(user)).filter((ticket) => !status || ticket.status === status);
+  const tickets = await listVisibleTickets(user, filters);
 
   return (
     <AppShell user={user}>
@@ -23,11 +23,18 @@ export default async function TicketsPage({ searchParams }: { searchParams: Prom
             Lista spraw, które możesz śledzić zgodnie ze swoją rolą.
           </p>
         </div>
-        <form className="flex items-center gap-2">
+        <form method="get" className="flex flex-wrap items-center gap-2">
           <Filter size={18} className="text-ink/50 dark:text-paper/50" />
+          <input
+            name="q"
+            defaultValue={filters.query ?? ""}
+            placeholder="Szukaj zgłoszeń"
+            className="h-10 min-w-52 rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper"
+            aria-label="Szukaj zgłoszeń"
+          />
           <select
             name="status"
-            defaultValue={status ?? ""}
+            defaultValue={filters.status ?? ""}
             className="h-10 min-w-48 rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper"
           >
             <option value="">Wszystkie statusy</option>
@@ -40,6 +47,9 @@ export default async function TicketsPage({ searchParams }: { searchParams: Prom
           <button className="inline-flex h-10 items-center justify-center rounded-md bg-ink px-4 text-sm font-bold text-white dark:bg-paper dark:text-ink" type="submit">
             Filtruj
           </button>
+          <a href="/tickets" className="px-2 text-sm font-bold text-ink/65 hover:text-ink dark:text-paper/65 dark:hover:text-paper">
+            Wyczyść
+          </a>
         </form>
       </div>
 
@@ -60,7 +70,7 @@ export default async function TicketsPage({ searchParams }: { searchParams: Prom
       ) : (
         <EmptyState
           variant="tickets"
-          description={status ? "Brak zgłoszeń w tym statusie. Zmień filtr lub utwórz nowe zgłoszenie." : "Zmień filtr albo utwórz pierwsze zgłoszenie."}
+          description={filters.status || filters.query ? "Brak zgłoszeń dla wybranych filtrów. Zmień filtr lub utwórz nowe zgłoszenie." : "Zmień filtr albo utwórz pierwsze zgłoszenie."}
           actionHref="/tickets/new"
           actionLabel="Zgłoś awarię"
         />

@@ -38,6 +38,14 @@ describe("permissions", () => {
     expect(can(agent, "ticket:view-all")).toBe(true);
     expect(can(agent, "comment:internal")).toBe(true);
     expect(canUseAdmin(agent)).toBe(true);
+    expect(can(agent, "ticket:confirm-resolution")).toBe(false);
+  });
+
+  it("allows reporters and store managers to confirm their visible resolved tickets", () => {
+    const manager: User = { ...baseUser, id: "manager", role: "STORE_MANAGER", storeId: "store1" };
+
+    expect(can(baseUser, "ticket:confirm-resolution")).toBe(true);
+    expect(can(manager, "ticket:confirm-resolution")).toBe(true);
   });
 
   it("limits ticket visibility by role and store", () => {

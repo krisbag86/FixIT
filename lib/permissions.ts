@@ -6,6 +6,7 @@ export type PermissionAction =
   | "ticket:view-store"
   | "ticket:view-all"
   | "ticket:update"
+  | "ticket:confirm-resolution"
   | "comment:public"
   | "comment:internal"
   | "admin:manage-users"
@@ -38,10 +39,10 @@ export function can(user: User, action: PermissionAction): boolean {
   }
 
   if (user.role === "STORE_MANAGER") {
-    return ["ticket:create", "ticket:view", "ticket:view-store", "comment:public"].includes(action);
+    return ["ticket:create", "ticket:view", "ticket:view-store", "ticket:confirm-resolution", "comment:public"].includes(action);
   }
 
-  return ["ticket:create", "ticket:view", "comment:public"].includes(action);
+  return ["ticket:create", "ticket:view", "ticket:confirm-resolution", "comment:public"].includes(action);
 }
 
 export function canViewTicket(user: User, ticket: Ticket): boolean {

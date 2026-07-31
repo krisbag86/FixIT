@@ -87,6 +87,47 @@ describe("getDashboardMetrics", () => {
   });
 });
 
+describe("listVisibleTickets filters", () => {
+  beforeEach(resetDatabase);
+  afterEach(resetDatabase);
+
+  it("applies search, status and priority filters in the JSON data provider", async () => {
+    const { createTicket, findUserByEmail, listVisibleTickets } = await import("@/lib/data-store");
+    const admin = await findUserByEmail("krzysztofgraczyk@bagietka.pl");
+
+    expect(admin).toBeDefined();
+
+    await createTicket({
+      title: "Drukarka fiskalna nie działa",
+      description: "Stanowisko 2 nie drukuje paragonów.",
+      blocksWork: false,
+      contact: "sklep@bagietka.pl",
+      categoryId: "cat_printer",
+      reporterId: admin!.id,
+      priority: "HIGH"
+    });
+
+    await createTicket({
+      title: "Internet działa wolno",
+      description: "Problem z siecią w biurze.",
+      blocksWork: false,
+      contact: "biuro@bagietka.pl",
+      categoryId: "cat_network",
+      reporterId: admin!.id,
+      priority: "NORMAL"
+    });
+
+    const results = await listVisibleTickets(admin!, {
+      query: "drukarka",
+      status: "NEW",
+      priority: "HIGH"
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0]?.title).toBe("Drukarka fiskalna nie działa");
+  });
+});
+
 describe("exportTicketsCSV", () => {
   beforeEach(resetDatabase);
   afterEach(resetDatabase);
