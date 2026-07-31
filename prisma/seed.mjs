@@ -54,6 +54,39 @@ function createStoreDirectoryMarkdown(stores) {
   ].join("\n");
 }
 
+async function upsertBootstrapAdmin(bootstrapAdmin) {
+  const existingByEmail = await prisma.user.findUnique({ where: { email: bootstrapAdmin.email } });
+  const adminData = {
+    name: bootstrapAdmin.name,
+    role: "ADMIN",
+    department: "IT",
+    isActive: true
+  };
+
+  // Prefer the configured email when it already exists. Otherwise reuse the
+  // stable seed id so databases created by the JSON seed remain compatible.
+  // Existing passwords are intentionally preserved; only a newly created
+  // bootstrap account receives the configured temporary password.
+  if (existingByEmail) {
+    return prisma.user.update({
+      where: { id: existingByEmail.id },
+      data: adminData
+    });
+  }
+
+  return prisma.user.upsert({
+    where: { id: "usr_admin" },
+    update: adminData,
+    create: {
+      id: "usr_admin",
+      ...adminData,
+      email: bootstrapAdmin.email,
+      passwordHash: hashPassword(bootstrapAdmin.password),
+      mustChangePassword: true
+    }
+  });
+}
+
 async function upsertContactsArticle(storeDirectory, adminId) {
   const body = createStoreDirectoryMarkdown(storeDirectory);
   const contactsArticle = await prisma.knowledgeArticle.findUnique({ where: { slug: "kontakty" } });
@@ -144,25 +177,7 @@ async function main() {
 
   // Bootstrap admin account. Production must provide explicit credentials via env.
   const bootstrapAdmin = getBootstrapAdminConfig();
-  const admin = await prisma.user.upsert({
-    where: { email: bootstrapAdmin.email },
-    update: {
-      name: bootstrapAdmin.name,
-      role: "ADMIN",
-      department: "IT",
-      isActive: true
-    },
-    create: {
-      id: "usr_admin",
-      name: bootstrapAdmin.name,
-      email: bootstrapAdmin.email,
-      role: "ADMIN",
-      department: "IT",
-      isActive: true,
-      passwordHash: hashPassword(bootstrapAdmin.password),
-      mustChangePassword: true
-    }
-  });
+  const admin = await upsertBootstrapAdmin(bootstrapAdmin);
 
   const categories = [
     { id: "cat_pos", name: "Kasa / POS", defaultPriority: "CRITICAL", isActive: true },
