@@ -1,5 +1,6 @@
 # Force LF line endings for all config files
 # CRLF line endings cause BuildKit errors on Railway
+.gitattributes text eol=lf
 .dockerignore text eol=lf
 .gitignore text eol=lf
 Dockerfile text eol=lf

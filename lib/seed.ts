@@ -199,6 +199,7 @@ knowledgeArticles: [
       }
     ],
     notificationLogs: [],
+    dayLogEntries: [],
     adminAuditLogs: [],
     sessions: [],
     setupTokens: []

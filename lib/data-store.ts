@@ -24,6 +24,7 @@ import type {
   DashboardData,
   DashboardMetrics,
   Database,
+  DayLogEntry,
   KnowledgeArticle,
   NotificationLog,
   ResponseMacro,
@@ -223,6 +224,23 @@ function mapNotificationLog(log: Prisma.NotificationLogGetPayload<object>): Noti
   };
 }
 
+function mapDayLogEntry(
+  entry: Prisma.DayLogEntryGetPayload<{ include: { createdBy: { select: { name: true; email: true } } } }>
+): DayLogEntry {
+  return {
+    id: entry.id,
+    occurredAt: iso(entry.occurredAt) ?? "",
+    fromName: entry.fromName,
+    subject: entry.subject,
+    description: entry.description,
+    createdById: entry.createdById,
+    createdByName: entry.createdBy.name ?? entry.createdBy.email,
+    createdByEmail: entry.createdBy.email,
+    createdAt: iso(entry.createdAt) ?? "",
+    updatedAt: iso(entry.updatedAt) ?? ""
+  };
+}
+
 function mapAdminAuditLog(log: Prisma.AdminAuditLogGetPayload<object>): AdminAuditLog {
   const payload =
     typeof log.payload === "object" && log.payload !== null && !Array.isArray(log.payload)
@@ -257,6 +275,9 @@ async function ensureDatabase(): Promise<Database> {
     if (!Array.isArray(parsed.responseMacros)) {
       parsed.responseMacros = [];
     }
+    if (!Array.isArray(parsed.dayLogEntries)) {
+      parsed.dayLogEntries = [];
+    }
     if (!Array.isArray(parsed.setupTokens)) {
       parsed.setupTokens = [];
     }
@@ -278,7 +299,7 @@ export async function readDatabase(): Promise<Database> {
   noStore();
   if (shouldUsePrisma()) {
     const db = await getPrisma();
-    const [users, stores, categories, tickets, comments, attachments, events, knowledgeArticles, notificationLogs, adminAuditLogs, counters, sessions, setupTokens, responseTemplates, responseMacros] =
+    const [users, stores, categories, tickets, comments, attachments, events, knowledgeArticles, notificationLogs, adminAuditLogs, counters, sessions, setupTokens, responseTemplates, responseMacros, dayLogEntries] =
       await Promise.all([
         db.user.findMany(),
         db.store.findMany(),
@@ -294,7 +315,11 @@ export async function readDatabase(): Promise<Database> {
         db.session.findMany(),
         db.setupToken.findMany(),
         db.responseTemplate.findMany(),
-        db.responseMacro.findMany()
+        db.responseMacro.findMany(),
+        db.dayLogEntry.findMany({
+          include: { createdBy: { select: { name: true, email: true } } },
+          orderBy: { occurredAt: "desc" }
+        })
       ]);
 
     return {
@@ -314,11 +339,75 @@ export async function readDatabase(): Promise<Database> {
       sessions: sessions.map(mapSession),
       setupTokens: setupTokens.map(mapSetupToken),
       responseTemplates: responseTemplates.map(mapTemplate),
-      responseMacros: responseMacros.map(mapMacro)
+      responseMacros: responseMacros.map(mapMacro),
+      dayLogEntries: dayLogEntries.map(mapDayLogEntry)
     };
   }
 
   return ensureDatabase();
+}
+
+export async function listDayLogEntries(): Promise<DayLogEntry[]> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const entries = await db.dayLogEntry.findMany({
+      include: { createdBy: { select: { name: true, email: true } } },
+      orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }]
+    });
+    return entries.map(mapDayLogEntry);
+  }
+
+  const database = await readDatabase();
+  return [...(database.dayLogEntries ?? [])]
+    .map((entry) => ({
+      ...entry,
+      createdByName: database.users.find((user) => user.id === entry.createdById)?.name,
+      createdByEmail: database.users.find((user) => user.id === entry.createdById)?.email
+    }))
+    .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt) || b.createdAt.localeCompare(a.createdAt));
+}
+
+export async function createDayLogEntry(input: {
+  occurredAt: string;
+  fromName: string;
+  subject: string;
+  description: string;
+  createdById: string;
+}): Promise<DayLogEntry> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const entry = await db.dayLogEntry.create({
+      data: {
+        occurredAt: new Date(input.occurredAt),
+        fromName: input.fromName,
+        subject: input.subject,
+        description: input.description,
+        createdById: input.createdById
+      },
+      include: { createdBy: { select: { name: true, email: true } } }
+    });
+    return mapDayLogEntry(entry);
+  }
+
+  return withDatabase((database) => {
+    const timestamp = now();
+    const author = database.users.find((user) => user.id === input.createdById);
+    const entry: DayLogEntry = {
+      id: id("daylog"),
+      occurredAt: input.occurredAt,
+      fromName: input.fromName,
+      subject: input.subject,
+      description: input.description,
+      createdById: input.createdById,
+      createdByName: author?.name,
+      createdByEmail: author?.email,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    };
+    database.dayLogEntries ??= [];
+    database.dayLogEntries.push(entry);
+    return entry;
+  });
 }
 
 export async function writeDatabase(database: Database): Promise<void> {
@@ -662,6 +751,7 @@ function getJsonUserDeleteBlockers(database: Database, userId: string): string[]
   if (database.knowledgeArticles.some((article) => article.createdById === userId)) blockers.push("artykuły bazy wiedzy");
   if (database.responseTemplates.some((template) => template.createdById === userId)) blockers.push("szablony odpowiedzi");
   if (database.responseMacros.some((macro) => macro.createdById === userId)) blockers.push("makra odpowiedzi");
+  if ((database.dayLogEntries ?? []).some((entry) => entry.createdById === userId)) blockers.push("wpisy DayLog");
 
   return blockers;
 }
@@ -683,19 +773,21 @@ export async function deleteUserAdmin(input: { userId: string; actorId: string }
       await ensureActiveAdminRemains(existing.id, "REPORTER", false);
     }
 
-    const [reportedTickets, comments, articlesCreated, responseTemplates, responseMacros] = await Promise.all([
+    const [reportedTickets, comments, articlesCreated, responseTemplates, responseMacros, dayLogEntries] = await Promise.all([
       db.ticket.count({ where: { reporterId: input.userId } }),
       db.ticketComment.count({ where: { authorId: input.userId } }),
       db.knowledgeArticle.count({ where: { createdById: input.userId } }),
       db.responseTemplate.count({ where: { createdById: input.userId } }),
-      db.responseMacro.count({ where: { createdById: input.userId } })
+      db.responseMacro.count({ where: { createdById: input.userId } }),
+      db.dayLogEntry.count({ where: { createdById: input.userId } })
     ]);
     const blockers = [
       reportedTickets > 0 ? "zgłoszenia jako zgłaszający" : undefined,
       comments > 0 ? "komentarze" : undefined,
       articlesCreated > 0 ? "artykuły bazy wiedzy" : undefined,
       responseTemplates > 0 ? "szablony odpowiedzi" : undefined,
-      responseMacros > 0 ? "makra odpowiedzi" : undefined
+      responseMacros > 0 ? "makra odpowiedzi" : undefined,
+      dayLogEntries > 0 ? "wpisy DayLog" : undefined
     ].filter((blocker): blocker is string => Boolean(blocker));
 
     if (blockers.length > 0) {

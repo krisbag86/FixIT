@@ -116,6 +116,19 @@ export type NotificationLog = {
   sentAt?: string;
 };
 
+export type DayLogEntry = {
+  id: string;
+  occurredAt: string;
+  fromName: string;
+  subject: string;
+  description: string;
+  createdById: string;
+  createdByName?: string;
+  createdByEmail?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type AdminAuditLog = {
   id: string;
   actorId?: string;
@@ -223,4 +236,5 @@ export type Database = {
   setupTokens: SetupToken[];
   responseTemplates: ResponseTemplate[];
   responseMacros: ResponseMacro[];
+  dayLogEntries?: DayLogEntry[];
 };

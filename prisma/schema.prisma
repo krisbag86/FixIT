@@ -70,6 +70,7 @@ model User {
   adminAuditLogs    AdminAuditLog[]
   responseTemplates ResponseTemplate[]
   responseMacros    ResponseMacro[]
+  dayLogEntries     DayLogEntry[]
 
   @@index([role])
   @@index([storeId])
@@ -238,6 +239,22 @@ model NotificationLog {
   @@index([ticketId])
   @@index([recipientEmail])
   @@index([createdAt])
+}
+
+model DayLogEntry {
+  id          String   @id @default(cuid())
+  occurredAt  DateTime @default(now())
+  fromName    String
+  subject     String
+  description String
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  @@index([occurredAt])
+  @@index([createdById])
 }
 
 model Session {
