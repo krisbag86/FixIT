@@ -5,7 +5,7 @@ import { AdminNav } from "@/components/admin/admin-nav";
 import { AppShell } from "@/components/app-shell";
 import { requireUser } from "@/lib/auth";
 import { deleteKnowledgeArticleAction } from "@/app/actions";
-import { listKnowledgeArticles, readDatabase } from "@/lib/data-store";
+import { getKnowledgePageData } from "@/lib/data-store";
 import { canUseAdmin } from "@/lib/permissions";
 
 export default async function AdminKnowledgePage() {
@@ -15,7 +15,7 @@ export default async function AdminKnowledgePage() {
     redirect("/tickets");
   }
 
-  const [database, articles] = await Promise.all([readDatabase(), listKnowledgeArticles()]);
+  const { articles, categories } = await getKnowledgePageData({ includeUnpublished: true });
 
   const canManageFaq = user.role === "ADMIN";
 
@@ -57,7 +57,7 @@ export default async function AdminKnowledgePage() {
             </thead>
             <tbody>
               {articles.map((article) => {
-                const category = database.categories.find((c) => c.id === article.categoryId);
+                const category = categories.find((c) => c.id === article.categoryId);
                 return (
                   <tr key={article.id} className="border-t border-black/5 bg-white/80 dark:border-white/5 dark:bg-white/5">
                     <td className="px-4 py-3 font-semibold">{article.title}</td>

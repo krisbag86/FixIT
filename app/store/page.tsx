@@ -3,15 +3,15 @@ import { Activity, AlertTriangle, CheckCircle, Clock, Filter, Store } from "luci
 import { AppShell } from "@/components/app-shell";
 import { TicketCard } from "@/components/ticket-card";
 import { requireUser } from "@/lib/auth";
-import { getStoreDashboard, listVisibleTickets, readDatabase } from "@/lib/data-store";
+import { getStoreDashboard, getTicketListPageData } from "@/lib/data-store";
 import { formatDateTime } from "@/lib/format";
 import { priorityLabels, statusLabels, ticketPriorities, ticketStatuses } from "@/lib/labels";
-import type { TicketPriority, TicketStatus } from "@/lib/types";
+import { buildTicketListHref, getTicketListCursor, parseTicketListFilters, type TicketListSearchParams } from "@/lib/ticket-filters";
 
 export default async function StoreDashboardPage({
   searchParams
 }: {
-  searchParams: Promise<{ status?: string; priority?: string }>;
+  searchParams: Promise<{ status?: string; priority?: string; cursor?: string }>;
 }) {
   const user = await requireUser();
 
@@ -26,19 +26,15 @@ export default async function StoreDashboardPage({
   }
 
   const params = await searchParams;
-  const [dashboard, database] = await Promise.all([
+  const filters = { ...parseTicketListFilters(params as TicketListSearchParams), storeId };
+  const [dashboard, page] = await Promise.all([
     getStoreDashboard(storeId),
-    readDatabase()
+    getTicketListPageData(user, filters, {
+      cursor: getTicketListCursor(params as TicketListSearchParams),
+      includeFilterOptions: true
+    })
   ]);
-
-  const allTickets = await listVisibleTickets(user);
-  const tickets = allTickets.filter((t) => {
-    const statusMatch = !params.status || t.status === (params.status as TicketStatus);
-    const priorityMatch = !params.priority || t.priority === (params.priority as TicketPriority);
-    return statusMatch && priorityMatch;
-  });
-
-  const store = database.stores.find((s) => s.id === storeId);
+  const store = page.stores.find((s) => s.id === storeId);
 
   if (!store) {
     redirect("/tickets");
@@ -117,16 +113,16 @@ export default async function StoreDashboardPage({
             </button>
           </form>
 
-          {tickets.length > 0 ? (
+          {page.tickets.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2">
-              {tickets.map((ticket) => (
+              {page.tickets.map((ticket) => (
                 <TicketCard
                   key={ticket.id}
                   ticket={ticket}
                   href={`/tickets/${ticket.id}`}
-                  reporter={database.users.find((item) => item.id === ticket.reporterId)}
-                  assignee={database.users.find((item) => item.id === ticket.assigneeId)}
-                  category={database.categories.find((item) => item.id === ticket.categoryId)}
+                  reporter={page.users.find((item) => item.id === ticket.reporterId)}
+                  assignee={page.users.find((item) => item.id === ticket.assigneeId)}
+                  category={page.categories.find((item) => item.id === ticket.categoryId)}
                   store={store}
                 />
               ))}
@@ -147,7 +143,6 @@ export default async function StoreDashboardPage({
           <div className="space-y-3">
             {dashboard.recentEvents.length > 0 ? (
               dashboard.recentEvents.map((event) => {
-                const actor = database.users.find((u) => u.id === event.actorId);
                 return (
                   <div
                     key={event.id}
@@ -169,7 +164,7 @@ export default async function StoreDashboardPage({
                       </div>
                     )}
                     <div className="mt-1 text-xs text-ink/45 dark:text-paper/45">
-                      {actor?.name ?? "System"} &middot; {formatDateTime(event.createdAt)}
+                      {event.actorName ?? "System"} &middot; {formatDateTime(event.createdAt)}
                     </div>
                   </div>
                 );
@@ -180,6 +175,16 @@ export default async function StoreDashboardPage({
           </div>
         </div>
       </div>
+      {page.hasMore ? (
+        <div className="mt-6 flex justify-end">
+          <a
+            href={buildTicketListHref("/store", params as TicketListSearchParams, page.nextCursor)}
+            className="inline-flex h-10 items-center justify-center rounded-md border border-black/10 px-4 text-sm font-bold text-ink/70 hover:border-mint hover:text-ink dark:border-white/10 dark:text-paper/70 dark:hover:text-paper"
+          >
+            Następna strona
+          </a>
+        </div>
+      ) : null}
     </AppShell>
   );
 }

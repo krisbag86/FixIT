@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -26,7 +25,6 @@ import {
 import { APP_TIME_ZONE, formatDateTime } from "@/lib/format";
 import type {
   DashboardData,
-  User,
 } from "@/lib/types";
 
 function formatShortDate(iso: string): string {
@@ -65,19 +63,10 @@ function CustomTooltip({
 }
 
 export function ITDashboard({
-  data,
-  database,
+  data
 }: {
   data: DashboardData;
-  database: {
-    users: User[];
-  };
 }) {
-  const userMap = useMemo(
-    () => new Map(database.users.map((u) => [u.id, u])),
-    [database.users]
-  );
-
   const slaWarnings = data.kpi.criticalTickets + data.kpi.slaBreachedCount;
 
   return (
@@ -256,7 +245,6 @@ export function ITDashboard({
           ) : (
             <div className="space-y-2">
               {data.recentEvents.slice(0, 10).map((event) => {
-                const actor = userMap.get(event.actorId ?? "");
                 return (
                   <Link
                     key={event.id}
@@ -281,7 +269,7 @@ export function ITDashboard({
                       </div>
                     )}
                     <div className="mt-1 text-xs text-ink/45 dark:text-paper/45">
-                      {actor?.name ?? "System"} &middot;{" "}
+                        {event.actorName ?? "System"} &middot;{" "}
                       {formatDateTime(event.createdAt)}
                     </div>
                   </Link>

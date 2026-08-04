@@ -58,6 +58,10 @@ function shouldUsePrisma(): boolean {
   return process.env.NODE_ENV === "production" && Boolean(process.env.DATABASE_URL);
 }
 
+function isUniqueConstraintError(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "P2002";
+}
+
 async function getPrisma() {
   return (await import("@/lib/prisma")).prisma;
 }
@@ -121,6 +125,7 @@ function mapTicket(ticket: Prisma.TicketGetPayload<object>): Ticket {
   return {
     id: ticket.id,
     number: ticket.number,
+    submissionId: definedString(ticket.submissionId),
     title: ticket.title,
     description: ticket.description,
     status: ticket.status,
@@ -603,6 +608,172 @@ export async function listCategoriesAdmin(options?: { includeInactive?: boolean 
     });
 }
 
+export async function getKnowledgePageData(options?: {
+  includeUnpublished?: boolean;
+  categoryId?: string;
+  query?: string;
+}): Promise<{ articles: KnowledgeArticle[]; categories: Category[] }> {
+  const query = options?.query?.trim();
+
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const [articles, categories] = await Promise.all([
+      db.knowledgeArticle.findMany({
+        where: {
+          ...(options?.includeUnpublished ? {} : { isPublished: true }),
+          ...(options?.categoryId ? { categoryId: options.categoryId } : {}),
+          ...(query
+            ? {
+                OR: [
+                  { title: { contains: query, mode: "insensitive" } },
+                  { body: { contains: query, mode: "insensitive" } }
+                ]
+              }
+            : {})
+        },
+        orderBy: { title: "asc" }
+      }),
+      db.category.findMany({ where: { isActive: true }, orderBy: { name: "asc" } })
+    ]);
+    return { articles: articles.map(mapKnowledgeArticle), categories: categories.map(mapCategory) };
+  }
+
+  const database = await readDatabase();
+  return {
+    articles: database.knowledgeArticles
+      .filter((article) => options?.includeUnpublished || article.isPublished)
+      .filter((article) => !options?.categoryId || article.categoryId === options.categoryId)
+      .filter((article) => !query || article.title.toLowerCase().includes(query.toLowerCase()) || article.body.toLowerCase().includes(query.toLowerCase()))
+      .sort((a, b) => a.title.localeCompare(b.title)),
+    categories: database.categories.filter((category) => category.isActive).sort((a, b) => a.name.localeCompare(b.name))
+  };
+}
+
+export async function getNewTicketFormData(): Promise<{
+  stores: Store[];
+  categories: Category[];
+  articles: KnowledgeArticle[];
+}> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const [stores, categories, articles] = await Promise.all([
+      db.store.findMany({ where: { isActive: true }, orderBy: [{ code: "asc" }] }),
+      db.category.findMany({ where: { isActive: true }, orderBy: [{ name: "asc" }] }),
+      db.knowledgeArticle.findMany({ where: { isPublished: true }, orderBy: [{ title: "asc" }] })
+    ]);
+    return { stores: stores.map(mapStore), categories: categories.map(mapCategory), articles: articles.map(mapKnowledgeArticle) };
+  }
+
+  const database = await readDatabase();
+  return {
+    stores: database.stores.filter((store) => store.isActive),
+    categories: database.categories.filter((category) => category.isActive),
+    articles: database.knowledgeArticles.filter((article) => article.isPublished)
+  };
+}
+
+export async function findCategoryById(categoryId: string): Promise<Category | undefined> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const category = await db.category.findUnique({ where: { id: categoryId } });
+    return category ? mapCategory(category) : undefined;
+  }
+
+  const database = await readDatabase();
+  return database.categories.find((category) => category.id === categoryId);
+}
+
+export async function getCategoryAdminPageData(): Promise<{
+  categories: Category[];
+  usage: Record<string, { ticketCount: number; articleCount: number }>;
+}> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const [categories, tickets, articles] = await Promise.all([
+      db.category.findMany({ orderBy: [{ isActive: "desc" }, { name: "asc" }] }),
+      db.ticket.groupBy({ by: ["categoryId"], _count: { _all: true } }),
+      db.knowledgeArticle.groupBy({ by: ["categoryId"], _count: { _all: true } })
+    ]);
+    const usage: Record<string, { ticketCount: number; articleCount: number }> = {};
+    for (const row of tickets) {
+      if (row.categoryId) usage[row.categoryId] = { ticketCount: row._count._all, articleCount: usage[row.categoryId]?.articleCount ?? 0 };
+    }
+    for (const row of articles) {
+      if (row.categoryId) usage[row.categoryId] = { ticketCount: usage[row.categoryId]?.ticketCount ?? 0, articleCount: row._count._all };
+    }
+    return { categories: categories.map(mapCategory), usage };
+  }
+
+  const database = await readDatabase();
+  const usage: Record<string, { ticketCount: number; articleCount: number }> = {};
+  for (const ticket of database.tickets) {
+    usage[ticket.categoryId] = usage[ticket.categoryId] ?? { ticketCount: 0, articleCount: 0 };
+    usage[ticket.categoryId].ticketCount += 1;
+  }
+  for (const article of database.knowledgeArticles) {
+    if (!article.categoryId) continue;
+    usage[article.categoryId] = usage[article.categoryId] ?? { ticketCount: 0, articleCount: 0 };
+    usage[article.categoryId].articleCount += 1;
+  }
+  return {
+    categories: [...database.categories].sort((a, b) => Number(b.isActive) - Number(a.isActive) || a.name.localeCompare(b.name)),
+    usage
+  };
+}
+
+export async function getStoreAdminPageData(): Promise<{
+  stores: Store[];
+  usage: Record<string, { userCount: number; ticketCount: number }>;
+}> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const [stores, users, tickets] = await Promise.all([
+      db.store.findMany({ orderBy: [{ isActive: "desc" }, { code: "asc" }] }),
+      db.user.groupBy({ by: ["storeId"], _count: { _all: true } }),
+      db.ticket.groupBy({ by: ["storeId"], _count: { _all: true } })
+    ]);
+    const usage: Record<string, { userCount: number; ticketCount: number }> = {};
+    for (const row of users) {
+      if (row.storeId) usage[row.storeId] = { userCount: row._count._all, ticketCount: usage[row.storeId]?.ticketCount ?? 0 };
+    }
+    for (const row of tickets) {
+      if (row.storeId) usage[row.storeId] = { userCount: usage[row.storeId]?.userCount ?? 0, ticketCount: row._count._all };
+    }
+    return { stores: stores.map(mapStore), usage };
+  }
+
+  const database = await readDatabase();
+  const usage: Record<string, { userCount: number; ticketCount: number }> = {};
+  for (const user of database.users) {
+    if (!user.storeId) continue;
+    usage[user.storeId] = usage[user.storeId] ?? { userCount: 0, ticketCount: 0 };
+    usage[user.storeId].userCount += 1;
+  }
+  for (const ticket of database.tickets) {
+    if (!ticket.storeId) continue;
+    usage[ticket.storeId] = usage[ticket.storeId] ?? { userCount: 0, ticketCount: 0 };
+    usage[ticket.storeId].ticketCount += 1;
+  }
+  return {
+    stores: [...database.stores].sort((a, b) => Number(b.isActive) - Number(a.isActive) || a.code.localeCompare(b.code)),
+    usage
+  };
+}
+
+export async function getTicketBoardData(user: User): Promise<{ tickets: Ticket[]; users: User[] }> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const [tickets, users] = await Promise.all([
+      db.ticket.findMany({ orderBy: [{ updatedAt: "desc" }, { id: "desc" }] }),
+      db.user.findMany({ where: { isActive: true }, orderBy: [{ role: "asc" }, { name: "asc" }, { email: "asc" }] })
+    ]);
+    return { tickets: tickets.map(mapTicket), users: users.map(mapUser) };
+  }
+
+  const database = await readDatabase();
+  return { tickets: filterVisibleTickets(database.tickets, user, {}), users: database.users.filter((item) => item.isActive) };
+}
+
 export async function listAdminAuditLogs(limit = 20): Promise<AdminAuditLog[]> {
   if (shouldUsePrisma()) {
     const db = await getPrisma();
@@ -644,6 +815,68 @@ export async function findUserById(userId: string): Promise<User | undefined> {
 
   const database = await readDatabase();
   return database.users.find((user) => user.id === userId && user.isActive);
+}
+
+export async function findUsersByIds(userIds: string[], options?: { includeInactive?: boolean }): Promise<User[]> {
+  const ids = [...new Set(userIds.filter(Boolean))];
+  if (ids.length === 0) return [];
+
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const users = await db.user.findMany({
+      where: {
+        id: { in: ids },
+        ...(options?.includeInactive ? {} : { isActive: true })
+      }
+    });
+    return users.map(mapUser);
+  }
+
+  const database = await readDatabase();
+  return database.users.filter((user) => ids.includes(user.id) && (options?.includeInactive || user.isActive));
+}
+
+export async function getTicketDetailReferences(input: {
+  ticket: Ticket;
+  userIds?: string[];
+  includeAssignees?: boolean;
+}): Promise<{ users: User[]; categories: Category[]; stores: Store[] }> {
+  const userIds = [...new Set([input.ticket.reporterId, input.ticket.assigneeId, ...(input.userIds ?? [])].filter(Boolean) as string[])];
+  const includeAssignees = input.includeAssignees ?? false;
+
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const [users, categories, stores] = await Promise.all([
+      db.user.findMany({
+        where: {
+          OR: [
+            { id: { in: userIds } },
+            ...(includeAssignees ? [{ isActive: true, role: "AGENT" as const }, { isActive: true, role: "ADMIN" as const }] : [])
+          ]
+        },
+        orderBy: [{ isActive: "desc" }, { role: "asc" }, { name: "asc" }, { email: "asc" }]
+      }),
+      input.ticket.categoryId ? db.category.findMany({ where: { id: input.ticket.categoryId } }) : Promise.resolve([]),
+      input.ticket.storeId ? db.store.findMany({ where: { id: input.ticket.storeId } }) : Promise.resolve([])
+    ]);
+    return {
+      users: users.map(mapUser),
+      categories: categories.map(mapCategory),
+      stores: stores.map(mapStore)
+    };
+  }
+
+  const database = await readDatabase();
+  const userIdSet = new Set(userIds);
+  return {
+    users: database.users.filter(
+      (user) => userIdSet.has(user.id) || (includeAssignees && user.isActive && (user.role === "AGENT" || user.role === "ADMIN"))
+    ),
+    categories: input.ticket.categoryId
+      ? database.categories.filter((category) => category.id === input.ticket.categoryId)
+      : [],
+    stores: input.ticket.storeId ? database.stores.filter((store) => store.id === input.ticket.storeId) : []
+  };
 }
 
 export async function updateUserAdmin(input: {
@@ -1435,78 +1668,242 @@ export async function deleteCategoryAdmin(id: string, actorId: string): Promise<
 export async function listVisibleTickets(user: User, filters: TicketListFilters = {}): Promise<Ticket[]> {
   if (shouldUsePrisma()) {
     const db = await getPrisma();
-    const visibilityWhere: Prisma.TicketWhereInput =
-      user.role === "AGENT" || user.role === "ADMIN"
-        ? {}
-        : {
-            OR: [
-              { reporterId: user.id },
-              ...(user.role === "STORE_MANAGER" && user.storeId ? [{ storeId: user.storeId }] : [])
-            ]
-          };
-
-    const query = filters.query?.trim();
-    const now = new Date();
-    const filterWhere: Prisma.TicketWhereInput[] = [visibilityWhere];
-
-    if (query) {
-      filterWhere.push({
-        OR: [
-          { number: { contains: query, mode: "insensitive" } },
-          { title: { contains: query, mode: "insensitive" } },
-          { description: { contains: query, mode: "insensitive" } }
-        ]
-      });
-    }
-
-    if (filters.status) filterWhere.push({ status: filters.status });
-    if (filters.priority) filterWhere.push({ priority: filters.priority });
-    if (filters.assigneeId) filterWhere.push({ assigneeId: filters.assigneeId });
-    if (filters.storeId) filterWhere.push({ storeId: filters.storeId });
-    if (filters.categoryId) filterWhere.push({ categoryId: filters.categoryId });
-    if (filters.mine) filterWhere.push({ assigneeId: user.id });
-    if (filters.unassigned) filterWhere.push({ assigneeId: null });
-
-    if (filters.overdue) {
-      filterWhere.push({
-        status: { notIn: [...closedStatuses] },
-        OR: [
-          { dueAt: { lt: now } },
-          {
-            dueAt: null,
-            OR: [
-              { priority: "CRITICAL", createdAt: { lt: new Date(now.getTime() - 4 * 60 * 60 * 1000) } },
-              { priority: "HIGH", createdAt: { lt: new Date(now.getTime() - 8 * 60 * 60 * 1000) } },
-              { priority: "NORMAL", createdAt: { lt: new Date(now.getTime() - 24 * 60 * 60 * 1000) } },
-              { priority: "LOW", createdAt: { lt: new Date(now.getTime() - 48 * 60 * 60 * 1000) } }
-            ]
-          }
-        ]
-      });
-    }
-
-    const where: Prisma.TicketWhereInput = { AND: filterWhere };
-
+    const { where } = buildVisibleTicketQuery(user, filters);
     const tickets = await db.ticket.findMany({
       where,
-      orderBy: { updatedAt: "desc" }
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }]
     });
-
     return tickets.map(mapTicket);
   }
 
   const database = await readDatabase();
-  const tickets = database.tickets.filter((ticket) => {
-    if (user.role === "AGENT" || user.role === "ADMIN") {
-      return matchesTicketFilters(ticket, filters, user.id);
-    }
+  return filterVisibleTickets(database.tickets, user, filters);
+}
 
-    const visibleToUser = ticket.reporterId === user.id || (user.role === "STORE_MANAGER" && Boolean(user.storeId) && user.storeId === ticket.storeId);
+const DEFAULT_TICKET_PAGE_SIZE = 30;
+const MAX_TICKET_PAGE_SIZE = 100;
 
-    return visibleToUser && matchesTicketFilters(ticket, filters, user.id);
-  });
+export type TicketListPage = {
+  tickets: Ticket[];
+  hasMore: boolean;
+  nextCursor?: string;
+};
 
-  return tickets.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+export type TicketListPageData = TicketListPage & {
+  users: User[];
+  stores: Store[];
+  categories: Category[];
+  openTickets: number;
+  criticalTickets: number;
+};
+
+function buildVisibleTicketQuery(user: User, filters: TicketListFilters, cursor?: string): { where: Prisma.TicketWhereInput } {
+  const visibilityWhere: Prisma.TicketWhereInput =
+    user.role === "AGENT" || user.role === "ADMIN"
+      ? {}
+      : {
+          OR: [
+            { reporterId: user.id },
+            ...(user.role === "STORE_MANAGER" && user.storeId ? [{ storeId: user.storeId }] : [])
+          ]
+        };
+
+  const query = filters.query?.trim();
+  const now = new Date();
+  const filterWhere: Prisma.TicketWhereInput[] = [visibilityWhere];
+
+  if (query) {
+    filterWhere.push({
+      OR: [
+        { number: { contains: query, mode: "insensitive" } },
+        { title: { contains: query, mode: "insensitive" } },
+        { description: { contains: query, mode: "insensitive" } }
+      ]
+    });
+  }
+
+  if (filters.status) filterWhere.push({ status: filters.status });
+  if (filters.priority) filterWhere.push({ priority: filters.priority });
+  if (filters.assigneeId) filterWhere.push({ assigneeId: filters.assigneeId });
+  if (filters.storeId) filterWhere.push({ storeId: filters.storeId });
+  if (filters.categoryId) filterWhere.push({ categoryId: filters.categoryId });
+  if (filters.mine) filterWhere.push({ assigneeId: user.id });
+  if (filters.unassigned) filterWhere.push({ assigneeId: null });
+
+  if (filters.overdue) {
+    filterWhere.push({
+      status: { notIn: [...closedStatuses] },
+      OR: [
+        { dueAt: { lt: now } },
+        {
+          dueAt: null,
+          OR: [
+            { priority: "CRITICAL", createdAt: { lt: new Date(now.getTime() - 4 * 60 * 60 * 1000) } },
+            { priority: "HIGH", createdAt: { lt: new Date(now.getTime() - 8 * 60 * 60 * 1000) } },
+            { priority: "NORMAL", createdAt: { lt: new Date(now.getTime() - 24 * 60 * 60 * 1000) } },
+            { priority: "LOW", createdAt: { lt: new Date(now.getTime() - 48 * 60 * 60 * 1000) } }
+          ]
+        }
+      ]
+    });
+  }
+
+  const decodedCursor = decodeTicketCursor(cursor);
+  if (decodedCursor) {
+    filterWhere.push({
+      OR: [
+        { updatedAt: { lt: decodedCursor.updatedAt } },
+        { updatedAt: decodedCursor.updatedAt, id: { lt: decodedCursor.id } }
+      ]
+    });
+  }
+
+  return { where: { AND: filterWhere } };
+}
+
+function filterVisibleTickets(tickets: Ticket[], user: User, filters: TicketListFilters): Ticket[] {
+  return tickets
+    .filter((ticket) => {
+      if (user.role === "AGENT" || user.role === "ADMIN") {
+        return matchesTicketFilters(ticket, filters, user.id);
+      }
+
+      const visibleToUser = ticket.reporterId === user.id || (user.role === "STORE_MANAGER" && Boolean(user.storeId) && user.storeId === ticket.storeId);
+      return visibleToUser && matchesTicketFilters(ticket, filters, user.id);
+    })
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || b.id.localeCompare(a.id));
+}
+
+function encodeTicketCursor(ticket: Pick<Ticket, "updatedAt" | "id">): string {
+  return Buffer.from(JSON.stringify({ updatedAt: ticket.updatedAt, id: ticket.id }), "utf8").toString("base64url");
+}
+
+function decodeTicketCursor(value: string | undefined): { updatedAt: Date; id: string } | undefined {
+  if (!value) return undefined;
+
+  try {
+    const decoded = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as { updatedAt?: string; id?: string };
+    if (!decoded.updatedAt || !decoded.id) return undefined;
+    const updatedAt = new Date(decoded.updatedAt);
+    return Number.isNaN(updatedAt.getTime()) ? undefined : { updatedAt, id: decoded.id };
+  } catch {
+    return undefined;
+  }
+}
+
+export async function listVisibleTicketsPage(
+  user: User,
+  filters: TicketListFilters = {},
+  options?: { cursor?: string; limit?: number }
+): Promise<TicketListPage> {
+  const limit = Math.min(Math.max(options?.limit ?? DEFAULT_TICKET_PAGE_SIZE, 1), MAX_TICKET_PAGE_SIZE);
+
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const { where } = buildVisibleTicketQuery(user, filters, options?.cursor);
+    const rows = await db.ticket.findMany({
+      where,
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      take: limit + 1
+    });
+    const hasMore = rows.length > limit;
+    const tickets = rows.slice(0, limit).map(mapTicket);
+    return {
+      tickets,
+      hasMore,
+      ...(hasMore && tickets.length > 0 ? { nextCursor: encodeTicketCursor(tickets[tickets.length - 1]) } : {})
+    };
+  }
+
+  const database = await readDatabase();
+  const allTickets = filterVisibleTickets(database.tickets, user, filters);
+  const decodedCursor = decodeTicketCursor(options?.cursor);
+  const startIndex = decodedCursor
+    ? allTickets.findIndex((ticket) => ticket.id === decodedCursor.id && ticket.updatedAt === decodedCursor.updatedAt.toISOString()) + 1
+    : 0;
+  const safeStart = startIndex > 0 ? startIndex : 0;
+  const tickets = allTickets.slice(safeStart, safeStart + limit);
+  const hasMore = safeStart + limit < allTickets.length;
+  return {
+    tickets,
+    hasMore,
+    ...(hasMore && tickets.length > 0 ? { nextCursor: encodeTicketCursor(tickets[tickets.length - 1]) } : {})
+  };
+}
+
+export async function getTicketListPageData(
+  user: User,
+  filters: TicketListFilters = {},
+  options?: { cursor?: string; limit?: number; includeFilterOptions?: boolean; includeQueueSummary?: boolean }
+): Promise<TicketListPageData> {
+  const includeFilterOptions = options?.includeFilterOptions ?? false;
+  const includeQueueSummary = options?.includeQueueSummary ?? false;
+
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const { where } = buildVisibleTicketQuery(user, filters, options?.cursor);
+    const limit = Math.min(Math.max(options?.limit ?? DEFAULT_TICKET_PAGE_SIZE, 1), MAX_TICKET_PAGE_SIZE);
+    const [rows, openTickets, criticalTickets] = await Promise.all([
+      db.ticket.findMany({ where, orderBy: [{ updatedAt: "desc" }, { id: "desc" }], take: limit + 1 }),
+      includeQueueSummary
+        ? db.ticket.count({ where: { status: { notIn: [...closedStatuses] } } })
+        : Promise.resolve(0),
+      includeQueueSummary ? db.ticket.count({ where: { priority: "CRITICAL" } }) : Promise.resolve(0)
+    ]);
+    const hasMore = rows.length > limit;
+    const tickets = rows.slice(0, limit).map(mapTicket);
+    const userIds = [...new Set(tickets.flatMap((ticket) => [ticket.reporterId, ticket.assigneeId].filter(Boolean) as string[]))];
+    const storeIds = [...new Set(tickets.map((ticket) => ticket.storeId).filter(Boolean) as string[])];
+    const categoryIds = [...new Set(tickets.map((ticket) => ticket.categoryId).filter(Boolean))];
+    const [users, stores, categories] = await Promise.all([
+      db.user.findMany({
+        where: includeFilterOptions ? { OR: [{ isActive: true }, { id: { in: userIds } }] } : { id: { in: userIds } },
+        orderBy: [{ isActive: "desc" }, { role: "asc" }, { name: "asc" }, { email: "asc" }]
+      }),
+      db.store.findMany({
+        where: includeFilterOptions ? { OR: [{ isActive: true }, { id: { in: storeIds } }] } : { id: { in: storeIds } },
+        orderBy: [{ isActive: "desc" }, { code: "asc" }]
+      }),
+      db.category.findMany({
+        where: includeFilterOptions ? { OR: [{ isActive: true }, { id: { in: categoryIds } }] } : { id: { in: categoryIds } },
+        orderBy: [{ isActive: "desc" }, { name: "asc" }]
+      })
+    ]);
+    return {
+      tickets,
+      hasMore,
+      ...(hasMore && tickets.length > 0 ? { nextCursor: encodeTicketCursor(tickets[tickets.length - 1]) } : {}),
+      users: users.map(mapUser),
+      stores: stores.map(mapStore),
+      categories: categories.map(mapCategory),
+      openTickets,
+      criticalTickets
+    };
+  }
+
+  const database = await readDatabase();
+  const allTickets = filterVisibleTickets(database.tickets, user, filters);
+  const decodedCursor = decodeTicketCursor(options?.cursor);
+  const startIndex = decodedCursor
+    ? allTickets.findIndex((ticket) => ticket.id === decodedCursor.id && ticket.updatedAt === decodedCursor.updatedAt.toISOString()) + 1
+    : 0;
+  const safeStart = startIndex > 0 ? startIndex : 0;
+  const limit = Math.min(Math.max(options?.limit ?? DEFAULT_TICKET_PAGE_SIZE, 1), MAX_TICKET_PAGE_SIZE);
+  const tickets = allTickets.slice(safeStart, safeStart + limit);
+  const hasMore = safeStart + limit < allTickets.length;
+  const ticketUserIds = new Set(tickets.flatMap((ticket) => [ticket.reporterId, ticket.assigneeId].filter(Boolean) as string[]));
+  const ticketStoreIds = new Set(tickets.map((ticket) => ticket.storeId).filter(Boolean));
+  const ticketCategoryIds = new Set(tickets.map((ticket) => ticket.categoryId).filter(Boolean));
+  return {
+    tickets,
+    hasMore,
+    ...(hasMore && tickets.length > 0 ? { nextCursor: encodeTicketCursor(tickets[tickets.length - 1]) } : {}),
+    users: database.users.filter((item) => includeFilterOptions || ticketUserIds.has(item.id)),
+    stores: database.stores.filter((item) => includeFilterOptions || ticketStoreIds.has(item.id)),
+    categories: database.categories.filter((item) => includeFilterOptions || ticketCategoryIds.has(item.id)),
+    openTickets: includeQueueSummary ? database.tickets.filter((ticket) => !closedStatuses.has(ticket.status)).length : 0,
+    criticalTickets: includeQueueSummary ? database.tickets.filter((ticket) => ticket.priority === "CRITICAL").length : 0
+  };
 }
 
 export async function findTicket(ticketId: string): Promise<Ticket | undefined> {
@@ -1558,7 +1955,7 @@ export async function listEvents(ticketId: string): Promise<TicketEvent[]> {
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
-export async function createTicket(input: {
+export async function createTicketWithResult(input: {
   title: string;
   description: string;
   blocksWork: boolean;
@@ -1568,70 +1965,103 @@ export async function createTicket(input: {
   department?: string;
   reporterId: string;
   priority: TicketPriority;
-}): Promise<Ticket> {
+  submissionId?: string;
+}): Promise<{ ticket: Ticket; created: boolean }> {
   if (shouldUsePrisma()) {
     const db = await getPrisma();
     const year = new Date().getFullYear();
 
-    const ticket = await db.$transaction(async (tx) => {
-      await tx.ticketCounter.upsert({
-        where: { year },
-        create: { year, sequence: 0 },
-        update: {}
+    if (input.submissionId) {
+      const existing = await db.ticket.findFirst({
+        where: { reporterId: input.reporterId, submissionId: input.submissionId }
       });
+      if (existing) {
+        return { ticket: mapTicket(existing), created: false };
+      }
+    }
 
-      const counter = await tx.ticketCounter.update({
-        where: { year },
-        data: { sequence: { increment: 1 } }
-      });
+    try {
+      const ticket = await db.$transaction(async (tx) => {
+        await tx.ticketCounter.upsert({
+          where: { year },
+          create: { year, sequence: 0 },
+          update: {}
+        });
 
-      const created = await tx.ticket.create({
-        data: {
-          number: generateTicketNumber(year, counter.sequence),
-          title: input.title,
-          description: input.description,
-          status: "NEW",
-          priority: input.blocksWork ? "CRITICAL" : input.priority,
-          blocksWork: input.blocksWork,
-          contact: input.contact,
-          categoryId: input.categoryId,
-          storeId: input.storeId,
-          department: input.department,
-          reporterId: input.reporterId
-        }
-      });
+        const counter = await tx.ticketCounter.update({
+          where: { year },
+          data: { sequence: { increment: 1 } }
+        });
 
-      await tx.ticketEvent.create({
-        data: {
-          ticketId: created.id,
-          actorId: input.reporterId,
-          type: "TICKET_CREATED"
-        }
-      });
-
-      const reporter = await tx.user.findUnique({
-        where: { id: input.reporterId },
-        select: { email: true }
-      });
-
-      if (reporter?.email) {
-        await tx.notificationLog.create({
+        const created = await tx.ticket.create({
           data: {
-            ticketId: created.id,
-            recipientEmail: reporter.email,
-            type: "TICKET_CREATED",
-            status: "QUEUED"
+            number: generateTicketNumber(year, counter.sequence),
+            submissionId: input.submissionId,
+            title: input.title,
+            description: input.description,
+            status: "NEW",
+            priority: input.blocksWork ? "CRITICAL" : input.priority,
+            blocksWork: input.blocksWork,
+            contact: input.contact,
+            categoryId: input.categoryId,
+            storeId: input.storeId,
+            department: input.department,
+            reporterId: input.reporterId
           }
         });
+
+        await tx.ticketEvent.create({
+          data: {
+            ticketId: created.id,
+            actorId: input.reporterId,
+            type: "TICKET_CREATED"
+          }
+        });
+
+        const reporter = await tx.user.findUnique({
+          where: { id: input.reporterId },
+          select: { email: true }
+        });
+
+        if (reporter?.email) {
+          await tx.notificationLog.create({
+            data: {
+              ticketId: created.id,
+              recipientEmail: reporter.email,
+              type: "TICKET_CREATED",
+              status: "QUEUED"
+            }
+          });
+        }
+
+        return created;
+      });
+
+      return { ticket: mapTicket(ticket), created: true };
+    } catch (error) {
+      if (!input.submissionId || !isUniqueConstraintError(error)) {
+        throw error;
       }
 
-      return created;
-    });
+      const existing = await db.ticket.findFirst({
+        where: { reporterId: input.reporterId, submissionId: input.submissionId }
+      });
+      if (!existing) {
+        throw error;
+      }
 
-    return mapTicket(ticket);
+      return { ticket: mapTicket(existing), created: false };
+    }
   }
 
   return withDatabase((database) => {
+    const existing = input.submissionId
+      ? database.tickets.find((ticket) => ticket.reporterId === input.reporterId && ticket.submissionId === input.submissionId)
+      : undefined;
+    if (existing) {
+      return { ticket: existing, created: false };
+    }
+
     const year = String(new Date().getFullYear());
     const nextSequence = (database.meta.ticketSequences[year] ?? 0) + 1;
     database.meta.ticketSequences[year] = nextSequence;
@@ -1640,6 +2070,7 @@ export async function createTicket(input: {
     const ticket: Ticket = {
       id: id("t"),
       number: generateTicketNumber(Number(year), nextSequence),
+      submissionId: input.submissionId,
       title: input.title,
       description: input.description,
       status: "NEW",
@@ -1671,8 +2102,12 @@ export async function createTicket(input: {
       createdAt: timestamp
     });
 
-    return ticket;
+    return { ticket, created: true };
   });
+}
+
+export async function createTicket(input: Parameters<typeof createTicketWithResult>[0]): Promise<Ticket> {
+  return (await createTicketWithResult(input)).ticket;
 }
 
 export async function updateTicket(input: {
@@ -2031,6 +2466,34 @@ export async function getNotificationLog(notificationId: string): Promise<Notifi
 
   const database = await readDatabase();
   return database.notificationLogs.find((item) => item.id === notificationId);
+}
+
+export async function findLatestQueuedNotification(input: {
+  ticketId: string;
+  type: string;
+  recipientEmail: string;
+}): Promise<NotificationLog | undefined> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const notification = await db.notificationLog.findFirst({
+      where: {
+        ticketId: input.ticketId,
+        type: input.type,
+        recipientEmail: input.recipientEmail,
+        status: "QUEUED"
+      },
+      orderBy: { createdAt: "desc" }
+    });
+    return notification ? mapNotificationLog(notification) : undefined;
+  }
+
+  const database = await readDatabase();
+  return database.notificationLogs
+    .filter((log) => log.ticketId === input.ticketId)
+    .filter((log) => log.type === input.type)
+    .filter((log) => log.recipientEmail === input.recipientEmail)
+    .filter((log) => log.status === "QUEUED")
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
 }
 
 export async function listPublishedKnowledgeArticles(options?: { categoryId?: string; query?: string }): Promise<KnowledgeArticle[]> {
@@ -2457,13 +2920,26 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
     }
     slaBreached.sort((a, b) => b.hoursOverdue - a.hoursOverdue);
 
+    const assigneeIds = [...new Set(slaBreached.map((item) => item.ticket.assigneeId).filter(Boolean) as string[])];
+    const storeIds = [...new Set(slaBreached.map((item) => item.ticket.storeId).filter(Boolean) as string[])];
+    const [assignees, stores] = await Promise.all([
+      assigneeIds.length > 0 ? db.user.findMany({ where: { id: { in: assigneeIds } }, select: { id: true, name: true, email: true } }) : Promise.resolve([]),
+      storeIds.length > 0 ? db.store.findMany({ where: { id: { in: storeIds } }, select: { id: true, code: true } }) : Promise.resolve([])
+    ]);
+    const assigneeMap = new Map(assignees.map((user) => [user.id, user.name ?? user.email]));
+    const storeMap = new Map(stores.map((store) => [store.id, store.code]));
+
     return {
       totalTickets,
       openTickets,
       criticalTickets,
       avgResolutionHours: avgResolutionHours !== null ? Math.round(avgResolutionHours * 10) / 10 : null,
       topCategories,
-      slaBreached
+      slaBreached: slaBreached.map((item) => ({
+        ...item,
+        assigneeName: item.ticket.assigneeId ? assigneeMap.get(item.ticket.assigneeId) : undefined,
+        storeCode: item.ticket.storeId ? storeMap.get(item.ticket.storeId) : undefined
+      }))
     };
   }
 
@@ -2515,13 +2991,20 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
   }
   slaBreached.sort((a, b) => b.hoursOverdue - a.hoursOverdue);
 
+  const userMap = new Map(database.users.map((user) => [user.id, user.name]));
+  const storeMap = new Map(database.stores.map((store) => [store.id, store.code]));
+
   return {
     totalTickets,
     openTickets,
     criticalTickets,
     avgResolutionHours: avgResolutionHours !== null ? Math.round(avgResolutionHours * 10) / 10 : null,
     topCategories,
-    slaBreached
+    slaBreached: slaBreached.map((item) => ({
+      ...item,
+      assigneeName: item.ticket.assigneeId ? userMap.get(item.ticket.assigneeId) : undefined,
+      storeCode: item.ticket.storeId ? storeMap.get(item.ticket.storeId) : undefined
+    }))
   };
 }
 
@@ -2829,7 +3312,7 @@ export async function getStoreDashboard(storeId: string): Promise<{
   criticalTickets: number;
   blockingTickets: number;
   resolvedToday: number;
-  recentEvents: (TicketEvent & { ticketNumber?: string })[];
+  recentEvents: (TicketEvent & { ticketNumber?: string; actorName?: string })[];
 }> {
   const today = new Date().toISOString().slice(0, 10);
 
@@ -2848,12 +3331,14 @@ export async function getStoreDashboard(storeId: string): Promise<{
     const recentEventsRaw = await db.ticketEvent.findMany({
       where: { ticketId: { in: storeTicketIds } },
       orderBy: { createdAt: "desc" },
-      take: 5
+      take: 5,
+      include: { actor: { select: { name: true, email: true } } }
     });
     const ticketMap = new Map(storeTickets.map((t) => [t.id, t.number]));
     const recentEvents = recentEventsRaw.map((e) => ({
       ...mapEvent(e),
-      ticketNumber: ticketMap.get(e.ticketId) ?? undefined
+      ticketNumber: ticketMap.get(e.ticketId) ?? undefined,
+      actorName: e.actor?.name ?? e.actor?.email ?? undefined
     }));
 
     return { openTickets, criticalTickets, blockingTickets, resolvedToday, recentEvents };
@@ -2876,7 +3361,8 @@ export async function getStoreDashboard(storeId: string): Promise<{
     .slice(0, 5)
     .map((e) => ({
       ...e,
-      ticketNumber: storeTickets.find((t) => t.id === e.ticketId)?.number
+      ticketNumber: storeTickets.find((t) => t.id === e.ticketId)?.number,
+      actorName: database.users.find((user) => user.id === e.actorId)?.name
     }));
 
   return { openTickets, criticalTickets, blockingTickets, resolvedToday, recentEvents };

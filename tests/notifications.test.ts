@@ -1,17 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Database, NotificationLog, Ticket, TicketComment, User } from "@/lib/types";
+import type { NotificationLog, Ticket, TicketComment, User } from "@/lib/types";
 
 vi.mock("server-only", () => ({}));
 
 const mocks = vi.hoisted(() => ({
-  readDatabase: vi.fn(),
+  findLatestQueuedNotification: vi.fn(),
+  findUsersByIds: vi.fn(),
   updateNotificationLog: vi.fn(),
   sendEmailWithResult: vi.fn(),
   reportError: vi.fn()
 }));
 
 vi.mock("@/lib/data-store", () => ({
-  readDatabase: mocks.readDatabase,
+  findLatestQueuedNotification: mocks.findLatestQueuedNotification,
+  findUsersByIds: mocks.findUsersByIds,
   updateNotificationLog: mocks.updateNotificationLog
 }));
 
@@ -79,36 +81,19 @@ function notification(input: {
   };
 }
 
-function database(notificationLogs: NotificationLog[]): Database {
-  return {
-    meta: { ticketSequences: {} },
-    users: [reporter, agent],
-    stores: [],
-    categories: [],
-    tickets: [ticket],
-    comments: [],
-    attachments: [],
-    events: [],
-    knowledgeArticles: [],
-    notificationLogs,
-    adminAuditLogs: [],
-    sessions: [],
-    setupTokens: [],
-    responseTemplates: [],
-    responseMacros: []
-  };
-}
-
 describe("ticket email notifications", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.findUsersByIds.mockImplementation((ids: string[]) =>
+      Promise.resolve([reporter, agent].filter((user) => ids.includes(user.id)))
+    );
     mocks.sendEmailWithResult.mockResolvedValue({ ok: true });
     mocks.updateNotificationLog.mockResolvedValue(undefined);
   });
 
   it("sends a resolved ticket notification and marks the queued log as sent", async () => {
-    mocks.readDatabase.mockResolvedValue(
-      database([notification({ id: "n_resolved", type: "TICKET_RESOLVED", recipientEmail: reporter.email })])
+    mocks.findLatestQueuedNotification.mockResolvedValue(
+      notification({ id: "n_resolved", type: "TICKET_RESOLVED", recipientEmail: reporter.email })
     );
 
     const { notifyTicketUpdated } = await import("@/lib/notifications");
@@ -129,8 +114,8 @@ describe("ticket email notifications", () => {
   });
 
   it("sends an assignment notification to the new assignee", async () => {
-    mocks.readDatabase.mockResolvedValue(
-      database([notification({ id: "n_assigned", type: "TICKET_ASSIGNED", recipientEmail: agent.email })])
+    mocks.findLatestQueuedNotification.mockResolvedValue(
+      notification({ id: "n_assigned", type: "TICKET_ASSIGNED", recipientEmail: agent.email })
     );
 
     const { notifyTicketUpdated } = await import("@/lib/notifications");
@@ -151,8 +136,8 @@ describe("ticket email notifications", () => {
   });
 
   it("sends a public comment notification to the ticket reporter", async () => {
-    mocks.readDatabase.mockResolvedValue(
-      database([notification({ id: "n_comment", type: "COMMENT_CREATED", recipientEmail: reporter.email })])
+    mocks.findLatestQueuedNotification.mockResolvedValue(
+      notification({ id: "n_comment", type: "COMMENT_CREATED", recipientEmail: reporter.email })
     );
 
     const { notifyCommentAdded } = await import("@/lib/notifications");
@@ -169,8 +154,8 @@ describe("ticket email notifications", () => {
   });
 
   it("marks the queued notification as failed when SMTP send fails", async () => {
-    mocks.readDatabase.mockResolvedValue(
-      database([notification({ id: "n_created", type: "TICKET_CREATED", recipientEmail: reporter.email })])
+    mocks.findLatestQueuedNotification.mockResolvedValue(
+      notification({ id: "n_created", type: "TICKET_CREATED", recipientEmail: reporter.email })
     );
     mocks.sendEmailWithResult.mockResolvedValue({
       ok: false,

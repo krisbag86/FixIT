@@ -3,7 +3,7 @@ import { AppShell } from "@/components/app-shell";
 import { ArticleCard } from "@/components/knowledge/article-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { requireUser } from "@/lib/auth";
-import { listPublishedKnowledgeArticles, readDatabase } from "@/lib/data-store";
+import { getKnowledgePageData } from "@/lib/data-store";
 
 export default async function KnowledgePage({
   searchParams
@@ -12,12 +12,10 @@ export default async function KnowledgePage({
 }) {
   const user = await requireUser();
   const params = await searchParams;
-  const database = await readDatabase();
-  const articles = await listPublishedKnowledgeArticles({
+  const { articles, categories } = await getKnowledgePageData({
     categoryId: params.category || undefined,
     query: params.q || undefined
   });
-  const categories = database.categories.filter((c) => c.isActive);
 
   return (
     <AppShell user={user}>

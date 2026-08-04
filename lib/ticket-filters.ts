@@ -43,6 +43,23 @@ function firstParam(value: string | string[] | undefined): string | undefined {
   return first?.trim() || undefined;
 }
 
+export function getTicketListCursor(params: TicketListSearchParams): string | undefined {
+  return firstParam(params.cursor);
+}
+
+export function buildTicketListHref(path: string, params: TicketListSearchParams, cursor?: string): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (key === "cursor") continue;
+    for (const item of Array.isArray(value) ? value : [value]) {
+      if (item !== undefined) search.append(key, item);
+    }
+  }
+  if (cursor) search.set("cursor", cursor);
+  const query = search.toString();
+  return query ? `${path}?${query}` : path;
+}
+
 function enumParam<T extends string>(value: string | undefined, allowed: readonly T[]): T | undefined {
   return value && allowed.includes(value as T) ? (value as T) : undefined;
 }

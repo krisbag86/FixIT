@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { TicketDetail } from "@/components/ticket-detail";
 import { requireUser } from "@/lib/auth";
-import { findTicket, listAttachments, listComments, listEvents, listMacros, listTemplates, readDatabase } from "@/lib/data-store";
+import { findTicket, getTicketDetailReferences, listAttachments, listComments, listEvents, listMacros, listTemplates } from "@/lib/data-store";
 import { canViewTicket } from "@/lib/permissions";
 
 export default async function TicketDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -15,14 +15,18 @@ export default async function TicketDetailsPage({ params }: { params: Promise<{ 
   }
 
   const includeInternal = user.role === "AGENT" || user.role === "ADMIN";
-  const [database, comments, events, attachments, templates, macros] = await Promise.all([
-    readDatabase(),
+  const [comments, events, attachments, templates, macros] = await Promise.all([
     listComments(ticket.id, includeInternal),
     listEvents(ticket.id),
     listAttachments(ticket.id),
     listTemplates(),
     listMacros()
   ]);
+  const references = await getTicketDetailReferences({
+    ticket,
+    userIds: [...comments.map((comment) => comment.authorId), ...events.map((event) => event.actorId ?? "")],
+    includeAssignees: user.role === "AGENT" || user.role === "ADMIN"
+  });
 
   return (
     <AppShell user={user}>
@@ -32,9 +36,9 @@ export default async function TicketDetailsPage({ params }: { params: Promise<{ 
         comments={comments}
         events={events}
         attachments={attachments}
-        users={database.users}
-        categories={database.categories}
-        stores={database.stores}
+        users={references.users}
+        categories={references.categories}
+        stores={references.stores}
         templates={templates}
         macros={macros}
       />

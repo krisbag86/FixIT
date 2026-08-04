@@ -46,6 +46,7 @@ export type Category = {
 export type Ticket = {
   id: string;
   number: string;
+  submissionId?: string;
   title: string;
   description: string;
   status: TicketStatus;
@@ -166,6 +167,8 @@ export type DashboardMetrics = {
     ticket: Ticket;
     slaDeadline: string;
     hoursOverdue: number;
+    assigneeName?: string;
+    storeCode?: string;
   }[];
 };
 

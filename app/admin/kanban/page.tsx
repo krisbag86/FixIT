@@ -4,7 +4,7 @@ import { AdminNav } from "@/components/admin/admin-nav";
 import { KanbanBoard } from "@/components/admin/kanban-board";
 import { AppShell } from "@/components/app-shell";
 import { requireUser } from "@/lib/auth";
-import { listVisibleTickets, readDatabase } from "@/lib/data-store";
+import { getTicketBoardData } from "@/lib/data-store";
 import { canUseAdmin } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
@@ -16,8 +16,7 @@ export default async function KanbanPage() {
     redirect("/tickets");
   }
 
-  const database = await readDatabase();
-  const tickets = await listVisibleTickets(user);
+  const { tickets, users } = await getTicketBoardData(user);
 
   return (
     <AppShell user={user}>
@@ -33,7 +32,7 @@ export default async function KanbanPage() {
       </div>
 
       <AdminNav user={user} currentPath="/admin/kanban" />
-      <KanbanBoard tickets={tickets} users={database.users} />
+      <KanbanBoard tickets={tickets} users={users} />
     </AppShell>
   );
 }
