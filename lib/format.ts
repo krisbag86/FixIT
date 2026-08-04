@@ -1,5 +1,60 @@
 export const APP_TIME_ZONE = "Europe/Warsaw";
 
+const DATE_TIME_LOCAL_PATTERN =
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?$/;
+
+/**
+ * Parses a datetime-local value as a wall-clock time in the application's timezone.
+ *
+ * `new Date("2026-08-04T12:30")` is interpreted in the server's timezone. Since
+ * Railway runs in UTC while the form is shown in Europe/Warsaw, doing that would
+ * shift a submitted DayLog entry by two hours during summer time.
+ */
+export function parseAppDateTime(value: string): Date {
+  const match = DATE_TIME_LOCAL_PATTERN.exec(value);
+  if (!match) {
+    return new Date(value);
+  }
+
+  const [, year, month, day, hour, minute, second = "0", fraction = ""] = match;
+  const milliseconds = fraction ? Number(fraction.padEnd(3, "0")) : 0;
+  const wallClockUtc = Date.UTC(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour),
+    Number(minute),
+    Number(second),
+    milliseconds
+  );
+  const wallClockDate = new Date(wallClockUtc);
+
+  const localParts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: APP_TIME_ZONE,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false
+    })
+      .formatToParts(wallClockDate)
+      .map((part) => [part.type, part.value])
+  );
+  const timezoneWallClockUtc = Date.UTC(
+    Number(localParts.year),
+    Number(localParts.month) - 1,
+    Number(localParts.day),
+    Number(localParts.hour) % 24,
+    Number(localParts.minute),
+    Number(localParts.second)
+  );
+
+  return new Date(wallClockUtc - (timezoneWallClockUtc - wallClockUtc));
+}
+
 export function formatDateTime(value: string): string {
   return new Intl.DateTimeFormat("pl-PL", {
     dateStyle: "medium",

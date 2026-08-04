@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { createDayLogEntry } from "@/lib/data-store";
 import { sanitizeText } from "@/lib/escape-html";
+import { parseAppDateTime } from "@/lib/format";
 import { can } from "@/lib/permissions";
 
 const dayLogSchema = z.object({
@@ -27,7 +28,7 @@ export async function createDayLogEntryAction(formData: FormData): Promise<void>
     subject: sanitizeText(String(formData.get("subject") ?? "")),
     description: sanitizeText(String(formData.get("description") ?? ""))
   });
-  const occurredAt = new Date(parsed.occurredAt);
+  const occurredAt = parseAppDateTime(parsed.occurredAt);
 
   if (Number.isNaN(occurredAt.getTime())) {
     throw new Error("Podana data i godzina są nieprawidłowe.");
