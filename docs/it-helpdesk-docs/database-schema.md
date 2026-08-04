@@ -10,6 +10,7 @@
 - ticket_events,
 - categories,
 - knowledge_articles,
+- day_log_entries,
 - notification_logs.
 
 ## 2. Prisma schema - propozycja startowa
@@ -62,6 +63,7 @@ model User {
   comments          TicketComment[]
   events            TicketEvent[]
   knowledgeArticles KnowledgeArticle[]
+  dayLogEntries     DayLogEntry[]
 }
 
 model Store {
@@ -187,6 +189,32 @@ model NotificationLog {
   createdAt      DateTime @default(now())
 }
 ```
+
+## 6. DayLog
+
+`DayLogEntry` przechowuje wspólne notatki administracyjne ze zgłoszeń telefonicznych
+i ustnych. Wpis jest widoczny dla użytkowników z uprawnieniem `ticket:view-all`
+(role `AGENT` i `ADMIN`) i zawsze wskazuje autora.
+
+```prisma
+model DayLogEntry {
+  id          String   @id @default(cuid())
+  occurredAt  DateTime @default(now())
+  fromName    String
+  subject     String
+  description String
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  @@index([occurredAt])
+  @@index([createdById])
+}
+```
+
+Migracja: `prisma/migrations/20260804120000_add_daylog/migration.sql`.
 
 ## 3. Numeracja ticketow
 

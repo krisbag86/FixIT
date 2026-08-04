@@ -135,3 +135,17 @@ Zrobione:
 Do zbudowania:
 
 - Zobacz aktualna liste w `remaining-tasks.md`.
+
+## Etap 9 - DayLog
+
+Status: zrobione i wdrożone na Railway (2026-08-04).
+
+Zrobione:
+
+- Dodano wspólną timeline notatek pod `/admin/daylog` dla `AGENT` i `ADMIN`.
+- Dodano pola: data/godzina, od kogo, temat i opis oraz automatyczne oznaczenie autora.
+- Dodano model `DayLogEntry` w Prisma i migrację `20260804120000_add_daylog`.
+- Dodano eksport XLSX pod `/admin/daylog/export`.
+- Dodano link DayLog do `AdminNav`.
+- Walidacja: `npm run typecheck`, `npm run lint`, `npx vitest run` (137 passed, 1 skipped) i `npm run build`.
+- Railway: deployment `e38fcb7b-278f-42d2-b95c-7cb9fe9a2a0d` zakończony statusem `SUCCESS`; healthcheck `/api/health` zwraca `200`.
