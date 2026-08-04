@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
-import { addComment, createKnowledgeArticle, createTicket, deleteKnowledgeArticle, findTicket, readDatabase, updateKnowledgeArticle, updateTicket } from "@/lib/data-store";
+import { addComment, createKnowledgeArticle, createTicketWithResult, deleteKnowledgeArticle, findCategoryById, findTicket, updateKnowledgeArticle, updateTicket } from "@/lib/data-store";
 import { sanitizeText } from "@/lib/escape-html";
 import { notifyCommentAdded, notifyTicketCreated, notifyTicketUpdated } from "@/lib/notifications";
 import { can, canViewTicket } from "@/lib/permissions";
@@ -26,7 +26,8 @@ const ticketSchema = z.object({
   storeId: z.string().optional(),
   department: z.string().optional(),
   blocksWork: z.boolean(),
-  priority: z.enum(["LOW", "NORMAL", "HIGH", "CRITICAL"])
+  priority: z.enum(["LOW", "NORMAL", "HIGH", "CRITICAL"]),
+  submissionId: z.string().uuid()
 });
 
 export async function createTicketAction(formData: FormData): Promise<void> {
@@ -37,9 +38,8 @@ export async function createTicketAction(formData: FormData): Promise<void> {
     throw new Error("Brak uprawnień do tworzenia zgłoszeń.");
   }
 
-  const database = await readDatabase();
   const categoryId = String(formData.get("categoryId") ?? "");
-  const category = database.categories.find((item) => item.id === categoryId);
+  const category = await findCategoryById(categoryId);
 
   const input = ticketSchema.parse({
     categoryId,
@@ -49,20 +49,23 @@ export async function createTicketAction(formData: FormData): Promise<void> {
     storeId: String(formData.get("storeId") || user.storeId || ""),
     department: String(formData.get("department") || user.department || ""),
     blocksWork: formData.get("blocksWork") === "on",
-    priority: String(formData.get("priority") || category?.defaultPriority || "NORMAL")
+    priority: String(formData.get("priority") || category?.defaultPriority || "NORMAL"),
+    submissionId: String(formData.get("submissionId") ?? "")
   });
 
-  const ticket = await createTicket({
+  const result = await createTicketWithResult({
     ...input,
     storeId: input.storeId || undefined,
     department: input.department || undefined,
     reporterId: user.id
   });
 
-  await notifyTicketCreated(ticket, user);
+  if (result.created) {
+    await notifyTicketCreated(result.ticket, user);
+  }
 
   revalidatePath("/tickets");
-  redirect(`/tickets/${ticket.id}`);
+  redirect(`/tickets/${result.ticket.id}`);
 }
 
 export async function updateTicketAction(formData: FormData): Promise<void> {

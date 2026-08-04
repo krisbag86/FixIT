@@ -1,6 +1,6 @@
 import "server-only";
 
-import { readDatabase, updateNotificationLog } from "@/lib/data-store";
+import { findLatestQueuedNotification, findUsersByIds, updateNotificationLog } from "@/lib/data-store";
 import { sendEmailWithResult } from "@/lib/email";
 import {
   templateCommentAdded,
@@ -10,7 +10,7 @@ import {
 } from "@/lib/email-templates";
 import type { EmailTemplate } from "@/lib/email-templates";
 import { reportError } from "@/lib/sentry";
-import type { Database, NotificationLog, Ticket, TicketComment, User } from "@/lib/types";
+import type { NotificationLog, Ticket, TicketComment, User } from "@/lib/types";
 
 type TicketNotificationType =
   | "TICKET_CREATED"
@@ -18,26 +18,14 @@ type TicketNotificationType =
   | "TICKET_ASSIGNED"
   | "COMMENT_CREATED";
 
-function findLatestQueuedNotification(
-  database: Database,
-  input: { ticketId: string; type: TicketNotificationType; recipientEmail: string }
-): NotificationLog | undefined {
-  return database.notificationLogs
-    .filter((log) => log.ticketId === input.ticketId)
-    .filter((log) => log.type === input.type)
-    .filter((log) => log.recipientEmail === input.recipientEmail)
-    .filter((log) => log.status === "QUEUED")
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
-}
-
 async function sendQueuedNotification(input: {
-  database: Database;
+  notification?: NotificationLog;
   ticketId: string;
   type: TicketNotificationType;
   recipientEmail: string;
   template: EmailTemplate;
 }): Promise<void> {
-  const notification = findLatestQueuedNotification(input.database, {
+  const notification = input.notification ?? await findLatestQueuedNotification({
     ticketId: input.ticketId,
     type: input.type,
     recipientEmail: input.recipientEmail
@@ -75,9 +63,7 @@ async function safelyNotify(
 
 export async function notifyTicketCreated(ticket: Ticket, reporter: User): Promise<void> {
   await safelyNotify("notifyTicketCreated", { ticketId: ticket.id }, async () => {
-    const database = await readDatabase();
     await sendQueuedNotification({
-      database,
       ticketId: ticket.id,
       type: "TICKET_CREATED",
       recipientEmail: reporter.email,
@@ -92,29 +78,26 @@ export async function notifyTicketUpdated(input: {
   actorId: string;
 }): Promise<void> {
   await safelyNotify("notifyTicketUpdated", { ticketId: input.after.id }, async () => {
-    const database = await readDatabase();
-
     if (input.before.status !== "RESOLVED" && input.after.status === "RESOLVED") {
-      const resolver = database.users.find((user) => user.id === input.actorId);
-      const recipient = database.users.find((user) => user.id === input.before.reporterId);
+      const users = await findUsersByIds([input.actorId, input.before.reporterId], { includeInactive: true });
+      const resolverUser = users.find((user) => user.id === input.actorId);
+      const recipientUser = users.find((user) => user.id === input.before.reporterId);
 
-      if (resolver && recipient) {
+      if (resolverUser && recipientUser) {
         await sendQueuedNotification({
-          database,
           ticketId: input.after.id,
           type: "TICKET_RESOLVED",
-          recipientEmail: recipient.email,
-          template: templateTicketResolved(input.after, resolver)
+          recipientEmail: recipientUser.email,
+          template: templateTicketResolved(input.after, resolverUser)
         });
       }
     }
 
     if (input.before.assigneeId !== input.after.assigneeId && input.after.assigneeId) {
-      const assignee = database.users.find((user) => user.id === input.after.assigneeId);
+      const [assignee] = await findUsersByIds([input.after.assigneeId]);
 
       if (assignee) {
         await sendQueuedNotification({
-          database,
           ticketId: input.after.id,
           type: "TICKET_ASSIGNED",
           recipientEmail: assignee.email,
@@ -131,14 +114,13 @@ export async function notifyCommentAdded(input: {
   authorId: string;
 }): Promise<void> {
   await safelyNotify("notifyCommentAdded", { ticketId: input.ticket.id, commentId: input.comment.id }, async () => {
-    const database = await readDatabase();
-    const author = database.users.find((user) => user.id === input.authorId);
     const recipientId = input.ticket.reporterId === input.authorId ? input.ticket.assigneeId : input.ticket.reporterId;
-    const recipient = recipientId ? database.users.find((user) => user.id === recipientId) : undefined;
+    const users = await findUsersByIds([input.authorId, recipientId ?? ""], { includeInactive: true });
+    const author = users.find((user) => user.id === input.authorId);
+    const recipient = recipientId ? users.find((user) => user.id === recipientId) : undefined;
 
     if (author && recipient) {
       await sendQueuedNotification({
-        database,
         ticketId: input.ticket.id,
         type: "COMMENT_CREATED",
         recipientEmail: recipient.email,

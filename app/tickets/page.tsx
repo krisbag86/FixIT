@@ -3,16 +3,15 @@ import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TicketCard } from "@/components/ticket-card";
 import { requireUser } from "@/lib/auth";
-import { listVisibleTickets, readDatabase } from "@/lib/data-store";
+import { getTicketListPageData } from "@/lib/data-store";
 import { statusLabels, ticketStatuses } from "@/lib/labels";
-import { parseTicketListFilters, type TicketListSearchParams } from "@/lib/ticket-filters";
+import { buildTicketListHref, getTicketListCursor, parseTicketListFilters, type TicketListSearchParams } from "@/lib/ticket-filters";
 
 export default async function TicketsPage({ searchParams }: { searchParams: Promise<TicketListSearchParams> }) {
   const user = await requireUser();
   const params = await searchParams;
   const filters = parseTicketListFilters(params);
-  const database = await readDatabase();
-  const tickets = await listVisibleTickets(user, filters);
+  const page = await getTicketListPageData(user, filters, { cursor: getTicketListCursor(params) });
 
   return (
     <AppShell user={user}>
@@ -53,17 +52,17 @@ export default async function TicketsPage({ searchParams }: { searchParams: Prom
         </form>
       </div>
 
-      {tickets.length > 0 ? (
+      {page.tickets.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {tickets.map((ticket) => (
+          {page.tickets.map((ticket) => (
             <TicketCard
               key={ticket.id}
               ticket={ticket}
               href={`/tickets/${ticket.id}`}
-              reporter={database.users.find((item) => item.id === ticket.reporterId)}
-              assignee={database.users.find((item) => item.id === ticket.assigneeId)}
-              category={database.categories.find((item) => item.id === ticket.categoryId)}
-              store={database.stores.find((item) => item.id === ticket.storeId)}
+              reporter={page.users.find((item) => item.id === ticket.reporterId)}
+              assignee={page.users.find((item) => item.id === ticket.assigneeId)}
+              category={page.categories.find((item) => item.id === ticket.categoryId)}
+              store={page.stores.find((item) => item.id === ticket.storeId)}
             />
           ))}
         </div>
@@ -75,6 +74,16 @@ export default async function TicketsPage({ searchParams }: { searchParams: Prom
           actionLabel="Zgłoś awarię"
         />
       )}
+      {page.hasMore ? (
+        <div className="mt-6 flex justify-end">
+          <a
+            href={buildTicketListHref("/tickets", params, page.nextCursor)}
+            className="inline-flex h-10 items-center justify-center rounded-md border border-black/10 px-4 text-sm font-bold text-ink/70 hover:border-mint hover:text-ink dark:border-white/10 dark:text-paper/70 dark:hover:text-paper"
+          >
+            Następna strona
+          </a>
+        </div>
+      ) : null}
     </AppShell>
   );
 }

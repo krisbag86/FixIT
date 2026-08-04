@@ -4,7 +4,7 @@ import { AdminNav } from "@/components/admin/admin-nav";
 import { ITDashboard } from "@/components/admin/it-dashboard";
 import { AppShell } from "@/components/app-shell";
 import { requireUser } from "@/lib/auth";
-import { getDashboardData, readDatabase } from "@/lib/data-store";
+import { getDashboardData } from "@/lib/data-store";
 import { canUseAdmin } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
@@ -16,10 +16,7 @@ export default async function DashboardPage() {
     redirect("/tickets");
   }
 
-  const [dashboardData, database] = await Promise.all([
-    getDashboardData(),
-    readDatabase(),
-  ]);
+  const dashboardData = await getDashboardData();
 
   return (
     <AppShell user={user}>
@@ -35,7 +32,7 @@ export default async function DashboardPage() {
       </div>
 
       <AdminNav user={user} currentPath="/admin/dashboard" />
-      <ITDashboard data={dashboardData} database={{ users: database.users }} />
+      <ITDashboard data={dashboardData} />
     </AppShell>
   );
 }

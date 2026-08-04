@@ -4,7 +4,7 @@ import { AdminNav } from "@/components/admin/admin-nav";
 import { AppShell } from "@/components/app-shell";
 import { PriorityBadge } from "@/components/badges";
 import { requireUser } from "@/lib/auth";
-import { getDashboardMetrics, readDatabase, slaRules } from "@/lib/data-store";
+import { getDashboardMetrics, slaRules } from "@/lib/data-store";
 import { formatDateTime } from "@/lib/format";
 import { priorityLabels } from "@/lib/labels";
 import { can } from "@/lib/permissions";
@@ -19,7 +19,7 @@ export default async function AdminReportsPage() {
     redirect("/tickets");
   }
 
-  const [metrics, database] = await Promise.all([getDashboardMetrics(), readDatabase()]);
+  const metrics = await getDashboardMetrics();
 
   return (
     <AppShell user={user}>
@@ -111,8 +111,6 @@ export default async function AdminReportsPage() {
           ) : (
             <div className="space-y-3">
               {metrics.slaBreached.slice(0, 10).map((item) => {
-                const assignee = database.users.find((u) => u.id === item.ticket.assigneeId);
-                const store = database.stores.find((s) => s.id === item.ticket.storeId);
                 return (
                   <div
                     key={item.ticket.id}
@@ -132,8 +130,8 @@ export default async function AdminReportsPage() {
                       <span className="font-bold text-red-600 dark:text-red-400">
                         {item.hoursOverdue}h po terminie
                       </span>
-                      {assignee ? <span>Wykonawca: {assignee.name}</span> : null}
-                      {store ? <span>{store.code}</span> : null}
+                      {item.assigneeName ? <span>Wykonawca: {item.assigneeName}</span> : null}
+                      {item.storeCode ? <span>{item.storeCode}</span> : null}
                     </div>
                   </div>
                 );

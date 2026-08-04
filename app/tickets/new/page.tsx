@@ -1,19 +1,19 @@
-import { Send } from "lucide-react";
+import { randomUUID } from "node:crypto";
 import { createTicketAction } from "@/app/actions";
 import { AppShell } from "@/components/app-shell";
 import { TicketFormFaq } from "@/components/knowledge/ticket-form-faq";
 import { requireUser } from "@/lib/auth";
-import { listPublishedKnowledgeArticles, readDatabase } from "@/lib/data-store";
+import { getNewTicketFormData } from "@/lib/data-store";
 import { priorityLabels, ticketPriorities } from "@/lib/labels";
+import { CreateTicketSubmit } from "@/components/tickets/create-ticket-submit";
+
+export const dynamic = "force-dynamic";
 
 export default async function NewTicketPage() {
   const user = await requireUser();
-  const [database, articles] = await Promise.all([readDatabase(), listPublishedKnowledgeArticles()]);
+  const { stores: availableStores, categories, articles } = await getNewTicketFormData();
   const storeCollator = new Intl.Collator("pl", { numeric: true, sensitivity: "base" });
-  const stores = database.stores
-    .filter((store) => store.isActive)
-    .sort((a, b) => storeCollator.compare(a.city, b.city) || storeCollator.compare(a.code, b.code));
-  const categories = database.categories.filter((category) => category.isActive);
+  const stores = availableStores.sort((a, b) => storeCollator.compare(a.city, b.city) || storeCollator.compare(a.code, b.code));
 
   return (
     <AppShell user={user}>
@@ -23,6 +23,7 @@ export default async function NewTicketPage() {
       </div>
 
       <form action={createTicketAction} data-testid="new-ticket-form" className="grid gap-5 rounded-md border border-black/10 bg-white/80 p-5 shadow-sm dark:border-white/10 dark:bg-white/10 lg:grid-cols-2">
+        <input type="hidden" name="submissionId" value={randomUUID()} />
         <Field label="Kategoria">
           <select name="categoryId" className={inputClass} required>
             {categories.map((category) => (
@@ -73,10 +74,7 @@ export default async function NewTicketPage() {
         </label>
         <TicketFormFaq articles={articles} categories={categories} />
         <div className="lg:col-span-2">
-          <button type="submit" className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-mint px-5 font-black text-white transition hover:bg-mint/90 sm:w-auto">
-            <Send size={18} />
-            Utwórz zgłoszenie
-          </button>
+          <CreateTicketSubmit />
         </div>
       </form>
     </AppShell>

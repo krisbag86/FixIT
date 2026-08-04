@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { ArticleFormFields } from "@/components/knowledge/article-form";
 import { requireUser } from "@/lib/auth";
-import { findKnowledgeArticleById, readDatabase } from "@/lib/data-store";
+import { findKnowledgeArticleById, getCategories } from "@/lib/data-store";
 import { can } from "@/lib/permissions";
 import { updateKnowledgeArticleAction } from "@/app/actions";
 
@@ -18,13 +18,11 @@ export default async function EditKnowledgeArticlePage({
   }
 
   const { id } = await params;
-  const [article, database] = await Promise.all([findKnowledgeArticleById(id), readDatabase()]);
+  const [article, categories] = await Promise.all([findKnowledgeArticleById(id), getCategories()]);
 
   if (!article) {
     notFound();
   }
-
-  const categories = database.categories.filter((c) => c.isActive);
 
   return (
     <AppShell user={user}>

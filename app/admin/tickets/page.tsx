@@ -6,9 +6,9 @@ import { AppShell } from "@/components/app-shell";
 import { TicketCard } from "@/components/ticket-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { requireUser } from "@/lib/auth";
-import { listVisibleTickets, readDatabase } from "@/lib/data-store";
+import { getTicketListPageData } from "@/lib/data-store";
 import { priorityLabels, statusLabels, ticketPriorities, ticketStatuses } from "@/lib/labels";
-import { parseTicketListFilters, type TicketListSearchParams } from "@/lib/ticket-filters";
+import { buildTicketListHref, getTicketListCursor, parseTicketListFilters, type TicketListSearchParams } from "@/lib/ticket-filters";
 import { canUseAdmin } from "@/lib/permissions";
 
 export default async function AdminTicketsPage({
@@ -24,10 +24,11 @@ export default async function AdminTicketsPage({
 
   const params = await searchParams;
   const filters = parseTicketListFilters(params);
-  const database = await readDatabase();
-  const tickets = await listVisibleTickets(user, filters);
-  const openTickets = database.tickets.filter((ticket) => !["RESOLVED", "CLOSED", "CANCELLED"].includes(ticket.status)).length;
-  const criticalTickets = database.tickets.filter((ticket) => ticket.priority === "CRITICAL").length;
+  const page = await getTicketListPageData(user, filters, {
+    cursor: getTicketListCursor(params),
+    includeFilterOptions: true,
+    includeQueueSummary: true
+  });
 
   return (
     <AppShell user={user}>
@@ -41,9 +42,9 @@ export default async function AdminTicketsPage({
           <p className="mt-2 text-ink/65 dark:text-paper/65">Wspólna kolejka dla agentów i administratorów.</p>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <Metric label="Otwarte" value={openTickets} />
-          <Metric label="Krytyczne" value={criticalTickets} />
-          <Metric label="W filtrze" value={tickets.length} />
+          <Metric label="Otwarte" value={page.openTickets} />
+          <Metric label="Krytyczne" value={page.criticalTickets} />
+          <Metric label="W filtrze" value={page.tickets.length} />
         </div>
       </div>
 
@@ -76,7 +77,7 @@ export default async function AdminTicketsPage({
         </select>
         <select name="assignee" defaultValue={filters.assigneeId ?? ""} className={filterClass}>
           <option value="">Wykonawca</option>
-          {database.users
+          {page.users
             .filter((item) => item.isActive && (item.role === "AGENT" || item.role === "ADMIN"))
             .map((item) => (
               <option key={item.id} value={item.id}>
@@ -86,7 +87,7 @@ export default async function AdminTicketsPage({
         </select>
         <select name="store" defaultValue={filters.storeId ?? ""} className={filterClass}>
           <option value="">Sklep</option>
-          {database.stores
+          {page.stores
             .filter((item) => item.isActive)
             .map((item) => (
               <option key={item.id} value={item.id}>
@@ -96,7 +97,7 @@ export default async function AdminTicketsPage({
         </select>
         <select name="category" defaultValue={filters.categoryId ?? ""} className={filterClass}>
           <option value="">Kategoria</option>
-          {database.categories
+          {page.categories
             .filter((item) => item.isActive)
             .map((item) => (
               <option key={item.id} value={item.id}>
@@ -124,17 +125,17 @@ export default async function AdminTicketsPage({
         </Link>
       </form>
 
-      {tickets.length > 0 ? (
+      {page.tickets.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {tickets.map((ticket) => (
+          {page.tickets.map((ticket) => (
             <TicketCard
               key={ticket.id}
               ticket={ticket}
               href={`/admin/tickets/${ticket.id}`}
-              reporter={database.users.find((item) => item.id === ticket.reporterId)}
-              assignee={database.users.find((item) => item.id === ticket.assigneeId)}
-              category={database.categories.find((item) => item.id === ticket.categoryId)}
-              store={database.stores.find((item) => item.id === ticket.storeId)}
+              reporter={page.users.find((item) => item.id === ticket.reporterId)}
+              assignee={page.users.find((item) => item.id === ticket.assigneeId)}
+              category={page.categories.find((item) => item.id === ticket.categoryId)}
+              store={page.stores.find((item) => item.id === ticket.storeId)}
             />
           ))}
         </div>
@@ -147,6 +148,16 @@ export default async function AdminTicketsPage({
           actionLabel="Wyczyść filtry"
         />
       )}
+      {page.hasMore ? (
+        <div className="mt-6 flex justify-end">
+          <a
+            href={buildTicketListHref("/admin/tickets", params, page.nextCursor)}
+            className="inline-flex h-10 items-center justify-center rounded-md border border-black/10 px-4 text-sm font-bold text-ink/70 hover:border-mint hover:text-ink dark:border-white/10 dark:text-paper/70 dark:hover:text-paper"
+          >
+            Następna strona
+          </a>
+        </div>
+      ) : null}
     </AppShell>
   );
 }

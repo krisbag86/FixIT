@@ -4,7 +4,7 @@ import { createStoreAdminAction, deleteStoreAdminAction, updateStoreAdminAction 
 import { AdminNav } from "@/components/admin/admin-nav";
 import { AppShell } from "@/components/app-shell";
 import { requireUser } from "@/lib/auth";
-import { listStoresAdmin, readDatabase } from "@/lib/data-store";
+import { getStoreAdminPageData } from "@/lib/data-store";
 import { can } from "@/lib/permissions";
 
 export default async function AdminStoresPage() {
@@ -14,7 +14,7 @@ export default async function AdminStoresPage() {
     redirect("/admin/tickets");
   }
 
-  const [stores, database] = await Promise.all([listStoresAdmin({ includeInactive: true }), readDatabase()]);
+  const { stores, usage } = await getStoreAdminPageData();
 
   return (
     <AppShell user={user}>
@@ -63,8 +63,7 @@ export default async function AdminStoresPage() {
           </thead>
           <tbody>
             {stores.map((store) => {
-              const userCount = database.users.filter((item) => item.storeId === store.id).length;
-              const ticketCount = database.tickets.filter((item) => item.storeId === store.id).length;
+              const storeUsage = usage[store.id] ?? { userCount: 0, ticketCount: 0 };
 
               return (
                 <tr key={store.id} className="border-t border-black/5 bg-white/80 align-top dark:border-white/5 dark:bg-white/5">
@@ -76,7 +75,7 @@ export default async function AdminStoresPage() {
                     {store.region ? <div className="text-xs">{store.region}</div> : null}
                   </td>
                   <td className="px-4 py-3 text-xs text-ink/60 dark:text-paper/60">
-                    {userCount} użytk. · {ticketCount} zgłosz.
+                    {storeUsage.userCount} użytk. · {storeUsage.ticketCount} zgłosz.
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">

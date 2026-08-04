@@ -5,7 +5,7 @@ import { AdminNav } from "@/components/admin/admin-nav";
 import { AppShell } from "@/components/app-shell";
 import { priorityLabels, ticketPriorities } from "@/lib/labels";
 import { requireUser } from "@/lib/auth";
-import { listCategoriesAdmin, readDatabase } from "@/lib/data-store";
+import { getCategoryAdminPageData } from "@/lib/data-store";
 import { can } from "@/lib/permissions";
 
 export default async function AdminCategoriesPage() {
@@ -15,7 +15,7 @@ export default async function AdminCategoriesPage() {
     redirect("/admin/tickets");
   }
 
-  const [categories, database] = await Promise.all([listCategoriesAdmin({ includeInactive: true }), readDatabase()]);
+  const { categories, usage } = await getCategoryAdminPageData();
 
   return (
     <AppShell user={user}>
@@ -66,15 +66,14 @@ export default async function AdminCategoriesPage() {
           </thead>
           <tbody>
             {categories.map((category) => {
-              const ticketCount = database.tickets.filter((item) => item.categoryId === category.id).length;
-              const articleCount = database.knowledgeArticles.filter((item) => item.categoryId === category.id).length;
+              const categoryUsage = usage[category.id] ?? { ticketCount: 0, articleCount: 0 };
 
               return (
                 <tr key={category.id} className="border-t border-black/5 bg-white/80 align-top dark:border-white/5 dark:bg-white/5">
                   <td className="px-4 py-3 font-semibold">{category.name}</td>
                   <td className="px-4 py-3 text-ink/65 dark:text-paper/65">{priorityLabels[category.defaultPriority]}</td>
                   <td className="px-4 py-3 text-xs text-ink/60 dark:text-paper/60">
-                    {ticketCount} zgłosz. · {articleCount} art.
+                    {categoryUsage.ticketCount} zgłosz. · {categoryUsage.articleCount} art.
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">

@@ -120,6 +120,7 @@ model TicketCounter {
 model Ticket {
   id          String         @id @default(cuid())
   number      String         @unique
+  submissionId String?
   title       String
   description String
   status      TicketStatus   @default(NEW)
@@ -153,6 +154,7 @@ model Ticket {
   @@index([storeId])
   @@index([updatedAt])
   @@index([createdAt])
+  @@unique([reporterId, submissionId])
 }
 
 model TicketComment {

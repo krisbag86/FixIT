@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { ArticleFormFields } from "@/components/knowledge/article-form";
 import { requireUser } from "@/lib/auth";
-import { readDatabase } from "@/lib/data-store";
+import { getCategories } from "@/lib/data-store";
 import { can } from "@/lib/permissions";
 import { createKnowledgeArticleAction } from "@/app/actions";
 
@@ -13,8 +13,7 @@ export default async function NewKnowledgeArticlePage() {
     redirect("/admin/knowledge");
   }
 
-  const database = await readDatabase();
-  const categories = database.categories.filter((c) => c.isActive);
+  const categories = await getCategories();
 
   return (
     <AppShell user={user}>
