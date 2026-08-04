@@ -67,6 +67,17 @@ describe("createDayLogEntryAction", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/admin/daylog");
   });
 
+  it("interprets datetime-local values in the application timezone", async () => {
+    const { createDayLogEntry } = installMocks();
+    const { createDayLogEntryAction } = await import("@/app/admin/daylog/actions");
+
+    await createDayLogEntryAction(makeForm({ occurredAt: "2026-08-04T12:30" }));
+
+    expect(createDayLogEntry).toHaveBeenCalledWith(
+      expect.objectContaining({ occurredAt: "2026-08-04T10:30:00.000Z" })
+    );
+  });
+
   it("rejects users without access to all tickets", async () => {
     const reporter: User = { ...adminUser, id: "usr_reporter", role: "REPORTER" };
     const { createDayLogEntry } = installMocks(reporter);
