@@ -31,13 +31,17 @@ function makeForm(overrides: Record<string, string> = {}): FormData {
 
 function installMocks(user: User = adminUser) {
   const createDayLogEntry = vi.fn(async () => ({}));
+  const updateDayLogEntry = vi.fn(async () => ({}));
+  const deleteDayLogEntry = vi.fn(async () => true);
   vi.doMock("@/lib/auth", () => ({
     requireUser: vi.fn(async () => user)
   }));
   vi.doMock("@/lib/data-store", () => ({
-    createDayLogEntry
+    createDayLogEntry,
+    updateDayLogEntry,
+    deleteDayLogEntry
   }));
-  return { createDayLogEntry };
+  return { createDayLogEntry, updateDayLogEntry, deleteDayLogEntry };
 }
 
 describe("createDayLogEntryAction", () => {
@@ -112,5 +116,39 @@ describe("createDayLogEntryAction", () => {
 
     await expect(createDayLogEntryAction(new FormData())).rejects.toThrow("Podaj datę i godzinę.");
     expect(createDayLogEntry).not.toHaveBeenCalled();
+  });
+
+  it("updates an existing entry with sanitized values", async () => {
+    const { updateDayLogEntry } = installMocks();
+    const { updateDayLogEntryAction } = await import("@/app/admin/daylog/actions");
+
+    await updateDayLogEntryAction(
+      makeForm({
+        id: "daylog_1",
+        occurredAt: "2026-08-04T12:30",
+        fromName: "<b>Sklep</b>",
+        subject: "<i>Awaria</i>",
+        description: "<strong>Naprawiono</strong>"
+      })
+    );
+
+    expect(updateDayLogEntry).toHaveBeenCalledWith({
+      id: "daylog_1",
+      occurredAt: "2026-08-04T10:30:00.000Z",
+      fromName: "Sklep",
+      subject: "Awaria",
+      description: "Naprawiono"
+    });
+  });
+
+  it("deletes an existing entry", async () => {
+    const { deleteDayLogEntry } = installMocks();
+    const { deleteDayLogEntryAction } = await import("@/app/admin/daylog/actions");
+
+    const formData = new FormData();
+    formData.set("id", "daylog_1");
+    await deleteDayLogEntryAction(formData);
+
+    expect(deleteDayLogEntry).toHaveBeenCalledWith("daylog_1");
   });
 });

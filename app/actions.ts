@@ -8,8 +8,30 @@ import { addComment, createKnowledgeArticle, createTicketWithResult, deleteKnowl
 import { sanitizeText } from "@/lib/escape-html";
 import { notifyCommentAdded, notifyTicketCreated, notifyTicketUpdated } from "@/lib/notifications";
 import { can, canViewTicket } from "@/lib/permissions";
-import type { CommentVisibility, TicketPriority, TicketStatus } from "@/lib/types";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter";
+
+const ticketStatusSchema = z.enum([
+  "NEW",
+  "TRIAGED",
+  "IN_PROGRESS",
+  "WAITING_FOR_USER",
+  "WAITING_FOR_VENDOR",
+  "RESOLVED",
+  "CLOSED",
+  "CANCELLED"
+]);
+const ticketPrioritySchema = z.enum(["LOW", "NORMAL", "HIGH", "CRITICAL"]);
+const commentVisibilitySchema = z.enum(["PUBLIC", "INTERNAL"]);
+
+function formString(formData: FormData, name: string): string {
+  const value = formData.get(name);
+  return typeof value === "string" ? value : "";
+}
+
+function optionalFormString(formData: FormData, name: string): string | undefined {
+  const value = formString(formData, name).trim();
+  return value || undefined;
+}
 
 async function enforceMutationRateLimit(userId: string): Promise<void> {
   const rateCheck = await checkRateLimit(`mutation:${userId}`, RATE_LIMITS.MUTATION.windowMs, RATE_LIMITS.MUTATION.maxAttempts);
@@ -26,8 +48,21 @@ const ticketSchema = z.object({
   storeId: z.string().optional(),
   department: z.string().optional(),
   blocksWork: z.boolean(),
-  priority: z.enum(["LOW", "NORMAL", "HIGH", "CRITICAL"]),
+  priority: ticketPrioritySchema,
   submissionId: z.string().uuid()
+});
+
+const updateTicketSchema = z.object({
+  ticketId: z.string().min(1),
+  status: ticketStatusSchema,
+  priority: ticketPrioritySchema,
+  assigneeId: z.string().min(1).optional()
+});
+
+const commentSchema = z.object({
+  ticketId: z.string().min(1),
+  visibility: commentVisibilitySchema,
+  body: z.string().min(2, "Komentarz jest za krótki.").max(5000, "Komentarz jest za długi (maks. 5000 znaków).")
 });
 
 export async function createTicketAction(formData: FormData): Promise<void> {
@@ -38,19 +73,19 @@ export async function createTicketAction(formData: FormData): Promise<void> {
     throw new Error("Brak uprawnień do tworzenia zgłoszeń.");
   }
 
-  const categoryId = String(formData.get("categoryId") ?? "");
+  const categoryId = formString(formData, "categoryId");
   const category = await findCategoryById(categoryId);
 
   const input = ticketSchema.parse({
     categoryId,
-    title: sanitizeText(String(formData.get("title") ?? "")),
-    description: sanitizeText(String(formData.get("description") ?? "")),
-    contact: sanitizeText(String(formData.get("contact") ?? "")),
-    storeId: String(formData.get("storeId") || user.storeId || ""),
-    department: String(formData.get("department") || user.department || ""),
+    title: sanitizeText(formString(formData, "title")),
+    description: sanitizeText(formString(formData, "description")),
+    contact: sanitizeText(formString(formData, "contact")),
+    storeId: optionalFormString(formData, "storeId") ?? user.storeId ?? "",
+    department: optionalFormString(formData, "department") ?? user.department ?? "",
     blocksWork: formData.get("blocksWork") === "on",
-    priority: String(formData.get("priority") || category?.defaultPriority || "NORMAL"),
-    submissionId: String(formData.get("submissionId") ?? "")
+    priority: formString(formData, "priority") || category?.defaultPriority || "NORMAL",
+    submissionId: formString(formData, "submissionId")
   });
 
   const result = await createTicketWithResult({
@@ -76,23 +111,25 @@ export async function updateTicketAction(formData: FormData): Promise<void> {
     throw new Error("Brak uprawnień do aktualizacji zgłoszenia.");
   }
 
-  const ticketId = String(formData.get("ticketId") ?? "");
-  const newStatus = String(formData.get("status") ?? "NEW") as TicketStatus;
-  const newPriority = String(formData.get("priority") ?? "NORMAL") as TicketPriority;
-  const newAssigneeId = String(formData.get("assigneeId") || "") || undefined;
+  const input = updateTicketSchema.parse({
+    ticketId: formString(formData, "ticketId"),
+    status: formString(formData, "status") || "NEW",
+    priority: formString(formData, "priority") || "NORMAL",
+    assigneeId: optionalFormString(formData, "assigneeId")
+  });
 
-  const oldTicket = await findTicket(ticketId);
+  const oldTicket = await findTicket(input.ticketId);
 
   if (!oldTicket || !canViewTicket(user, oldTicket)) {
     throw new Error("Brak dostępu do zgłoszenia.");
   }
 
   const updatedTicket = await updateTicket({
-    ticketId,
+    ticketId: oldTicket.id,
     actorId: user.id,
-    status: newStatus,
-    priority: newPriority,
-    assigneeId: newAssigneeId
+    status: input.status,
+    priority: input.priority,
+    assigneeId: input.assigneeId
   });
 
   if (updatedTicket) {
@@ -111,7 +148,7 @@ export async function confirmTicketResolutionAction(formData: FormData): Promise
     throw new Error("Brak uprawnień do potwierdzenia rozwiązania zgłoszenia.");
   }
 
-  const ticketId = String(formData.get("ticketId") ?? "");
+  const ticketId = formString(formData, "ticketId");
   const ticket = await findTicket(ticketId);
 
   if (!ticket || ticket.status !== "RESOLVED" || !canViewTicket(user, ticket)) {
@@ -138,33 +175,28 @@ export async function confirmTicketResolutionAction(formData: FormData): Promise
 export async function addCommentAction(formData: FormData): Promise<void> {
   const user = await requireUser();
   await enforceMutationRateLimit(user.id);
-  const ticketId = String(formData.get("ticketId") ?? "");
-  const ticket = await findTicket(ticketId);
+  const rawInput = {
+    ticketId: formString(formData, "ticketId"),
+    visibility: formString(formData, "visibility") || "PUBLIC",
+    body: sanitizeText(formString(formData, "body"))
+  };
+  const input = commentSchema.parse(rawInput);
+  const ticket = await findTicket(input.ticketId);
 
   if (!ticket || !canViewTicket(user, ticket)) {
     throw new Error("Brak dostępu do zgłoszenia.");
   }
 
-  const visibility = String(formData.get("visibility") ?? "PUBLIC") as CommentVisibility;
+  const visibility = input.visibility;
 
   if (visibility === "INTERNAL" && !can(user, "comment:internal")) {
     throw new Error("Brak uprawnień do notatek wewnętrznych.");
   }
 
-  const body = sanitizeText(String(formData.get("body") ?? ""));
-
-  if (body.length < 2) {
-    throw new Error("Komentarz jest za krótki.");
-  }
-
-  if (body.length > 5000) {
-    throw new Error("Komentarz jest za długi (maks. 5000 znaków).");
-  }
-
   const comment = await addComment({
     ticketId: ticket.id,
     authorId: user.id,
-    body,
+    body: input.body,
     visibility
   });
 
@@ -193,10 +225,10 @@ export async function createKnowledgeArticleAction(formData: FormData): Promise<
   }
 
   const input = knowledgeSchema.parse({
-    title: sanitizeText(String(formData.get("title") ?? "")),
-    slug: String(formData.get("slug") ?? ""),
-    body: sanitizeText(String(formData.get("body") ?? "")),
-    categoryId: String(formData.get("categoryId") || "") || undefined,
+    title: sanitizeText(formString(formData, "title")),
+    slug: formString(formData, "slug"),
+    body: sanitizeText(formString(formData, "body")),
+    categoryId: optionalFormString(formData, "categoryId"),
     isPublished: formData.get("isPublished") === "on"
   });
 
@@ -215,13 +247,13 @@ export async function updateKnowledgeArticleAction(formData: FormData): Promise<
     throw new Error("Brak uprawnień do zarządzania bazą wiedzy.");
   }
 
-  const id = String(formData.get("id") ?? "");
+  const id = formString(formData, "id");
 
   const input = knowledgeSchema.parse({
-    title: sanitizeText(String(formData.get("title") ?? "")),
-    slug: String(formData.get("slug") ?? ""),
-    body: sanitizeText(String(formData.get("body") ?? "")),
-    categoryId: String(formData.get("categoryId") || "") || undefined,
+    title: sanitizeText(formString(formData, "title")),
+    slug: formString(formData, "slug"),
+    body: sanitizeText(formString(formData, "body")),
+    categoryId: optionalFormString(formData, "categoryId"),
     isPublished: formData.get("isPublished") === "on"
   });
 
@@ -240,7 +272,7 @@ export async function deleteKnowledgeArticleAction(formData: FormData): Promise<
     throw new Error("Brak uprawnień do zarządzania bazą wiedzy.");
   }
 
-  const id = String(formData.get("id") ?? "");
+  const id = formString(formData, "id");
   await deleteKnowledgeArticle(id, user.id);
 
   revalidatePath("/knowledge");

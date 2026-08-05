@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { findTicket, updateTicket } from "@/lib/data-store";
 import { notifyTicketUpdated } from "@/lib/notifications";
 import { can, canViewTicket } from "@/lib/permissions";
-import type { TicketStatus } from "@/lib/types";
+import { isTicketStatus } from "@/lib/labels";
 
 export async function POST(request: Request): Promise<Response> {
   const user = await requireUser();
@@ -14,24 +14,13 @@ export async function POST(request: Request): Promise<Response> {
 
   const fd = await request.formData();
   const ticketId = String(fd.get("ticketId") ?? "");
-  const newStatus = String(fd.get("status") ?? "") as TicketStatus;
+  const newStatus = String(fd.get("status") ?? "");
 
   if (!ticketId || !newStatus) {
     return new Response("Brak wymaganych pól (ticketId, status).", { status: 400 });
   }
 
-  const validStatuses: TicketStatus[] = [
-    "NEW",
-    "TRIAGED",
-    "IN_PROGRESS",
-    "WAITING_FOR_USER",
-    "WAITING_FOR_VENDOR",
-    "RESOLVED",
-    "CLOSED",
-    "CANCELLED"
-  ];
-
-  if (!validStatuses.includes(newStatus)) {
+  if (!isTicketStatus(newStatus)) {
     return new Response("Nieprawidłowy status.", { status: 400 });
   }
 
@@ -45,7 +34,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const updatedTicket = await updateTicket({
-    ticketId,
+    ticketId: ticket.id,
     actorId: user.id,
     status: newStatus,
     priority: ticket.priority,

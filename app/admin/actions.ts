@@ -538,17 +538,8 @@ export async function createMacroAdminAction(formData: FormData): Promise<void> 
     name: sanitizeText(String(formData.get("name") ?? "")),
     templateId: normalizeOptionalText(formData.get("templateId")),
     body: normalizeOptionalText(formData.get("body")),
-    newStatus: normalizeOptionalText(formData.get("newStatus")) as
-      | "NEW"
-      | "TRIAGED"
-      | "IN_PROGRESS"
-      | "WAITING_FOR_USER"
-      | "WAITING_FOR_VENDOR"
-      | "RESOLVED"
-      | "CLOSED"
-      | "CANCELLED"
-      | undefined,
-    newPriority: normalizeOptionalText(formData.get("newPriority")) as "LOW" | "NORMAL" | "HIGH" | "CRITICAL" | undefined,
+    newStatus: normalizeOptionalText(formData.get("newStatus")),
+    newPriority: normalizeOptionalText(formData.get("newPriority")),
     isActive: formData.get("isActive") === "on"
   });
 
@@ -567,17 +558,8 @@ export async function updateMacroAdminAction(formData: FormData): Promise<void> 
     name: sanitizeText(String(formData.get("name") ?? "")),
     templateId: normalizeOptionalText(formData.get("templateId")),
     body: normalizeOptionalText(formData.get("body")),
-    newStatus: normalizeOptionalText(formData.get("newStatus")) as
-      | "NEW"
-      | "TRIAGED"
-      | "IN_PROGRESS"
-      | "WAITING_FOR_USER"
-      | "WAITING_FOR_VENDOR"
-      | "RESOLVED"
-      | "CLOSED"
-      | "CANCELLED"
-      | undefined,
-    newPriority: normalizeOptionalText(formData.get("newPriority")) as "LOW" | "NORMAL" | "HIGH" | "CRITICAL" | undefined,
+    newStatus: normalizeOptionalText(formData.get("newStatus")),
+    newPriority: normalizeOptionalText(formData.get("newPriority")),
     isActive: formData.get("isActive") === "on"
   });
 

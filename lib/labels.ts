@@ -32,3 +32,11 @@ export const visibilityLabels: Record<CommentVisibility, string> = {
 
 export const ticketStatuses = Object.keys(statusLabels) as TicketStatus[];
 export const ticketPriorities = Object.keys(priorityLabels) as TicketPriority[];
+
+export function isTicketStatus(value: string): value is TicketStatus {
+  return ticketStatuses.includes(value as TicketStatus);
+}
+
+export function isTicketPriority(value: string): value is TicketPriority {
+  return ticketPriorities.includes(value as TicketPriority);
+}

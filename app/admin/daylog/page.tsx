@@ -1,6 +1,7 @@
-import { CalendarClock, Download, Plus } from "lucide-react";
+import { CalendarClock, Download, Pencil, Plus } from "lucide-react";
 import { redirect } from "next/navigation";
-import { createDayLogEntryAction } from "@/app/admin/daylog/actions";
+import { createDayLogEntryAction, updateDayLogEntryAction } from "@/app/admin/daylog/actions";
+import { DayLogDeleteButton } from "@/components/admin/daylog-delete-button";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { AppShell } from "@/components/app-shell";
 import { formatDateTime, APP_TIME_ZONE } from "@/lib/format";
@@ -11,6 +12,10 @@ import { can } from "@/lib/permissions";
 export const dynamic = "force-dynamic";
 
 function defaultDateTimeLocal(): string {
+  return dateTimeLocalValue(new Date());
+}
+
+function dateTimeLocalValue(value: string | Date): string {
   const parts = new Intl.DateTimeFormat("sv-SE", {
     timeZone: APP_TIME_ZONE,
     year: "numeric",
@@ -19,7 +24,7 @@ function defaultDateTimeLocal(): string {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false
-  }).formatToParts(new Date());
+  }).formatToParts(new Date(value));
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}`;
 }
@@ -123,6 +128,37 @@ export default async function DayLogPage() {
                     <div className="mb-3 font-semibold">{entry.fromName}</div>
                     <h3 className="mb-2 text-lg font-black">{entry.subject}</h3>
                     <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink/70 dark:text-paper/70">{entry.description}</p>
+                    <div className="mt-4 flex flex-wrap items-start gap-2 border-t border-black/10 pt-3 dark:border-white/10">
+                      <details className="min-w-0 flex-1">
+                        <summary className="inline-flex h-9 cursor-pointer list-none items-center gap-1.5 rounded-md border border-black/10 px-3 text-xs font-bold text-ink/70 transition hover:border-mint hover:text-mint dark:border-white/10 dark:text-paper/70">
+                          <Pencil size={14} />
+                          Edytuj
+                        </summary>
+                        <form action={updateDayLogEntryAction} className="mt-3 grid gap-3 border-t border-black/10 pt-3 dark:border-white/10">
+                          <input type="hidden" name="id" value={entry.id} />
+                          <label className="grid gap-1 text-xs font-bold">
+                            Data i godzina
+                            <input name="occurredAt" type="datetime-local" defaultValue={dateTimeLocalValue(entry.occurredAt)} required className={fieldClass} />
+                          </label>
+                          <label className="grid gap-1 text-xs font-bold">
+                            Od kogo?
+                            <input name="fromName" defaultValue={entry.fromName} required maxLength={160} className={fieldClass} />
+                          </label>
+                          <label className="grid gap-1 text-xs font-bold">
+                            Temat
+                            <input name="subject" defaultValue={entry.subject} required maxLength={200} className={fieldClass} />
+                          </label>
+                          <label className="grid gap-1 text-xs font-bold">
+                            Opis
+                            <textarea name="description" defaultValue={entry.description} required maxLength={10000} className={`${fieldClass} min-h-24 resize-y`} />
+                          </label>
+                          <button type="submit" className="h-9 rounded-md bg-mint px-3 text-xs font-bold text-white transition hover:bg-mint/90">
+                            Zapisz zmiany
+                          </button>
+                        </form>
+                      </details>
+                      <DayLogDeleteButton id={entry.id} subject={entry.subject} />
+                    </div>
                   </div>
                 </article>
               ))}

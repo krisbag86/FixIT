@@ -128,6 +128,60 @@ describe("listVisibleTickets filters", () => {
   });
 });
 
+describe("ticket lifecycle timestamps", () => {
+  beforeEach(resetDatabase);
+  afterEach(resetDatabase);
+
+  it("clears stale resolution and closure timestamps when a ticket is reopened", async () => {
+    const { createTicket, findUserByEmail, updateTicket } = await import("@/lib/data-store");
+    const admin = await findUserByEmail("krzysztofgraczyk@bagietka.pl");
+
+    expect(admin).toBeDefined();
+
+    const ticket = await createTicket({
+      title: "Test cyklu życia",
+      description: "Sprawdzenie znaczników czasu statusu.",
+      blocksWork: false,
+      contact: "test@bagietka.pl",
+      categoryId: "cat_other",
+      reporterId: admin!.id,
+      priority: "NORMAL"
+    });
+
+    const resolved = await updateTicket({
+      ticketId: ticket.id,
+      actorId: admin!.id,
+      status: "RESOLVED",
+      priority: ticket.priority
+    });
+    expect(resolved?.resolvedAt).toBeDefined();
+
+    const reopened = await updateTicket({
+      ticketId: ticket.id,
+      actorId: admin!.id,
+      status: "IN_PROGRESS",
+      priority: ticket.priority
+    });
+    expect(reopened?.resolvedAt).toBeNull();
+
+    const closed = await updateTicket({
+      ticketId: ticket.id,
+      actorId: admin!.id,
+      status: "CLOSED",
+      priority: ticket.priority
+    });
+    expect(closed?.closedAt).toBeDefined();
+
+    const reopenedAgain = await updateTicket({
+      ticketId: ticket.id,
+      actorId: admin!.id,
+      status: "IN_PROGRESS",
+      priority: ticket.priority
+    });
+    expect(reopenedAgain?.closedAt).toBeNull();
+  });
+});
+
 describe("exportTicketsCSV", () => {
   beforeEach(resetDatabase);
   afterEach(resetDatabase);
@@ -403,6 +457,37 @@ describe("DayLog storage", () => {
     const { listDayLogEntries } = await import("@/lib/data-store");
 
     await expect(listDayLogEntries()).resolves.toEqual([]);
+  });
+
+  it("updates and deletes an existing DayLog entry", async () => {
+    const { createDayLogEntry, deleteDayLogEntry, listDayLogEntries, updateDayLogEntry } = await import("@/lib/data-store");
+    const entry = await createDayLogEntry({
+      occurredAt: "2026-08-04T10:30:00.000Z",
+      fromName: "Sklep Warszawa",
+      subject: "Awaria kasy",
+      description: "Kasa nie drukuje paragonów.",
+      createdById: "usr_admin"
+    });
+
+    const updated = await updateDayLogEntry({
+      id: entry.id,
+      occurredAt: "2026-08-04T11:30:00.000Z",
+      fromName: "Sklep Kraków",
+      subject: "Brak internetu",
+      description: "Połączenie przywrócone."
+    });
+
+    expect(updated).toMatchObject({
+      id: entry.id,
+      fromName: "Sklep Kraków",
+      subject: "Brak internetu",
+      description: "Połączenie przywrócone.",
+      occurredAt: "2026-08-04T11:30:00.000Z"
+    });
+    expect(updated?.updatedAt).not.toBe(entry.updatedAt);
+    await expect(deleteDayLogEntry(entry.id)).resolves.toBe(true);
+    await expect(listDayLogEntries()).resolves.toEqual([]);
+    await expect(deleteDayLogEntry(entry.id)).resolves.toBe(false);
   });
 
   it("blocks deletion of a user who authored a DayLog entry", async () => {

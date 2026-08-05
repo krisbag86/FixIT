@@ -415,6 +415,77 @@ export async function createDayLogEntry(input: {
   });
 }
 
+export async function updateDayLogEntry(input: {
+  id: string;
+  occurredAt: string;
+  fromName: string;
+  subject: string;
+  description: string;
+}): Promise<DayLogEntry | undefined> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const existing = await db.dayLogEntry.findUnique({ where: { id: input.id } });
+
+    if (!existing) {
+      return undefined;
+    }
+
+    const entry = await db.dayLogEntry.update({
+      where: { id: input.id },
+      data: {
+        occurredAt: new Date(input.occurredAt),
+        fromName: input.fromName,
+        subject: input.subject,
+        description: input.description
+      },
+      include: { createdBy: { select: { name: true, email: true } } }
+    });
+
+    return mapDayLogEntry(entry);
+  }
+
+  return withDatabase((database) => {
+    const entry = database.dayLogEntries?.find((item) => item.id === input.id);
+
+    if (!entry) {
+      return undefined;
+    }
+
+    entry.occurredAt = input.occurredAt;
+    entry.fromName = input.fromName;
+    entry.subject = input.subject;
+    entry.description = input.description;
+    entry.updatedAt = now();
+    return entry;
+  });
+}
+
+export async function deleteDayLogEntry(id: string): Promise<boolean> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const existing = await db.dayLogEntry.findUnique({ where: { id }, select: { id: true } });
+
+    if (!existing) {
+      return false;
+    }
+
+    await db.dayLogEntry.delete({ where: { id } });
+    return true;
+  }
+
+  return withDatabase((database) => {
+    const entries = database.dayLogEntries ?? [];
+    const index = entries.findIndex((entry) => entry.id === id);
+
+    if (index === -1) {
+      return false;
+    }
+
+    entries.splice(index, 1);
+    return true;
+  });
+}
+
 export async function writeDatabase(database: Database): Promise<void> {
   await mkdir(dataDir, { recursive: true });
   await writeFile(dataFile, `${JSON.stringify(database, null, 2)}\n`, "utf8");
@@ -2235,6 +2306,7 @@ export async function updateTicket(input: {
 
     const timestamp = now();
     const events: TicketEvent[] = [];
+    const previousStatus = ticket.status;
     const statusChanged = ticket.status !== input.status;
     const priorityChanged = ticket.priority !== input.priority;
     const assigneeChanged = (ticket.assigneeId ?? "") !== (input.assigneeId ?? "");
@@ -2249,8 +2321,8 @@ export async function updateTicket(input: {
         createdAt: timestamp
       });
       ticket.status = input.status;
-      ticket.resolvedAt = input.status === "RESOLVED" ? timestamp : ticket.status === "RESOLVED" ? null : ticket.resolvedAt;
-      ticket.closedAt = input.status === "CLOSED" ? timestamp : ticket.status === "CLOSED" ? null : ticket.closedAt;
+      ticket.resolvedAt = input.status === "RESOLVED" ? timestamp : previousStatus === "RESOLVED" ? null : ticket.resolvedAt;
+      ticket.closedAt = input.status === "CLOSED" ? timestamp : previousStatus === "CLOSED" ? null : ticket.closedAt;
     }
 
     if (priorityChanged) {
