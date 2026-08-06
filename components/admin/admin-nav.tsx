@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { BarChart3, BookOpen, Building2, CalendarClock, ClipboardList, Columns3, LayoutDashboard, Tags, Users, FileText } from "lucide-react";
+import { Archive, BarChart3, BookOpen, Building2, CalendarClock, ClipboardList, Columns3, LayoutDashboard, Tags, Users, FileText } from "lucide-react";
 import type { User } from "@/lib/types";
 
 const links = [
   { href: "/admin/dashboard", label: "Pulpit", icon: LayoutDashboard, adminOnly: false },
   { href: "/admin/tickets", label: "Zgłoszenia", icon: ClipboardList, adminOnly: false },
+  { href: "/tickets/archive", label: "Archiwum", icon: Archive, adminOnly: false },
   { href: "/admin/kanban", label: "Kanban", icon: Columns3, adminOnly: false },
   { href: "/admin/reports", label: "Raporty", icon: BarChart3, adminOnly: false },
   { href: "/admin/daylog", label: "DayLog", icon: CalendarClock, adminOnly: false },

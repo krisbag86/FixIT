@@ -5,7 +5,7 @@ import { TicketCard } from "@/components/ticket-card";
 import { requireUser } from "@/lib/auth";
 import { getStoreDashboard, getTicketListPageData } from "@/lib/data-store";
 import { formatDateTime } from "@/lib/format";
-import { priorityLabels, statusLabels, ticketPriorities, ticketStatuses } from "@/lib/labels";
+import { activeTicketStatuses, priorityLabels, statusLabels, ticketPriorities } from "@/lib/labels";
 import { buildTicketListHref, getTicketListCursor, parseTicketListFilters, type TicketListSearchParams } from "@/lib/ticket-filters";
 
 export default async function StoreDashboardPage({
@@ -94,7 +94,7 @@ export default async function StoreDashboardPage({
             <Filter size={18} className="text-ink/50 dark:text-paper/50" />
             <select name="status" defaultValue={params.status ?? ""} className={filterClass}>
               <option value="">Status</option>
-              {ticketStatuses.map((status) => (
+              {activeTicketStatuses.map((status) => (
                 <option key={status} value={status}>
                   {statusLabels[status]}
                 </option>

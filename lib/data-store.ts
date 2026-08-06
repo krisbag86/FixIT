@@ -16,7 +16,7 @@ import {
 } from "@/lib/admin-utils";
 import { createSeedDatabase } from "@/lib/seed";
 import { generateTicketNumber } from "@/lib/ticket-number";
-import { closedStatuses, matchesTicketFilters, type TicketListFilters } from "@/lib/ticket-filters";
+import { archivedStatuses, closedStatuses, matchesTicketFilters, type TicketListFilters } from "@/lib/ticket-filters";
 import type {
   AdminAuditLog,
   Category,
@@ -835,7 +835,7 @@ export async function getTicketBoardData(user: User): Promise<{ tickets: Ticket[
   if (shouldUsePrisma()) {
     const db = await getPrisma();
     const [tickets, users] = await Promise.all([
-      db.ticket.findMany({ orderBy: [{ updatedAt: "desc" }, { id: "desc" }] }),
+      db.ticket.findMany({ where: { status: { notIn: [...archivedStatuses] } }, orderBy: [{ updatedAt: "desc" }, { id: "desc" }] }),
       db.user.findMany({ where: { isActive: true }, orderBy: [{ role: "asc" }, { name: "asc" }, { email: "asc" }] })
     ]);
     return { tickets: tickets.map(mapTicket), users: users.map(mapUser) };
@@ -1800,6 +1800,7 @@ function buildVisibleTicketQuery(user: User, filters: TicketListFilters, cursor?
   if (filters.categoryId) filterWhere.push({ categoryId: filters.categoryId });
   if (filters.mine) filterWhere.push({ assigneeId: user.id });
   if (filters.unassigned) filterWhere.push({ assigneeId: null });
+  filterWhere.push(filters.archived ? { status: { in: [...archivedStatuses] } } : { status: { notIn: [...archivedStatuses] } });
 
   if (filters.overdue) {
     filterWhere.push({

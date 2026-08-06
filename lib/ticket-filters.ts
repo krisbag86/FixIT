@@ -12,6 +12,7 @@ export type TicketListFilters = {
   mine?: boolean;
   unassigned?: boolean;
   overdue?: boolean;
+  archived?: boolean;
 };
 
 const ticketStatuses: TicketStatus[] = [
@@ -35,6 +36,7 @@ const slaHours: Record<TicketPriority, number> = {
 };
 
 const closedStatuses = new Set<TicketStatus>(["RESOLVED", "CLOSED", "CANCELLED"]);
+const archivedStatuses = new Set<TicketStatus>(["CLOSED", "CANCELLED"]);
 
 export type TicketSlaState = "ON_TRACK" | "AT_RISK" | "BREACHED" | "COMPLETED";
 
@@ -86,7 +88,8 @@ export function parseTicketListFilters(params: TicketListSearchParams): TicketLi
     ...(categoryId ? { categoryId } : {}),
     ...(booleanParam(firstParam(params.mine)) ? { mine: true } : {}),
     ...(booleanParam(firstParam(params.unassigned)) ? { unassigned: true } : {}),
-    ...(booleanParam(firstParam(params.overdue)) ? { overdue: true } : {})
+    ...(booleanParam(firstParam(params.overdue)) ? { overdue: true } : {}),
+    ...(booleanParam(firstParam(params.archived)) ? { archived: true } : {})
   };
 }
 
@@ -117,6 +120,8 @@ export function getTicketSlaState(
 }
 
 export function matchesTicketFilters(ticket: Ticket, filters: TicketListFilters, currentUserId?: string, now = new Date()): boolean {
+  if (filters.archived ? !archivedStatuses.has(ticket.status) : archivedStatuses.has(ticket.status)) return false;
+
   if (filters.query) {
     const query = filters.query.toLocaleLowerCase();
     const searchable = `${ticket.number} ${ticket.title} ${ticket.description}`.toLocaleLowerCase();
@@ -135,4 +140,4 @@ export function matchesTicketFilters(ticket: Ticket, filters: TicketListFilters,
   return true;
 }
 
-export { closedStatuses, slaHours };
+export { archivedStatuses, closedStatuses, slaHours };

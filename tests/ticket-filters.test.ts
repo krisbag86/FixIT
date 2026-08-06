@@ -31,6 +31,7 @@ describe("ticket list filters", () => {
         category: "cat_printer",
         mine: "1",
         overdue: "true",
+        archived: "1",
         unassigned: "0"
       })
     ).toEqual({
@@ -41,7 +42,8 @@ describe("ticket list filters", () => {
       storeId: "store_waw01",
       categoryId: "cat_printer",
       mine: true,
-      overdue: true
+      overdue: true,
+      archived: true
     });
   });
 
@@ -53,6 +55,15 @@ describe("ticket list filters", () => {
     expect(matchesTicketFilters(baseTicket, { query: "0001" })).toBe(true);
     expect(matchesTicketFilters(baseTicket, { query: "paragonów" })).toBe(true);
     expect(matchesTicketFilters(baseTicket, { query: "laptop" })).toBe(false);
+  });
+
+  it("keeps resolved tickets active and moves closed tickets to the archive", () => {
+    expect(matchesTicketFilters({ ...baseTicket, status: "RESOLVED" }, {})).toBe(true);
+    expect(matchesTicketFilters({ ...baseTicket, status: "CLOSED" }, {})).toBe(false);
+    expect(matchesTicketFilters({ ...baseTicket, status: "CANCELLED" }, {})).toBe(false);
+    expect(matchesTicketFilters({ ...baseTicket, status: "RESOLVED" }, { archived: true })).toBe(false);
+    expect(matchesTicketFilters({ ...baseTicket, status: "CLOSED" }, { archived: true })).toBe(true);
+    expect(matchesTicketFilters({ ...baseTicket, status: "CANCELLED" }, { archived: true })).toBe(true);
   });
 
   it("matches ownership and assignment filters", () => {

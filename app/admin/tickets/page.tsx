@@ -7,7 +7,7 @@ import { TicketCard } from "@/components/ticket-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { requireUser } from "@/lib/auth";
 import { getTicketListPageData } from "@/lib/data-store";
-import { priorityLabels, statusLabels, ticketPriorities, ticketStatuses } from "@/lib/labels";
+import { activeTicketStatuses, priorityLabels, statusLabels, ticketPriorities } from "@/lib/labels";
 import { buildTicketListHref, getTicketListCursor, parseTicketListFilters, type TicketListSearchParams } from "@/lib/ticket-filters";
 import { canUseAdmin } from "@/lib/permissions";
 
@@ -61,7 +61,7 @@ export default async function AdminTicketsPage({
         />
         <select name="status" defaultValue={filters.status ?? ""} className={filterClass}>
           <option value="">Status</option>
-          {ticketStatuses.map((status) => (
+          {activeTicketStatuses.map((status) => (
             <option key={status} value={status}>
               {statusLabels[status]}
             </option>

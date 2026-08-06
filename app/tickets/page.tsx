@@ -4,7 +4,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { TicketCard } from "@/components/ticket-card";
 import { requireUser } from "@/lib/auth";
 import { getTicketListPageData } from "@/lib/data-store";
-import { statusLabels, ticketStatuses } from "@/lib/labels";
+import { activeTicketStatuses, statusLabels } from "@/lib/labels";
 import { buildTicketListHref, getTicketListCursor, parseTicketListFilters, type TicketListSearchParams } from "@/lib/ticket-filters";
 
 export default async function TicketsPage({ searchParams }: { searchParams: Promise<TicketListSearchParams> }) {
@@ -37,7 +37,7 @@ export default async function TicketsPage({ searchParams }: { searchParams: Prom
             className="h-10 min-w-48 rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper"
           >
             <option value="">Wszystkie statusy</option>
-            {ticketStatuses.map((item) => (
+            {activeTicketStatuses.map((item) => (
               <option key={item} value={item}>
                 {statusLabels[item]}
               </option>

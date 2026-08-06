@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen, ClipboardList, LayoutDashboard, LogOut, Plus, ShieldCheck, Store } from "lucide-react";
+import { Archive, BookOpen, ClipboardList, LayoutDashboard, LogOut, Plus, ShieldCheck, Store } from "lucide-react";
 import { logoutAction } from "@/app/login/actions";
 import { RoleBadge } from "@/components/badges";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -26,6 +26,9 @@ export function AppShell({ user, children }: { user: User; children: React.React
           <nav className="hidden items-center gap-1 md:flex">
             <NavLink href="/tickets" icon={<ClipboardList size={17} />}>
               Moje zgłoszenia
+            </NavLink>
+            <NavLink href="/tickets/archive" icon={<Archive size={17} />}>
+              Archiwum
             </NavLink>
             <NavLink href="/tickets/new" icon={<Plus size={17} />}>
               Nowe
@@ -68,6 +71,9 @@ export function AppShell({ user, children }: { user: User; children: React.React
         <div className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 pb-3 md:hidden">
           <NavLink href="/tickets" icon={<ClipboardList size={17} />}>
             Moje
+          </NavLink>
+          <NavLink href="/tickets/archive" icon={<Archive size={17} />}>
+            Archiwum
           </NavLink>
           <NavLink href="/tickets/new" icon={<Plus size={17} />}>
             Nowe

@@ -31,6 +31,8 @@ export const visibilityLabels: Record<CommentVisibility, string> = {
 };
 
 export const ticketStatuses = Object.keys(statusLabels) as TicketStatus[];
+export const activeTicketStatuses = ticketStatuses.filter((status) => status !== "CLOSED" && status !== "CANCELLED");
+export const archivedTicketStatuses = ticketStatuses.filter((status) => status === "CLOSED" || status === "CANCELLED");
 export const ticketPriorities = Object.keys(priorityLabels) as TicketPriority[];
 
 export function isTicketStatus(value: string): value is TicketStatus {
