@@ -4,7 +4,7 @@ import { createDayLogEntryAction, updateDayLogEntryAction } from "@/app/admin/da
 import { DayLogDeleteButton } from "@/components/admin/daylog-delete-button";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { AppShell } from "@/components/app-shell";
-import { formatDateTime, APP_TIME_ZONE } from "@/lib/format";
+import { formatDateOnly, formatDateTime, formatDateLabel, parseDateOnly, APP_TIME_ZONE } from "@/lib/format";
 import { listDayLogEntries } from "@/lib/data-store";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
@@ -29,14 +29,19 @@ function dateTimeLocalValue(value: string | Date): string {
   return `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}`;
 }
 
-export default async function DayLogPage() {
+export default async function DayLogPage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const user = await requireUser();
 
   if (!can(user, "ticket:view-all")) {
     redirect("/tickets");
   }
 
-  const entries = await listDayLogEntries();
+  const params = await searchParams;
+  const selectedDate = parseDateOnly(params.date);
+  const allEntries = await listDayLogEntries();
+  const entries = selectedDate
+    ? allEntries.filter((entry) => formatDateOnly(entry.occurredAt) === selectedDate)
+    : allEntries;
 
   return (
     <AppShell user={user}>
@@ -100,17 +105,44 @@ export default async function DayLogPage() {
       </section>
 
       <section>
-        <div className="mb-4 flex items-end justify-between gap-3">
+        <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h2 className="text-xl font-black">Oś czasu</h2>
-            <p className="mt-1 text-sm text-ink/60 dark:text-paper/60">Najnowsze wpisy są po lewej. Przewiń poziomo, aby zobaczyć starsze.</p>
+            <p className="mt-1 text-sm text-ink/60 dark:text-paper/60">
+              {selectedDate
+                ? `Wpisy z dnia ${formatDateLabel(selectedDate)}.`
+                : "Najnowsze wpisy są po lewej. Przewiń poziomo, aby zobaczyć starsze."}
+            </p>
           </div>
-          <span className="rounded-full bg-ink/5 px-3 py-1 text-xs font-bold text-ink/60 dark:bg-white/10 dark:text-paper/60">{entries.length} wpisów</span>
+          <div className="flex flex-wrap items-center gap-3">
+            <form method="get" className="flex flex-wrap items-center gap-2">
+              <label htmlFor="daylog-date" className="text-sm font-bold">
+                Pokaż dzień
+              </label>
+              <input
+                id="daylog-date"
+                name="date"
+                type="date"
+                defaultValue={selectedDate ?? ""}
+                className={filterClass}
+                aria-label="Filtruj DayLog po dniu"
+              />
+              <button type="submit" className="inline-flex h-10 items-center justify-center rounded-md bg-ink px-4 text-sm font-bold text-white dark:bg-paper dark:text-ink">
+                Filtruj
+              </button>
+              {selectedDate ? (
+                <a href="/admin/daylog" className="px-1 text-sm font-bold text-ink/65 hover:text-ink dark:text-paper/65 dark:hover:text-paper">
+                  Wyczyść
+                </a>
+              ) : null}
+            </form>
+            <span className="rounded-full bg-ink/5 px-3 py-1 text-xs font-bold text-ink/60 dark:bg-white/10 dark:text-paper/60">{entries.length} wpisów</span>
+          </div>
         </div>
 
         {entries.length === 0 ? (
           <div className="rounded-md border border-dashed border-black/15 bg-white/50 p-10 text-center text-sm text-ink/55 dark:border-white/15 dark:bg-white/5 dark:text-paper/55">
-            Brak wpisów. Dodaj pierwszy telefoniczny lub ustny kontakt.
+            {selectedDate ? "Brak wpisów z wybranego dnia." : "Brak wpisów. Dodaj pierwszy telefoniczny lub ustny kontakt."}
           </div>
         ) : (
           <div className="overflow-x-auto pb-4">
@@ -171,3 +203,4 @@ export default async function DayLogPage() {
 }
 
 const fieldClass = "h-10 rounded-md border border-black/10 bg-white px-3 text-sm font-normal outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper";
+const filterClass = "h-10 rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper";

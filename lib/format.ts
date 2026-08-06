@@ -1,7 +1,49 @@
 export const APP_TIME_ZONE = "Europe/Warsaw";
 
+const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 const DATE_TIME_LOCAL_PATTERN =
   /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?$/;
+
+export function parseDateOnly(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const match = DATE_ONLY_PATTERN.exec(value);
+  if (!match) {
+    return undefined;
+  }
+
+  const [, year, month, day] = match;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  if (
+    date.getUTCFullYear() !== Number(year) ||
+    date.getUTCMonth() !== Number(month) - 1 ||
+    date.getUTCDate() !== Number(day)
+  ) {
+    return undefined;
+  }
+
+  return value;
+}
+
+export function formatDateOnly(value: string | Date): string {
+  const parts = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: APP_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(new Date(value));
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+export function formatDateLabel(value: string): string {
+  return new Intl.DateTimeFormat("pl-PL", {
+    dateStyle: "long",
+    timeZone: APP_TIME_ZONE
+  }).format(new Date(`${value}T12:00:00Z`));
+}
 
 /**
  * Parses a datetime-local value as a wall-clock time in the application's timezone.
