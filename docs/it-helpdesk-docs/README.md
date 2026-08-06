@@ -14,7 +14,7 @@ Dokumentacja startowa dla wewnetrznej aplikacji webowej do obslugi zgloszen IT d
 - `ux-flows.md` - glowne przeplywy UX dla uzytkownika i panelu IT.
 - `testing-quality.md` - testy, kryteria akceptacji i eval-first workflow.
 - `build-status.md` - aktualny status budowy aplikacji, rzeczy zrobione i pozostale.
-- `remaining-tasks.md` - aktualna kolejka pozostalych prac po ostatnim etapie.
+- `remaining-tasks.md` - historyczne podsumowanie etapów i bieżące zadania operacyjne.
 
 ## Rekomendowany stack
 

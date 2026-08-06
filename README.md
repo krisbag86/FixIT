@@ -12,7 +12,7 @@ Wewnętrzny system helpdesk IT dla sklepów i biura **Bagietka**. Nowoczesna apl
 - **Baza wiedzy** — Artykuły FAQ dla użytkowników
 - **Autoryzacja** — Logowanie i rejestracja tylko dla adresów w domenie `bagietka.pl`
 - **Administracja użytkownikami** — Admin może tworzyć, usuwać i dezaktywować konta, nadawać role oraz wysyłać lub regenerować link aktywacyjny
-- **DayLog** — Wspólna dla agentów i administratorów oś czasu notatek z rozmów telefonicznych/ustnych, z oznaczeniem autora i eksportem do XLSX
+- **DayLog** — Wspólna dla agentów i administratorów oś czasu notatek z rozmów telefonicznych/ustnych, z oznaczeniem autora, edycją, usuwaniem i eksportem do XLSX
 - **Tryb ciemny** — Wsparcie dla jasnego i ciemnego motywu
 - **Załączniki** — Przesyłanie plików przez S3 (Railway Bucket)
 - **Powiadomienia e-mail** — Automatyczne powiadomienia o zmianach statusu
@@ -80,6 +80,7 @@ Produkcyjny auto-deploy jest uruchamiany z brancha `main`.
 | `DATABASE_URL` | URL połączenia z PostgreSQL | `postgresql://...` |
 | `APP_URL` | Publiczny URL aplikacji | `https://twoja-aplikacja.up.railway.app` |
 | `NODE_ENV` | Tryb pracy aplikacji | `production` |
+| `COOKIE_SECRET` | Sekret do podpisywania sesji | losowy sekret |
 | `EMAIL_FROM` | Zweryfikowany nadawca Brevo | `FixIT <sender@proton.me>` |
 | `BREVO_API_KEY` | Klucz Brevo API do wysyłki przez HTTPS, rekomendowane na Railway | `xkeysib-...` |
 | `SMTP_HOST` | Opcjonalny fallback SMTP, ignorowany gdy ustawiono `BREVO_API_KEY` | |
@@ -89,6 +90,7 @@ Produkcyjny auto-deploy jest uruchamiany z brancha `main`.
 | `SMTP_PASSWORD` | Opcjonalne hasło SMTP | |
 | `SMTP_TIMEOUT_MS` | Timeout SMTP/Brevo API | `20000` |
 | `S3_ENDPOINT` | Endpoint S3 (Railway Bucket) | |
+| `S3_REGION` | Region S3 | `auto` |
 | `S3_ACCESS_KEY_ID` | Klucz dostępu S3 | |
 | `S3_SECRET_ACCESS_KEY` | Sekretny klucz S3 | |
 | `S3_BUCKET` | Nazwa bucketa S3 | |

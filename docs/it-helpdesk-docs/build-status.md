@@ -2,7 +2,7 @@
 
 Dokument aktualizowany po kolejnych etapach budowy aplikacji.
 
-Aktualna kolejka pozostalych prac znajduje sie w `remaining-tasks.md`. Sekcje `Do zbudowania` przy starszych etapach maja charakter historyczny i pokazuja, co bylo brakujace w danym momencie budowy.
+Bieżący stan i najbliższe zadania znajdują się w `remaining-tasks.md`. Sekcje `Do zbudowania` przy starszych etapach mają charakter historyczny i pokazują, co było brakujące w danym momencie budowy.
 
 ## Etap 0 - Przeglad dokumentacji
 
@@ -138,7 +138,7 @@ Do zbudowania:
 
 ## Etap 9 - DayLog
 
-Status: zrobione i wdrożone na Railway (2026-08-04).
+Status: funkcja bazowa zrobiona i wdrożona na Railway (2026-08-04); edycja i usuwanie wpisów przygotowane do kolejnego deployu.
 
 Zrobione:
 
@@ -147,5 +147,8 @@ Zrobione:
 - Dodano model `DayLogEntry` w Prisma i migrację `20260804120000_add_daylog`.
 - Dodano eksport XLSX pod `/admin/daylog/export`.
 - Dodano link DayLog do `AdminNav`.
-- Walidacja: `npm run typecheck`, `npm run lint`, `npx vitest run` (137 passed, 1 skipped) i `npm run build`.
+- Dodano edycję wpisu (data/godzina, osoba kontaktowa, temat i opis) oraz usuwanie z potwierdzeniem.
+- Dodano walidację i testy obu operacji dla JSON-store i Prisma data-store.
+- Walidacja po zmianach: `npm run typecheck`, `npm run lint` oraz `npm run test` (156 passed, 1 skipped).
 - Railway: deployment `e38fcb7b-278f-42d2-b95c-7cb9fe9a2a0d` zakończony statusem `SUCCESS`; healthcheck `/api/health` zwraca `200`.
+- Commit z edycją/usuwaniem: `e69dd94`; nie został jeszcze wypchnięty na GitHub.

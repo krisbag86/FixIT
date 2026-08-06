@@ -1,6 +1,18 @@
 # Remaining Tasks - FixIT Helpdesk
 
-Aktualna lista prac pozostalych po Etapie 7, czyli po dodaniu runtime data-store dla Prisma/PostgreSQL oraz stabilnej paczki testow e2e Playwright.
+Dokument zawiera historyczne podsumowanie prac od Etapu 7. Bieżący stan projektu i nowe zmiany opisujemy na początku pliku oraz w `build-status.md`; starsze liczby testów i sekcje `ZROBIONE` pozostają jako zapis kolejnych etapów.
+
+## Aktualny stan — 2026-08-05
+
+- Etapy 0–9 są zrealizowane; ostatnim etapem funkcjonalnym był DayLog.
+- DayLog obsługuje tworzenie, edycję, usuwanie i eksport wpisów dla `AGENT` i `ADMIN`.
+- Walidacja po ostatniej zmianie: `npm run typecheck`, `npm run lint`, `npm run test` — 156 passed, 1 skipped.
+- Commit `e69dd94` zawiera edycję i usuwanie wpisów DayLog; czeka na wypchnięcie na GitHub i deploy Railway.
+
+### Najbliższe zadania
+
+- Wypchnąć `e69dd94` na GitHub i zweryfikować deploy Railway.
+- Po deployu wykonać smoke test: logowanie, DayLog, utworzenie wpisu, edycja, usunięcie i eksport XLSX.
 
 ## Decyzje zakresowe
 

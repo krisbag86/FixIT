@@ -6,6 +6,8 @@ This spec covers three feature areas for the FixIT Helpdesk application, priorit
 
 **Priority order:** Dashboard → Response Templates & Macros → UX Polish
 
+> Dokument historyczny: opisuje propozycje funkcji i nie jest bieżącą listą zadań. Aktualny stan implementacji znajduje się w `docs/it-helpdesk-docs/build-status.md`.
+
 ---
 
 ## Feature 1: IT Dashboard with Charts
