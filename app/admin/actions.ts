@@ -39,7 +39,9 @@ const userAdminSchema = z.object({
   role: roleSchema,
   storeId: z.string().optional(),
   department: z.string().max(120).optional(),
-  isActive: z.boolean()
+  isActive: z.boolean(),
+  isScheduleMember: z.boolean(),
+  scheduleOrder: z.number().int().min(0).max(999).optional()
 });
 
 const createUserSchema = z.object({
@@ -124,6 +126,11 @@ function normalizeOptionalText(value: FormDataEntryValue | null): string | undef
   return normalized.length > 0 ? normalized : undefined;
 }
 
+function normalizeOptionalInteger(value: FormDataEntryValue | null): number | undefined {
+  const normalized = String(value ?? "").trim();
+  return normalized ? Number(normalized) : undefined;
+}
+
 async function assertStoreExists(storeId: string | undefined): Promise<void> {
   if (!storeId) {
     return;
@@ -176,7 +183,9 @@ export async function updateUserAdminAction(formData: FormData): Promise<void> {
     role: String(formData.get("role") ?? "REPORTER"),
     storeId: normalizeOptionalText(formData.get("storeId")),
     department: normalizeOptionalText(formData.get("department")),
-    isActive: formData.get("isActive") === "on"
+    isActive: formData.get("isActive") === "on",
+    isScheduleMember: formData.get("isScheduleMember") === "on",
+    scheduleOrder: normalizeOptionalInteger(formData.get("scheduleOrder"))
   });
 
   if (input.id === actor.id && (input.role !== actor.role || !input.isActive)) {
@@ -195,11 +204,14 @@ export async function updateUserAdminAction(formData: FormData): Promise<void> {
     storeId: input.role === "AGENT" || input.role === "ADMIN" ? undefined : input.storeId,
     department: input.department,
     isActive: input.isActive,
+    isScheduleMember: input.isScheduleMember,
+    scheduleOrder: input.scheduleOrder,
     actorId: actor.id
   });
 
   revalidatePath("/admin/users");
   revalidatePath("/admin/tickets");
+  revalidatePath("/admin/schedule");
 }
 
 export async function deleteUserAdminAction(

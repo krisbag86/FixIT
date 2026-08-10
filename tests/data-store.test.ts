@@ -581,3 +581,88 @@ describe("ticket submission idempotency", () => {
     });
   });
 });
+
+describe("weekly schedule storage", () => {
+  beforeEach(resetDatabase);
+  afterEach(resetDatabase);
+
+  async function enableAdminForSchedule() {
+    const { updateUserAdmin } = await import("@/lib/data-store");
+    await updateUserAdmin({
+      userId: "usr_admin",
+      role: "ADMIN",
+      department: "IT",
+      isActive: true,
+      isScheduleMember: true,
+      scheduleOrder: 1,
+      actorId: "usr_admin"
+    });
+  }
+
+  it("stores tasks and duties for all seven days of a week", async () => {
+    const { createScheduleTask, getWeeklySchedule, setScheduleDuty } = await import("@/lib/data-store");
+    await enableAdminForSchedule();
+
+    const task = await createScheduleTask({
+      date: "2026-08-15",
+      title: "Sprawdzenie kopii zapasowych",
+      description: "Dyżur sobotni",
+      assigneeId: "usr_admin",
+      actorId: "usr_admin"
+    });
+    const duty = await setScheduleDuty({
+      date: "2026-08-16",
+      assigneeId: "usr_admin",
+      isOnCall: true,
+      actorId: "usr_admin"
+    });
+    const schedule = await getWeeklySchedule("2026-08-10");
+
+    expect(schedule.members).toHaveLength(1);
+    expect(schedule.members[0]).toMatchObject({ id: "usr_admin", isScheduleMember: true, scheduleOrder: 1 });
+    expect(schedule.tasks).toEqual([task]);
+    expect(schedule.duties).toEqual([duty]);
+  });
+
+  it("copies the previous week without carrying completion state", async () => {
+    const { copyPreviousScheduleWeek, createScheduleTask, getWeeklySchedule, setScheduleDuty, toggleScheduleTask } = await import("@/lib/data-store");
+    await enableAdminForSchedule();
+    const sourceTask = await createScheduleTask({
+      date: "2026-08-10",
+      title: "Przegląd serwerów",
+      assigneeId: "usr_admin",
+      actorId: "usr_admin"
+    });
+    await toggleScheduleTask({ id: sourceTask.id, actorId: "usr_admin" });
+    await setScheduleDuty({
+      date: "2026-08-16",
+      assigneeId: "usr_admin",
+      isOnCall: true,
+      actorId: "usr_admin"
+    });
+
+    await expect(copyPreviousScheduleWeek({ targetWeekStart: "2026-08-17", actorId: "usr_admin" })).resolves.toEqual({
+      taskCount: 1,
+      dutyCount: 1
+    });
+    const target = await getWeeklySchedule("2026-08-17");
+    expect(target.tasks).toHaveLength(1);
+    expect(target.tasks[0]).toMatchObject({ date: "2026-08-17", title: "Przegląd serwerów", isCompleted: false });
+    expect(target.duties).toHaveLength(1);
+    expect(target.duties[0]?.date).toBe("2026-08-23");
+    await expect(copyPreviousScheduleWeek({ targetWeekStart: "2026-08-17", actorId: "usr_admin" })).rejects.toThrow(
+      "Docelowy tydzień nie jest pusty."
+    );
+  });
+
+  it("rejects assignments to users who are not enabled for the schedule", async () => {
+    const { createScheduleTask } = await import("@/lib/data-store");
+
+    await expect(createScheduleTask({
+      date: "2026-08-10",
+      title: "Nieprawidłowe zadanie",
+      assigneeId: "usr_admin",
+      actorId: "usr_admin"
+    })).rejects.toThrow("Wybrany użytkownik nie jest aktywnym członkiem grafiku.");
+  });
+});

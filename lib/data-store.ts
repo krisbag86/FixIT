@@ -15,6 +15,7 @@ import {
   getUserAuditChanges
 } from "@/lib/admin-utils";
 import { createSeedDatabase } from "@/lib/seed";
+import { addScheduleDays, resolveScheduleWeekStart, scheduleDateValue } from "@/lib/schedule";
 import { generateTicketNumber } from "@/lib/ticket-number";
 import { archivedStatuses, closedStatuses, matchesTicketFilters, type TicketListFilters } from "@/lib/ticket-filters";
 import type {
@@ -29,6 +30,8 @@ import type {
   NotificationLog,
   ResponseMacro,
   ResponseTemplate,
+  ScheduleDuty,
+  ScheduleTask,
   Session,
   SetupToken,
   Store,
@@ -39,7 +42,8 @@ import type {
   TicketPriority,
   TicketStatus,
   User,
-  UserRole
+  UserRole,
+  WeeklyScheduleData
 } from "@/lib/types";
 
 const dataDir = path.join(process.cwd(), ".data");
@@ -97,6 +101,8 @@ function mapUser(user: Prisma.UserGetPayload<object> & { passwordHash?: string |
     storeId: definedString(user.storeId),
     department: definedString(user.department),
     isActive: user.isActive,
+    isScheduleMember: user.isScheduleMember,
+    scheduleOrder: user.scheduleOrder ?? undefined,
     passwordHash: definedString((user as { passwordHash?: string | null }).passwordHash),
     mustChangePassword: (user as { mustChangePassword?: boolean }).mustChangePassword
   };
@@ -255,6 +261,31 @@ function mapDayLogEntry(entry: DayLogEntryWithRelations): DayLogEntry {
   };
 }
 
+function mapScheduleTask(task: Prisma.ScheduleTaskGetPayload<object>): ScheduleTask {
+  return {
+    id: task.id,
+    date: task.date.toISOString().slice(0, 10),
+    title: task.title,
+    description: definedString(task.description),
+    isCompleted: task.isCompleted,
+    assigneeId: task.assigneeId,
+    createdById: task.createdById,
+    updatedById: task.updatedById,
+    createdAt: iso(task.createdAt) ?? "",
+    updatedAt: iso(task.updatedAt) ?? ""
+  };
+}
+
+function mapScheduleDuty(duty: Prisma.ScheduleDutyGetPayload<object>): ScheduleDuty {
+  return {
+    id: duty.id,
+    date: duty.date.toISOString().slice(0, 10),
+    assigneeId: duty.assigneeId,
+    createdById: duty.createdById,
+    createdAt: iso(duty.createdAt) ?? ""
+  };
+}
+
 function mapAdminAuditLog(log: Prisma.AdminAuditLogGetPayload<object>): AdminAuditLog {
   const payload =
     typeof log.payload === "object" && log.payload !== null && !Array.isArray(log.payload)
@@ -292,6 +323,12 @@ async function ensureDatabase(): Promise<Database> {
     if (!Array.isArray(parsed.dayLogEntries)) {
       parsed.dayLogEntries = [];
     }
+    if (!Array.isArray(parsed.scheduleTasks)) {
+      parsed.scheduleTasks = [];
+    }
+    if (!Array.isArray(parsed.scheduleDuties)) {
+      parsed.scheduleDuties = [];
+    }
     if (!Array.isArray(parsed.setupTokens)) {
       parsed.setupTokens = [];
     }
@@ -313,7 +350,7 @@ export async function readDatabase(): Promise<Database> {
   noStore();
   if (shouldUsePrisma()) {
     const db = await getPrisma();
-    const [users, stores, categories, tickets, comments, attachments, events, knowledgeArticles, notificationLogs, adminAuditLogs, counters, sessions, setupTokens, responseTemplates, responseMacros, dayLogEntries] =
+    const [users, stores, categories, tickets, comments, attachments, events, knowledgeArticles, notificationLogs, adminAuditLogs, counters, sessions, setupTokens, responseTemplates, responseMacros, dayLogEntries, scheduleTasks, scheduleDuties] =
       await Promise.all([
         db.user.findMany(),
         db.store.findMany(),
@@ -336,7 +373,9 @@ export async function readDatabase(): Promise<Database> {
             ticket: { select: { id: true, number: true } }
           },
           orderBy: { occurredAt: "desc" }
-        })
+        }),
+        db.scheduleTask.findMany(),
+        db.scheduleDuty.findMany()
       ]);
 
     return {
@@ -357,7 +396,9 @@ export async function readDatabase(): Promise<Database> {
       setupTokens: setupTokens.map(mapSetupToken),
       responseTemplates: responseTemplates.map(mapTemplate),
       responseMacros: responseMacros.map(mapMacro),
-      dayLogEntries: dayLogEntries.map(mapDayLogEntry)
+      dayLogEntries: dayLogEntries.map(mapDayLogEntry),
+      scheduleTasks: scheduleTasks.map(mapScheduleTask),
+      scheduleDuties: scheduleDuties.map(mapScheduleDuty)
     };
   }
 
@@ -533,6 +574,389 @@ export async function deleteDayLogEntry(id: string): Promise<boolean> {
 
     entries.splice(index, 1);
     return true;
+  });
+}
+
+function sortScheduleMembers(members: User[]): User[] {
+  const collator = new Intl.Collator("pl", { sensitivity: "base" });
+  return [...members].sort((left, right) => {
+    const orderDifference = (left.scheduleOrder ?? Number.MAX_SAFE_INTEGER) - (right.scheduleOrder ?? Number.MAX_SAFE_INTEGER);
+    return orderDifference || collator.compare(left.name || left.email, right.name || right.email);
+  });
+}
+
+function scheduleRange(weekStart: string): { weekStart: string; start: Date; end: Date } {
+  const normalized = resolveScheduleWeekStart(weekStart);
+  return {
+    weekStart: normalized,
+    start: scheduleDateValue(normalized),
+    end: scheduleDateValue(addScheduleDays(normalized, 7))
+  };
+}
+
+function isEligibleScheduleMember(user: User | undefined): boolean {
+  return Boolean(user?.isActive && user.isScheduleMember && (user.role === "AGENT" || user.role === "ADMIN"));
+}
+
+export async function getWeeklySchedule(weekStart: string): Promise<WeeklyScheduleData> {
+  const range = scheduleRange(weekStart);
+
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const [activeMembers, tasks, duties] = await Promise.all([
+      db.user.findMany({
+        where: {
+          isActive: true,
+          isScheduleMember: true,
+          role: { in: ["AGENT", "ADMIN"] }
+        }
+      }),
+      db.scheduleTask.findMany({
+        where: { date: { gte: range.start, lt: range.end } },
+        orderBy: [{ date: "asc" }, { createdAt: "asc" }]
+      }),
+      db.scheduleDuty.findMany({
+        where: { date: { gte: range.start, lt: range.end } },
+        orderBy: [{ date: "asc" }, { createdAt: "asc" }]
+      })
+    ]);
+
+    const activeIds = new Set(activeMembers.map((member) => member.id));
+    const historicalIds = [...new Set([...tasks.map((task) => task.assigneeId), ...duties.map((duty) => duty.assigneeId)])]
+      .filter((id) => !activeIds.has(id));
+    const historicalMembers = historicalIds.length > 0
+      ? await db.user.findMany({ where: { id: { in: historicalIds } } })
+      : [];
+
+    return {
+      weekStart: range.weekStart,
+      members: sortScheduleMembers([...activeMembers, ...historicalMembers].map(mapUser)),
+      tasks: tasks.map(mapScheduleTask),
+      duties: duties.map(mapScheduleDuty)
+    };
+  }
+
+  const database = await readDatabase();
+  const tasks = (database.scheduleTasks ?? [])
+    .filter((task) => task.date >= range.weekStart && task.date < addScheduleDays(range.weekStart, 7))
+    .sort((left, right) => left.date.localeCompare(right.date) || left.createdAt.localeCompare(right.createdAt));
+  const duties = (database.scheduleDuties ?? [])
+    .filter((duty) => duty.date >= range.weekStart && duty.date < addScheduleDays(range.weekStart, 7))
+    .sort((left, right) => left.date.localeCompare(right.date) || left.createdAt.localeCompare(right.createdAt));
+  const referencedIds = new Set([...tasks.map((task) => task.assigneeId), ...duties.map((duty) => duty.assigneeId)]);
+  const members = database.users.filter((user) => isEligibleScheduleMember(user) || referencedIds.has(user.id));
+
+  return {
+    weekStart: range.weekStart,
+    members: sortScheduleMembers(members),
+    tasks,
+    duties
+  };
+}
+
+export async function findScheduleTask(id: string): Promise<ScheduleTask | undefined> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const task = await db.scheduleTask.findUnique({ where: { id } });
+    return task ? mapScheduleTask(task) : undefined;
+  }
+
+  const database = await readDatabase();
+  return database.scheduleTasks?.find((task) => task.id === id);
+}
+
+export async function createScheduleTask(input: {
+  date: string;
+  title: string;
+  description?: string;
+  assigneeId: string;
+  actorId: string;
+}): Promise<ScheduleTask> {
+  const date = scheduleDateValue(input.date);
+
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const assignee = await db.user.findFirst({
+      where: {
+        id: input.assigneeId,
+        isActive: true,
+        isScheduleMember: true,
+        role: { in: ["AGENT", "ADMIN"] }
+      },
+      select: { id: true }
+    });
+    if (!assignee) {
+      throw new Error("Wybrany użytkownik nie jest aktywnym członkiem grafiku.");
+    }
+
+    const task = await db.scheduleTask.create({
+      data: {
+        date,
+        title: input.title,
+        description: input.description,
+        assigneeId: input.assigneeId,
+        createdById: input.actorId,
+        updatedById: input.actorId
+      }
+    });
+    return mapScheduleTask(task);
+  }
+
+  return withDatabase((database) => {
+    const assignee = database.users.find((user) => user.id === input.assigneeId);
+    if (!isEligibleScheduleMember(assignee)) {
+      throw new Error("Wybrany użytkownik nie jest aktywnym członkiem grafiku.");
+    }
+
+    const timestamp = now();
+    const task: ScheduleTask = {
+      id: id("schedule-task"),
+      date: input.date,
+      title: input.title,
+      description: input.description,
+      isCompleted: false,
+      assigneeId: input.assigneeId,
+      createdById: input.actorId,
+      updatedById: input.actorId,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    };
+    database.scheduleTasks ??= [];
+    database.scheduleTasks.push(task);
+    return task;
+  });
+}
+
+export async function updateScheduleTask(input: {
+  id: string;
+  title: string;
+  description?: string;
+  actorId: string;
+}): Promise<ScheduleTask | undefined> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const existing = await db.scheduleTask.findUnique({ where: { id: input.id }, select: { id: true } });
+    if (!existing) return undefined;
+    return mapScheduleTask(await db.scheduleTask.update({
+      where: { id: input.id },
+      data: { title: input.title, description: input.description, updatedById: input.actorId }
+    }));
+  }
+
+  return withDatabase((database) => {
+    const task = database.scheduleTasks?.find((item) => item.id === input.id);
+    if (!task) return undefined;
+    task.title = input.title;
+    task.description = input.description;
+    task.updatedById = input.actorId;
+    task.updatedAt = now();
+    return task;
+  });
+}
+
+export async function toggleScheduleTask(input: { id: string; actorId: string }): Promise<ScheduleTask | undefined> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const existing = await db.scheduleTask.findUnique({ where: { id: input.id } });
+    if (!existing) return undefined;
+    return mapScheduleTask(await db.scheduleTask.update({
+      where: { id: input.id },
+      data: { isCompleted: !existing.isCompleted, updatedById: input.actorId }
+    }));
+  }
+
+  return withDatabase((database) => {
+    const task = database.scheduleTasks?.find((item) => item.id === input.id);
+    if (!task) return undefined;
+    task.isCompleted = !task.isCompleted;
+    task.updatedById = input.actorId;
+    task.updatedAt = now();
+    return task;
+  });
+}
+
+export async function deleteScheduleTask(id: string): Promise<boolean> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const deleted = await db.scheduleTask.deleteMany({ where: { id } });
+    return deleted.count > 0;
+  }
+
+  return withDatabase((database) => {
+    const tasks = database.scheduleTasks ?? [];
+    const index = tasks.findIndex((task) => task.id === id);
+    if (index === -1) return false;
+    tasks.splice(index, 1);
+    return true;
+  });
+}
+
+export async function setScheduleDuty(input: {
+  date: string;
+  assigneeId: string;
+  isOnCall: boolean;
+  actorId: string;
+}): Promise<ScheduleDuty | undefined> {
+  const date = scheduleDateValue(input.date);
+
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    if (!input.isOnCall) {
+      await db.scheduleDuty.deleteMany({ where: { date, assigneeId: input.assigneeId } });
+      return undefined;
+    }
+
+    const assignee = await db.user.findFirst({
+      where: { id: input.assigneeId, isActive: true, isScheduleMember: true, role: { in: ["AGENT", "ADMIN"] } },
+      select: { id: true }
+    });
+    if (!assignee) {
+      throw new Error("Wybrany użytkownik nie jest aktywnym członkiem grafiku.");
+    }
+
+    return mapScheduleDuty(await db.scheduleDuty.upsert({
+      where: { date_assigneeId: { date, assigneeId: input.assigneeId } },
+      create: { date, assigneeId: input.assigneeId, createdById: input.actorId },
+      update: {}
+    }));
+  }
+
+  return withDatabase((database) => {
+    database.scheduleDuties ??= [];
+    const existingIndex = database.scheduleDuties.findIndex(
+      (duty) => duty.date === input.date && duty.assigneeId === input.assigneeId
+    );
+    if (!input.isOnCall) {
+      if (existingIndex >= 0) database.scheduleDuties.splice(existingIndex, 1);
+      return undefined;
+    }
+
+    const assignee = database.users.find((user) => user.id === input.assigneeId);
+    if (!isEligibleScheduleMember(assignee)) {
+      throw new Error("Wybrany użytkownik nie jest aktywnym członkiem grafiku.");
+    }
+    if (existingIndex >= 0) return database.scheduleDuties[existingIndex];
+
+    const duty: ScheduleDuty = {
+      id: id("schedule-duty"),
+      date: input.date,
+      assigneeId: input.assigneeId,
+      createdById: input.actorId,
+      createdAt: now()
+    };
+    database.scheduleDuties.push(duty);
+    return duty;
+  });
+}
+
+export async function copyPreviousScheduleWeek(input: {
+  targetWeekStart: string;
+  actorId: string;
+}): Promise<{ taskCount: number; dutyCount: number }> {
+  const target = scheduleRange(input.targetWeekStart);
+  const sourceWeekStart = addScheduleDays(target.weekStart, -7);
+  const source = scheduleRange(sourceWeekStart);
+
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    try {
+      return await db.$transaction(async (tx) => {
+        const [targetTasks, targetDuties] = await Promise.all([
+          tx.scheduleTask.count({ where: { date: { gte: target.start, lt: target.end } } }),
+          tx.scheduleDuty.count({ where: { date: { gte: target.start, lt: target.end } } })
+        ]);
+        if (targetTasks > 0 || targetDuties > 0) {
+          throw new Error("Docelowy tydzień nie jest pusty.");
+        }
+
+        const activeMembers = await tx.user.findMany({
+          where: { isActive: true, isScheduleMember: true, role: { in: ["AGENT", "ADMIN"] } },
+          select: { id: true }
+        });
+        const memberIds = activeMembers.map((member) => member.id);
+        const [tasks, duties] = await Promise.all([
+          tx.scheduleTask.findMany({ where: { date: { gte: source.start, lt: source.end }, assigneeId: { in: memberIds } } }),
+          tx.scheduleDuty.findMany({ where: { date: { gte: source.start, lt: source.end }, assigneeId: { in: memberIds } } })
+        ]);
+        if (tasks.length === 0 && duties.length === 0) {
+          throw new Error("Poprzedni tydzień nie zawiera danych do skopiowania.");
+        }
+
+        if (tasks.length > 0) {
+          await tx.scheduleTask.createMany({
+            data: tasks.map((task) => ({
+              date: scheduleDateValue(addScheduleDays(task.date.toISOString().slice(0, 10), 7)),
+              title: task.title,
+              description: task.description,
+              isCompleted: false,
+              assigneeId: task.assigneeId,
+              createdById: input.actorId,
+              updatedById: input.actorId
+            }))
+          });
+        }
+        if (duties.length > 0) {
+          await tx.scheduleDuty.createMany({
+            data: duties.map((duty) => ({
+              date: scheduleDateValue(addScheduleDays(duty.date.toISOString().slice(0, 10), 7)),
+              assigneeId: duty.assigneeId,
+              createdById: input.actorId
+            }))
+          });
+        }
+
+        return { taskCount: tasks.length, dutyCount: duties.length };
+      }, { isolationLevel: "Serializable" });
+    } catch (error) {
+      if (typeof error === "object" && error !== null && "code" in error && error.code === "P2034") {
+        throw new Error("Grafik został równocześnie zmieniony. Odśwież stronę i spróbuj ponownie.");
+      }
+      throw error;
+    }
+  }
+
+  return withDatabase((database) => {
+    database.scheduleTasks ??= [];
+    database.scheduleDuties ??= [];
+    const targetEnd = addScheduleDays(target.weekStart, 7);
+    if (
+      database.scheduleTasks.some((task) => task.date >= target.weekStart && task.date < targetEnd) ||
+      database.scheduleDuties.some((duty) => duty.date >= target.weekStart && duty.date < targetEnd)
+    ) {
+      throw new Error("Docelowy tydzień nie jest pusty.");
+    }
+
+    const activeMemberIds = new Set(database.users.filter(isEligibleScheduleMember).map((user) => user.id));
+    const sourceEnd = addScheduleDays(source.weekStart, 7);
+    const tasks = database.scheduleTasks.filter(
+      (task) => task.date >= source.weekStart && task.date < sourceEnd && activeMemberIds.has(task.assigneeId)
+    );
+    const duties = database.scheduleDuties.filter(
+      (duty) => duty.date >= source.weekStart && duty.date < sourceEnd && activeMemberIds.has(duty.assigneeId)
+    );
+    if (tasks.length === 0 && duties.length === 0) {
+      throw new Error("Poprzedni tydzień nie zawiera danych do skopiowania.");
+    }
+
+    const timestamp = now();
+    database.scheduleTasks.push(...tasks.map((task) => ({
+      ...task,
+      id: id("schedule-task"),
+      date: addScheduleDays(task.date, 7),
+      isCompleted: false,
+      createdById: input.actorId,
+      updatedById: input.actorId,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    })));
+    database.scheduleDuties.push(...duties.map((duty) => ({
+      ...duty,
+      id: id("schedule-duty"),
+      date: addScheduleDays(duty.date, 7),
+      createdById: input.actorId,
+      createdAt: timestamp
+    })));
+    return { taskCount: tasks.length, dutyCount: duties.length };
   });
 }
 
@@ -1006,6 +1430,8 @@ export async function updateUserAdmin(input: {
   storeId?: string;
   department?: string;
   isActive: boolean;
+  isScheduleMember: boolean;
+  scheduleOrder?: number;
   actorId: string;
 }): Promise<User | undefined> {
   if (shouldUsePrisma()) {
@@ -1020,6 +1446,10 @@ export async function updateUserAdmin(input: {
       await ensureActiveAdminRemains(existing.id, input.role, input.isActive);
     }
 
+    const scheduleEligible = input.isActive && (input.role === "AGENT" || input.role === "ADMIN");
+    const isScheduleMember = scheduleEligible && input.isScheduleMember;
+    const scheduleOrder = isScheduleMember ? input.scheduleOrder : undefined;
+
     const updated = await db.$transaction(async (tx) => {
       const nextUser = await tx.user.update({
         where: { id: input.userId },
@@ -1027,7 +1457,9 @@ export async function updateUserAdmin(input: {
           role: input.role,
           storeId: input.storeId,
           department: input.department,
-          isActive: input.isActive
+          isActive: input.isActive,
+          isScheduleMember,
+          scheduleOrder: scheduleOrder ?? null
         }
       });
 
@@ -1035,7 +1467,9 @@ export async function updateUserAdmin(input: {
         role: nextUser.role,
         storeId: definedString(nextUser.storeId),
         department: definedString(nextUser.department),
-        isActive: nextUser.isActive
+        isActive: nextUser.isActive,
+        isScheduleMember: nextUser.isScheduleMember,
+        scheduleOrder: nextUser.scheduleOrder ?? undefined
       });
 
       if (changes.length > 0) {
@@ -1072,11 +1506,17 @@ export async function updateUserAdmin(input: {
       }
     }
 
-    const changes = getUserAuditChanges(user, input);
+    const scheduleEligible = input.isActive && (input.role === "AGENT" || input.role === "ADMIN");
+    const isScheduleMember = scheduleEligible && input.isScheduleMember;
+    const scheduleOrder = isScheduleMember ? input.scheduleOrder : undefined;
+
+    const changes = getUserAuditChanges(user, { ...input, isScheduleMember, scheduleOrder });
     user.role = input.role;
     user.storeId = input.storeId;
     user.department = input.department;
     user.isActive = input.isActive;
+    user.isScheduleMember = isScheduleMember;
+    user.scheduleOrder = scheduleOrder;
 
     if (changes.length > 0) {
       appendAdminAuditLog(database, {
@@ -1106,6 +1546,8 @@ function getJsonUserDeleteBlockers(database: Database, userId: string): string[]
   if (database.responseTemplates.some((template) => template.createdById === userId)) blockers.push("szablony odpowiedzi");
   if (database.responseMacros.some((macro) => macro.createdById === userId)) blockers.push("makra odpowiedzi");
   if ((database.dayLogEntries ?? []).some((entry) => entry.createdById === userId)) blockers.push("wpisy DayLog");
+  if ((database.scheduleTasks ?? []).some((task) => task.assigneeId === userId || task.createdById === userId || task.updatedById === userId)) blockers.push("zadania grafiku");
+  if ((database.scheduleDuties ?? []).some((duty) => duty.assigneeId === userId || duty.createdById === userId)) blockers.push("dyżury grafiku");
 
   return blockers;
 }
@@ -1127,13 +1569,19 @@ export async function deleteUserAdmin(input: { userId: string; actorId: string }
       await ensureActiveAdminRemains(existing.id, "REPORTER", false);
     }
 
-    const [reportedTickets, comments, articlesCreated, responseTemplates, responseMacros, dayLogEntries] = await Promise.all([
+    const [reportedTickets, comments, articlesCreated, responseTemplates, responseMacros, dayLogEntries, scheduleTasks, scheduleDuties] = await Promise.all([
       db.ticket.count({ where: { reporterId: input.userId } }),
       db.ticketComment.count({ where: { authorId: input.userId } }),
       db.knowledgeArticle.count({ where: { createdById: input.userId } }),
       db.responseTemplate.count({ where: { createdById: input.userId } }),
       db.responseMacro.count({ where: { createdById: input.userId } }),
-      db.dayLogEntry.count({ where: { createdById: input.userId } })
+      db.dayLogEntry.count({ where: { createdById: input.userId } }),
+      db.scheduleTask.count({
+        where: { OR: [{ assigneeId: input.userId }, { createdById: input.userId }, { updatedById: input.userId }] }
+      }),
+      db.scheduleDuty.count({
+        where: { OR: [{ assigneeId: input.userId }, { createdById: input.userId }] }
+      })
     ]);
     const blockers = [
       reportedTickets > 0 ? "zgłoszenia jako zgłaszający" : undefined,
@@ -1141,7 +1589,9 @@ export async function deleteUserAdmin(input: { userId: string; actorId: string }
       articlesCreated > 0 ? "artykuły bazy wiedzy" : undefined,
       responseTemplates > 0 ? "szablony odpowiedzi" : undefined,
       responseMacros > 0 ? "makra odpowiedzi" : undefined,
-      dayLogEntries > 0 ? "wpisy DayLog" : undefined
+      dayLogEntries > 0 ? "wpisy DayLog" : undefined,
+      scheduleTasks > 0 ? "zadania grafiku" : undefined,
+      scheduleDuties > 0 ? "dyżury grafiku" : undefined
     ].filter((blocker): blocker is string => Boolean(blocker));
 
     if (blockers.length > 0) {

@@ -200,6 +200,8 @@ knowledgeArticles: [
     ],
     notificationLogs: [],
     dayLogEntries: [],
+    scheduleTasks: [],
+    scheduleDuties: [],
     adminAuditLogs: [],
     sessions: [],
     setupTokens: []

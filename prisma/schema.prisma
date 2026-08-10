@@ -51,6 +51,8 @@ model User {
   storeId             String?
   department          String?
   isActive            Boolean  @default(true)
+  isScheduleMember    Boolean  @default(false)
+  scheduleOrder       Int?
   passwordHash        String?
   mustChangePassword  Boolean  @default(true)
   createdAt           DateTime @default(now())
@@ -71,6 +73,11 @@ model User {
   responseTemplates ResponseTemplate[]
   responseMacros    ResponseMacro[]
   dayLogEntries     DayLogEntry[]
+  scheduleTasks     ScheduleTask[] @relation("ScheduleTaskAssignee")
+  scheduleTasksCreated ScheduleTask[] @relation("ScheduleTaskCreatedBy")
+  scheduleTasksUpdated ScheduleTask[] @relation("ScheduleTaskUpdatedBy")
+  scheduleDuties ScheduleDuty[] @relation("ScheduleDutyAssignee")
+  scheduleDutiesCreated ScheduleDuty[] @relation("ScheduleDutyCreatedBy")
 
   @@index([role])
   @@index([storeId])
@@ -260,6 +267,42 @@ model DayLogEntry {
 
   @@index([occurredAt])
   @@index([createdById])
+}
+
+model ScheduleTask {
+  id          String   @id @default(cuid())
+  date        DateTime @db.Date
+  title       String
+  description String?
+  isCompleted Boolean  @default(false)
+  assigneeId  String
+  createdById String
+  updatedById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assignee User @relation("ScheduleTaskAssignee", fields: [assigneeId], references: [id])
+  createdBy User @relation("ScheduleTaskCreatedBy", fields: [createdById], references: [id])
+  updatedBy User @relation("ScheduleTaskUpdatedBy", fields: [updatedById], references: [id])
+
+  @@index([date, assigneeId])
+  @@index([assigneeId])
+  @@index([isCompleted])
+}
+
+model ScheduleDuty {
+  id          String   @id @default(cuid())
+  date        DateTime @db.Date
+  assigneeId  String
+  createdById String
+  createdAt   DateTime @default(now())
+
+  assignee User @relation("ScheduleDutyAssignee", fields: [assigneeId], references: [id])
+  createdBy User @relation("ScheduleDutyCreatedBy", fields: [createdById], references: [id])
+
+  @@unique([date, assigneeId])
+  @@index([date])
+  @@index([assigneeId])
 }
 
 model Session {

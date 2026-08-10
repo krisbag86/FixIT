@@ -32,6 +32,8 @@ export type User = {
   storeId?: string;
   department?: string;
   isActive: boolean;
+  isScheduleMember?: boolean;
+  scheduleOrder?: number;
   passwordHash?: string;
   mustChangePassword?: boolean;
 };
@@ -130,6 +132,34 @@ export type DayLogEntry = {
   ticketNumber?: string;
   createdAt: string;
   updatedAt: string;
+};
+
+export type ScheduleTask = {
+  id: string;
+  date: string;
+  title: string;
+  description?: string;
+  isCompleted: boolean;
+  assigneeId: string;
+  createdById: string;
+  updatedById: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ScheduleDuty = {
+  id: string;
+  date: string;
+  assigneeId: string;
+  createdById: string;
+  createdAt: string;
+};
+
+export type WeeklyScheduleData = {
+  weekStart: string;
+  members: User[];
+  tasks: ScheduleTask[];
+  duties: ScheduleDuty[];
 };
 
 export type AdminAuditLog = {
@@ -242,4 +272,6 @@ export type Database = {
   responseTemplates: ResponseTemplate[];
   responseMacros: ResponseMacro[];
   dayLogEntries?: DayLogEntry[];
+  scheduleTasks?: ScheduleTask[];
+  scheduleDuties?: ScheduleDuty[];
 };

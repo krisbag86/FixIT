@@ -9,6 +9,9 @@ export type PermissionAction =
   | "ticket:confirm-resolution"
   | "comment:public"
   | "comment:internal"
+  | "schedule:view"
+  | "schedule:complete-own"
+  | "schedule:manage"
   | "admin:manage-users"
   | "admin:manage-stores"
   | "admin:manage-categories"
@@ -34,7 +37,9 @@ export function can(user: User, action: PermissionAction): boolean {
       "ticket:view-all",
       "ticket:update",
       "comment:public",
-      "comment:internal"
+      "comment:internal",
+      "schedule:view",
+      "schedule:complete-own"
     ].includes(action);
   }
 

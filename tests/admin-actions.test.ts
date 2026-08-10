@@ -147,4 +147,29 @@ describe("admin user invitation actions", () => {
       actorId: adminUser.id
     });
   });
+
+  it("updates schedule membership without hard-coded users", async () => {
+    const { dataStoreMock } = installActionMocks({ ok: true });
+    const { updateUserAdminAction } = await import("@/app/admin/actions");
+    const formData = new FormData();
+    formData.set("id", adminUser.id);
+    formData.set("role", "ADMIN");
+    formData.set("department", "IT");
+    formData.set("isActive", "on");
+    formData.set("isScheduleMember", "on");
+    formData.set("scheduleOrder", "2");
+
+    await updateUserAdminAction(formData);
+
+    expect(dataStoreMock.updateUserAdmin).toHaveBeenCalledWith({
+      userId: adminUser.id,
+      role: "ADMIN",
+      storeId: undefined,
+      department: "IT",
+      isActive: true,
+      isScheduleMember: true,
+      scheduleOrder: 2,
+      actorId: adminUser.id
+    });
+  });
 });

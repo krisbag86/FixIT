@@ -63,7 +63,7 @@ export default async function AdminUsersPage({
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)]">
         <div className="overflow-x-auto rounded-md border border-black/10 dark:border-white/10">
-          <table className="w-full min-w-[76rem] text-sm">
+          <table className="w-full min-w-[94rem] text-sm">
             <thead>
               <tr className="bg-white/70 text-left dark:bg-white/10">
                 <th className="px-4 py-3 font-bold">Użytkownik</th>
@@ -105,7 +105,7 @@ export default async function AdminUsersPage({
                     </td>
                     <td className="px-4 py-3">
                       <div className="grid gap-2">
-                        <form action={updateUserAdminAction} className="grid gap-2 xl:grid-cols-[minmax(9rem,1fr)_minmax(11rem,1fr)_minmax(9rem,1fr)_auto_auto]">
+                        <form action={updateUserAdminAction} className="grid gap-2 xl:grid-cols-[minmax(9rem,1fr)_minmax(11rem,1fr)_minmax(9rem,1fr)_auto_auto_5rem_auto]">
                           <input type="hidden" name="id" value={item.id} />
                           <select name="role" defaultValue={item.role} className={fieldClass}>
                             {roleOptions.map((role) => (
@@ -133,6 +133,20 @@ export default async function AdminUsersPage({
                             <input type="checkbox" name="isActive" defaultChecked={item.isActive} className="h-4 w-4" />
                             Aktywny
                           </label>
+                          <label className="inline-flex items-center gap-2 rounded-md border border-black/10 bg-white px-3 text-xs font-bold dark:border-white/10 dark:bg-white/10">
+                            <input type="checkbox" name="isScheduleMember" defaultChecked={item.isScheduleMember} className="h-4 w-4" />
+                            Grafik
+                          </label>
+                          <input
+                            type="number"
+                            name="scheduleOrder"
+                            defaultValue={item.scheduleOrder ?? ""}
+                            min={0}
+                            max={999}
+                            placeholder="Lp."
+                            aria-label={`Kolejność w grafiku: ${item.name}`}
+                            className={fieldClass}
+                          />
                           <button className="h-10 rounded-md bg-mint px-4 text-sm font-bold text-white transition hover:bg-mint/90" type="submit">
                             Zapisz
                           </button>

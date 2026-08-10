@@ -154,3 +154,17 @@ Zrobione:
 - Dodano walidację i testy obu operacji dla JSON-store i Prisma data-store.
 - Walidacja po zmianach: `npm run typecheck`, `npm run lint` oraz `npm run test` (162 passed, 1 skipped), a także `prisma validate`.
 - Railway: deployment `e38fcb7b-278f-42d2-b95c-7cb9fe9a2a0d` zakończony statusem `SUCCESS`; healthcheck `/api/health` zwraca `200`.
+
+## Etap 10 - Grafik tygodniowy
+
+Status: przygotowany do wdrożenia.
+
+Zrobione:
+
+- Dodano `/admin/schedule` dla `AGENT` i `ADMIN` z nawigacją między tygodniami.
+- Dodano zadania, status wykonania i dyżury dla wszystkich siedmiu dni, w tym weekendów.
+- Administrator zarządza całym grafikiem; agent może odhaczać wyłącznie własne zadania.
+- Dodano kontrolę braku obsady dyżuru, kopiowanie poprzedniego tygodnia oraz responsywny widok mobilny.
+- Skład grafiku jest konfigurowany na kontach użytkowników przez `isScheduleMember` i `scheduleOrder`.
+- Dodano modele Prisma, migrację oraz równoważną implementację JSON-store.
+- Walidacja: `npm run typecheck`, `npm run lint`, `npm run test` (172 passed, 1 skipped) oraz `prisma validate`.

@@ -48,7 +48,7 @@ export function getCategoryUsageSummary(database: Database, categoryId: string):
 
 export function getUserAuditChanges(
   before: User,
-  after: Pick<User, "role" | "storeId" | "department" | "isActive">
+  after: Pick<User, "role" | "storeId" | "department" | "isActive" | "isScheduleMember" | "scheduleOrder">
 ): AuditChange[] {
   const changes: AuditChange[] = [];
 
@@ -69,6 +69,22 @@ export function getUserAuditChanges(
       field: "aktywny",
       from: before.isActive ? "tak" : "nie",
       to: after.isActive ? "tak" : "nie"
+    });
+  }
+
+  if (Boolean(before.isScheduleMember) !== Boolean(after.isScheduleMember)) {
+    changes.push({
+      field: "grafik",
+      from: before.isScheduleMember ? "tak" : "nie",
+      to: after.isScheduleMember ? "tak" : "nie"
+    });
+  }
+
+  if ((before.scheduleOrder ?? undefined) !== (after.scheduleOrder ?? undefined)) {
+    changes.push({
+      field: "kolejnoscGrafiku",
+      from: before.scheduleOrder?.toString(),
+      to: after.scheduleOrder?.toString()
     });
   }
 

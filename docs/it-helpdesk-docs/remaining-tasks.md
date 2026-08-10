@@ -4,15 +4,18 @@ Dokument zawiera historyczne podsumowanie prac od Etapu 7. Bieżący stan projek
 
 ## Aktualny stan — 2026-08-10
 
-- Etapy 0–9 są zrealizowane; ostatnim etapem funkcjonalnym był DayLog.
+- Etapy 0–10 są zrealizowane; ostatnim etapem funkcjonalnym jest grafik tygodniowy.
 - DayLog obsługuje tworzenie, edycję, usuwanie i eksport wpisów dla `AGENT` i `ADMIN`.
 - Wpis DayLog można przekształcić w jedno trwale powiązane zgłoszenie z automatycznie uzupełnionym tematem, opisem i kontaktem.
-- Walidacja po ostatniej zmianie: `npm run typecheck`, `npm run lint`, `npm run test` — 162 passed, 1 skipped; `prisma validate` — OK.
+- Grafik obejmuje siedem dni, zadania, dyżury, kopiowanie tygodnia i konfigurowalny skład zespołu bez nazw zapisanych w kodzie.
+- Walidacja po ostatniej zmianie: `npm run typecheck`, `npm run lint`, `npm run test` — 172 passed, 1 skipped; `prisma validate` — OK.
 
 ### Najbliższe zadania
 
 - Zweryfikować deploy Railway zawierający migrację `20260810120000_link_daylog_ticket`.
 - Po deployu wykonać smoke test: logowanie, DayLog, utworzenie wpisu, konwersja do zgłoszenia, powrót linkiem do zgłoszenia, edycja, usunięcie i eksport XLSX.
+- Zweryfikować migrację `20260810160000_add_weekly_schedule`, włączyć wybrane konta opcją `Grafik` i ustawić ich kolejność.
+- Wykonać smoke test grafiku: siedem dni, zadanie, edycja, odhaczenie przez przypisanego agenta, dyżur, ostrzeżenie braku obsady i kopiowanie pustego tygodnia.
 
 ## Decyzje zakresowe
 

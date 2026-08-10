@@ -11,6 +11,8 @@
 - categories,
 - knowledge_articles,
 - day_log_entries,
+- schedule_tasks,
+- schedule_duties,
 - notification_logs.
 
 ## 2. Prisma schema - propozycja startowa
@@ -54,6 +56,8 @@ model User {
   storeId      String?
   department   String?
   isActive     Boolean  @default(true)
+  isScheduleMember Boolean @default(false)
+  scheduleOrder Int?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -64,6 +68,8 @@ model User {
   events            TicketEvent[]
   knowledgeArticles KnowledgeArticle[]
   dayLogEntries     DayLogEntry[]
+  scheduleTasks     ScheduleTask[] @relation("ScheduleTaskAssignee")
+  scheduleDuties    ScheduleDuty[] @relation("ScheduleDutyAssignee")
 }
 
 model Store {
@@ -221,6 +227,39 @@ Migracje:
 
 - `prisma/migrations/20260804120000_add_daylog/migration.sql` — utworzenie DayLog,
 - `prisma/migrations/20260810120000_link_daylog_ticket/migration.sql` — powiązanie wpisu ze zgłoszeniem.
+
+## 7. Grafik tygodniowy
+
+Uczestnicy grafiku nie są wpisani na sztywno. Administrator włącza aktywne konto
+`AGENT` lub `ADMIN` polem `User.isScheduleMember` i może ustawić kolejność przez
+`User.scheduleOrder`. Historia pozostaje powiązana z identyfikatorem użytkownika.
+
+```prisma
+model ScheduleTask {
+  id          String   @id @default(cuid())
+  date        DateTime @db.Date
+  title       String
+  description String?
+  isCompleted Boolean  @default(false)
+  assigneeId  String
+  createdById String
+  updatedById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ScheduleDuty {
+  id          String   @id @default(cuid())
+  date        DateTime @db.Date
+  assigneeId  String
+  createdById String
+  createdAt   DateTime @default(now())
+
+  @@unique([date, assigneeId])
+}
+```
+
+Migracja: `prisma/migrations/20260810160000_add_weekly_schedule/migration.sql`.
 
 ## 3. Numeracja ticketow
 
