@@ -166,7 +166,8 @@ Zrobione:
 - Dodano zadania, status wykonania i dyżury dla wszystkich siedmiu dni, w tym weekendów.
 - Administrator zarządza całym grafikiem; agent może odhaczać wyłącznie własne zadania.
 - Dodano kontrolę braku obsady dyżuru, kopiowanie poprzedniego tygodnia oraz responsywny widok mobilny.
+- Dodano eksport wybranego tygodnia do formatowanego pliku Excel z zadaniami, statusem wykonania, dyżurami i wyróżnionymi weekendami.
 - Skład grafiku jest konfigurowany na kontach użytkowników przez `isScheduleMember` i `scheduleOrder`.
 - Dodano modele Prisma, migrację oraz równoważną implementację JSON-store.
 - Dodano automatyczne odświeżanie ekranów operacyjnych co minutę oraz po powrocie do widocznej karty; odświeżanie jest wstrzymywane podczas pracy z formularzem.
-- Walidacja: `npm run typecheck`, `npm run lint`, `npm run test` (173 passed, 1 skipped) oraz `prisma validate`.
+- Walidacja: `npm run typecheck`, `npm run lint`, `npm run test` (176 passed, 1 skipped) oraz `prisma validate`.

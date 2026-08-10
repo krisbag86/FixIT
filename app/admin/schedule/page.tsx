@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { redirect } from "next/navigation";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { ScheduleBoard } from "@/components/admin/schedule-board";
@@ -53,6 +53,19 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
         <a href={`/admin/schedule?week=${nextWeek}`} aria-label="Następny tydzień" className={navButtonClass}>
           Następny <ChevronRight size={17} />
         </a>
+      </div>
+
+      <div className="mb-4 flex justify-end">
+        <form action="/admin/schedule/export" method="POST" target="_blank">
+          <input type="hidden" name="weekStart" value={weekStart} />
+          <button
+            type="submit"
+            className="inline-flex h-10 items-center gap-2 rounded-md border border-black/10 bg-white px-4 text-sm font-bold transition hover:border-mint hover:text-mint dark:border-white/10 dark:bg-white/5"
+          >
+            <Download size={16} />
+            Eksportuj Excel
+          </button>
+        </form>
       </div>
 
       <ScheduleBoard
