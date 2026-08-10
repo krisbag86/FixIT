@@ -10,11 +10,12 @@ Dla MVP rekomendowany deployment:
 - Osobny projekt dla production,
 - Opcjonalnie osobny projekt dla staging.
 
-Stan na 2026-06-22:
+Stan na 2026-08-10:
 
 - produkcyjny auto-deploy dziala po pushu na branch `main`,
 - merge `v-1.1` -> `main` uruchomil deploy na Railway poprawnie,
 - healthcheck aplikacji pozostaje oparty o `GET /api/health`.
+- Railway Serverless jest wyłączony dla usług `FixIT` i `Postgres`, aby uniknąć cold startów oraz startu migracji przed gotowością wybudzanej bazy. Obie usługi naliczają stałe użycie zasobów.
 - Railway korzysta z `DOCKERFILE` buildera z `railway.json`; runtime Node jest przypiety w repo do `20.20.2` przez `Dockerfile`, `.nvmrc`, `.node-version` i `package.json#engines`.
 - Onboarding adminowski uzywa jednorazowych linkow aktywacyjnych. Jesli provider email nie wysle wiadomosci, panel pokazuje awaryjny link i pozwala wygenerowac nowy link przy uzytkowniku.
 

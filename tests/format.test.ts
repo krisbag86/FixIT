@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDateOnly, formatDateTime, parseAppDateTime, parseDateOnly } from "@/lib/format";
+import { formatDateOnly, formatDateTime, formatDateTimeLocal, parseAppDateTime, parseDateOnly } from "@/lib/format";
 
 describe("formatDateTime", () => {
   it("uses the application timezone consistently", () => {
@@ -12,6 +12,10 @@ describe("formatDateTime", () => {
 
   it("formats dates in the application timezone", () => {
     expect(formatDateOnly("2026-07-31T22:30:00.000Z")).toBe("2026-08-01");
+  });
+
+  it("formats datetime-local values in the application timezone", () => {
+    expect(formatDateTimeLocal("2026-07-31T22:30:00.000Z")).toBe("2026-08-01T00:30");
   });
 
   it("accepts only real calendar dates for the DayLog filter", () => {

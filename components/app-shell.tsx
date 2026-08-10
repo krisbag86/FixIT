@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Archive, BookOpen, ClipboardList, LayoutDashboard, LogOut, Plus, ShieldCheck, Store } from "lucide-react";
 import { logoutAction } from "@/app/login/actions";
+import { AutoRefresh } from "@/components/auto-refresh";
 import { RoleBadge } from "@/components/badges";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { canUseAdmin } from "@/lib/permissions";
@@ -11,6 +12,7 @@ export function AppShell({ user, children }: { user: User; children: React.React
 
   return (
     <div className="flex min-h-screen flex-col">
+      <AutoRefresh />
       <header className="sticky top-0 z-20 border-b border-black/8 bg-paper/85 shadow-sm backdrop-blur-xl dark:border-white/8 dark:bg-ink/85">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <Link href="/" className="flex items-center gap-3">

@@ -1,33 +1,16 @@
-import { CalendarClock, Download, ExternalLink, FilePlus2, Pencil, Plus } from "lucide-react";
+import { CalendarClock, Download, ExternalLink, FilePlus2, Pencil } from "lucide-react";
 import { redirect } from "next/navigation";
-import { createDayLogEntryAction, updateDayLogEntryAction } from "@/app/admin/daylog/actions";
+import { updateDayLogEntryAction } from "@/app/admin/daylog/actions";
 import { DayLogDeleteButton } from "@/components/admin/daylog-delete-button";
+import { DayLogCreateForm } from "@/components/admin/daylog-create-form";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { AppShell } from "@/components/app-shell";
-import { formatDateOnly, formatDateTime, formatDateLabel, parseDateOnly, APP_TIME_ZONE } from "@/lib/format";
+import { formatDateOnly, formatDateTime, formatDateTimeLocal, formatDateLabel, parseDateOnly } from "@/lib/format";
 import { listDayLogEntries } from "@/lib/data-store";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
-
-function defaultDateTimeLocal(): string {
-  return dateTimeLocalValue(new Date());
-}
-
-function dateTimeLocalValue(value: string | Date): string {
-  const parts = new Intl.DateTimeFormat("sv-SE", {
-    timeZone: APP_TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false
-  }).formatToParts(new Date(value));
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}`;
-}
 
 export default async function DayLogPage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const user = await requireUser();
@@ -71,35 +54,7 @@ export default async function DayLogPage({ searchParams }: { searchParams: Promi
                 Eksportuj Excel
               </button>
             </form>
-            <details>
-              <summary className="inline-flex h-10 cursor-pointer list-none items-center gap-2 rounded-md bg-mint px-4 text-sm font-bold text-white transition hover:bg-mint/90">
-                <Plus size={16} />
-                Nowy wpis
-              </summary>
-              <form action={createDayLogEntryAction} className="mt-4 grid gap-3 border-t border-black/10 pt-4 dark:border-white/10 sm:grid-cols-2">
-                <label className="grid gap-1 text-sm font-semibold">
-                  Data i godzina
-                  <input name="occurredAt" type="datetime-local" defaultValue={defaultDateTimeLocal()} required className={fieldClass} />
-                </label>
-                <label className="grid gap-1 text-sm font-semibold">
-                  Od kogo?
-                  <input name="fromName" placeholder="np. Anna Kowalska / sklep 12" required maxLength={160} className={fieldClass} />
-                </label>
-                <label className="grid gap-1 text-sm font-semibold sm:col-span-2">
-                  Temat
-                  <input name="subject" placeholder="Krótki temat rozmowy" required maxLength={200} className={fieldClass} />
-                </label>
-                <label className="grid gap-1 text-sm font-semibold sm:col-span-2">
-                  Opis
-                  <textarea name="description" placeholder="Co ustalono? Jakie działania wykonano lub są do wykonania?" required maxLength={10000} className={`${fieldClass} min-h-28 resize-y`} />
-                </label>
-                <div className="flex justify-end sm:col-span-2">
-                  <button type="submit" className="h-10 rounded-md bg-ink px-5 text-sm font-bold text-white transition hover:bg-ink/90 dark:bg-paper dark:text-ink">
-                    Zapisz wpis
-                  </button>
-                </div>
-              </form>
-            </details>
+            <DayLogCreateForm />
           </div>
         </div>
       </section>
@@ -187,7 +142,7 @@ export default async function DayLogPage({ searchParams }: { searchParams: Promi
                           <input type="hidden" name="id" value={entry.id} />
                           <label className="grid gap-1 text-xs font-bold">
                             Data i godzina
-                            <input name="occurredAt" type="datetime-local" defaultValue={dateTimeLocalValue(entry.occurredAt)} required className={fieldClass} />
+                            <input name="occurredAt" type="datetime-local" defaultValue={formatDateTimeLocal(entry.occurredAt)} required className={fieldClass} />
                           </label>
                           <label className="grid gap-1 text-xs font-bold">
                             Od kogo?

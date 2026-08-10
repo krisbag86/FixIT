@@ -12,8 +12,9 @@ Wewnętrzny system helpdesk IT dla sklepów i biura **Bagietka**. Nowoczesna apl
 - **Baza wiedzy** — Artykuły FAQ dla użytkowników
 - **Autoryzacja** — Logowanie i rejestracja tylko dla adresów w domenie `bagietka.pl`
 - **Administracja użytkownikami** — Admin może tworzyć, usuwać i dezaktywować konta, nadawać role oraz wysyłać lub regenerować link aktywacyjny
-- **DayLog** — Wspólna dla agentów i administratorów oś czasu notatek z rozmów telefonicznych/ustnych, z oznaczeniem autora, edycją, usuwaniem, eksportem do XLSX i konwersją wpisu w powiązane zgłoszenie
+- **DayLog** — Wspólna dla agentów i administratorów oś czasu notatek z rozmów telefonicznych/ustnych, z aktualną godziną nowego wpisu, oznaczeniem autora, edycją, usuwaniem, eksportem do XLSX i konwersją wpisu w powiązane zgłoszenie
 - **Grafik tygodniowy** — Plan zadań i dyżurów od poniedziałku do niedzieli, z konfigurowalnym składem zespołu i kopiowaniem poprzedniego tygodnia
+- **Automatyczne odświeżanie** — Ekrany operacyjne pobierają aktualne dane co minutę i po powrocie do widocznej karty, z ochroną otwartych formularzy
 - **Tryb ciemny** — Wsparcie dla jasnego i ciemnego motywu
 - **Załączniki** — Przesyłanie plików przez S3 (Railway Bucket)
 - **Powiadomienia e-mail** — Automatyczne powiadomienia o zmianach statusu

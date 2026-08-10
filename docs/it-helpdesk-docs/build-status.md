@@ -151,6 +151,7 @@ Zrobione:
 - Dodano tworzenie zgłoszenia z wpisu DayLog z automatycznym uzupełnieniem tematu, opisu i kontaktu.
 - Dodano trwałe powiązanie jeden-do-jednego `DayLogEntry.ticketId` oraz link do numeru utworzonego zgłoszenia.
 - Dodano ochronę przed duplikatem i walidację uprawnień dla identyfikatora źródłowego wpisu.
+- Formularz nowego wpisu ustawia bieżącą godzinę dopiero w chwili otwarcia i nie nadpisuje rozpoczętego szkicu.
 - Dodano walidację i testy obu operacji dla JSON-store i Prisma data-store.
 - Walidacja po zmianach: `npm run typecheck`, `npm run lint` oraz `npm run test` (162 passed, 1 skipped), a także `prisma validate`.
 - Railway: deployment `e38fcb7b-278f-42d2-b95c-7cb9fe9a2a0d` zakończony statusem `SUCCESS`; healthcheck `/api/health` zwraca `200`.
@@ -167,4 +168,5 @@ Zrobione:
 - Dodano kontrolę braku obsady dyżuru, kopiowanie poprzedniego tygodnia oraz responsywny widok mobilny.
 - Skład grafiku jest konfigurowany na kontach użytkowników przez `isScheduleMember` i `scheduleOrder`.
 - Dodano modele Prisma, migrację oraz równoważną implementację JSON-store.
-- Walidacja: `npm run typecheck`, `npm run lint`, `npm run test` (172 passed, 1 skipped) oraz `prisma validate`.
+- Dodano automatyczne odświeżanie ekranów operacyjnych co minutę oraz po powrocie do widocznej karty; odświeżanie jest wstrzymywane podczas pracy z formularzem.
+- Walidacja: `npm run typecheck`, `npm run lint`, `npm run test` (173 passed, 1 skipped) oraz `prisma validate`.

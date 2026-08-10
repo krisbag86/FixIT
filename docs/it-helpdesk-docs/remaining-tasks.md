@@ -7,8 +7,9 @@ Dokument zawiera historyczne podsumowanie prac od Etapu 7. Bieżący stan projek
 - Etapy 0–10 są zrealizowane; ostatnim etapem funkcjonalnym jest grafik tygodniowy.
 - DayLog obsługuje tworzenie, edycję, usuwanie i eksport wpisów dla `AGENT` i `ADMIN`.
 - Wpis DayLog można przekształcić w jedno trwale powiązane zgłoszenie z automatycznie uzupełnionym tematem, opisem i kontaktem.
+- Formularz DayLog pobiera aktualną godzinę przy otwarciu, a ekrany operacyjne odświeżają dane automatycznie bez przerywania edycji formularzy.
 - Grafik obejmuje siedem dni, zadania, dyżury, kopiowanie tygodnia i konfigurowalny skład zespołu bez nazw zapisanych w kodzie.
-- Walidacja po ostatniej zmianie: `npm run typecheck`, `npm run lint`, `npm run test` — 172 passed, 1 skipped; `prisma validate` — OK.
+- Walidacja po ostatniej zmianie: `npm run typecheck`, `npm run lint`, `npm run test` — 173 passed, 1 skipped; build produkcyjny i `prisma validate` — OK.
 
 ### Najbliższe zadania
 
