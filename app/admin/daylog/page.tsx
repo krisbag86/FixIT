@@ -151,7 +151,7 @@ export default async function DayLogPage({ searchParams }: { searchParams: Promi
               {entries.map((entry) => (
                 <article key={entry.id} className="relative w-[min(82vw,21rem)] shrink-0 pt-8">
                   <div className="absolute left-4 top-0 z-10 h-3 w-3 rounded-full border-2 border-white bg-mint shadow-sm dark:border-ink" aria-hidden="true" />
-                  <div className="h-full rounded-md border border-black/10 bg-white/80 p-4 shadow-sm dark:border-white/10 dark:bg-white/10">
+                  <div className="flex h-full flex-col rounded-md border border-black/10 bg-white/80 p-4 shadow-sm dark:border-white/10 dark:bg-white/10">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-ink/55 dark:text-paper/55">
                       <time dateTime={entry.occurredAt}>{formatDateTime(entry.occurredAt)}</time>
                       <span className="rounded-full bg-mint/10 px-2 py-1 text-mint">{entry.createdByName ?? entry.createdByEmail ?? "Administrator"}</span>
@@ -159,8 +159,8 @@ export default async function DayLogPage({ searchParams }: { searchParams: Promi
                     <div className="mb-1 text-xs font-bold uppercase tracking-wide text-ink/45 dark:text-paper/45">Od kogo</div>
                     <div className="mb-3 font-semibold">{entry.fromName}</div>
                     <h3 className="mb-2 text-lg font-black">{entry.subject}</h3>
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink/70 dark:text-paper/70">{entry.description}</p>
-                    <div className="mt-4 grid gap-2 border-t border-black/10 pt-3 dark:border-white/10">
+                    <p className="whitespace-pre-wrap pb-4 text-sm leading-relaxed text-ink/70 dark:text-paper/70">{entry.description}</p>
+                    <div className="mt-auto grid gap-2 border-t border-black/10 pt-3 dark:border-white/10">
                       {entry.ticketId ? (
                         <a
                           href={`/tickets/${entry.ticketId}`}
