@@ -61,118 +61,126 @@ export default async function AdminUsersPage({
         </button>
       </form>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)]">
-        <div className="overflow-x-auto rounded-md border border-black/10 dark:border-white/10">
-          <table className="w-full min-w-[94rem] text-sm">
-            <thead>
-              <tr className="bg-white/70 text-left dark:bg-white/10">
-                <th className="px-4 py-3 font-bold">Użytkownik</th>
-                <th className="px-4 py-3 font-bold">Rola</th>
-                <th className="px-4 py-3 font-bold">Sklep / dział</th>
-                <th className="px-4 py-3 font-bold">Status</th>
-                <th className="px-4 py-3 font-bold">Akcje</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((item) => {
-                const store = stores.find((entry) => entry.id === item.storeId);
+      <div className="space-y-6">
+        <section className="space-y-3" aria-label="Lista użytkowników">
+          {users.length === 0 ? (
+            <div className="rounded-md border border-black/10 bg-white/75 p-6 text-center text-sm text-ink/60 dark:border-white/10 dark:bg-white/10 dark:text-paper/60">
+              Brak użytkowników pasujących do wyszukiwania.
+            </div>
+          ) : null}
 
-                return (
-                  <tr key={item.id} className="border-t border-black/5 bg-white/80 align-top dark:border-white/5 dark:bg-white/5">
-                    <td className="px-4 py-3">
-                      <div className="font-semibold">{item.name}</div>
-                      <div className="text-xs text-ink/60 dark:text-paper/60">{item.email}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <RoleBadge role={item.role} />
-                    </td>
-                    <td className="px-4 py-3 text-ink/70 dark:text-paper/70">
-                      <div>{store ? `${store.code} - ${store.name}` : "-"}</div>
-                      <div className="text-xs text-ink/50 dark:text-paper/50">{item.department ?? "-"}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      {item.isActive ? (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-green-500/10 px-2 py-0.5 text-xs font-bold text-green-700 dark:text-green-300">
-                          <Shield size={14} />
-                          Aktywny
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-xs font-bold text-amber-700 dark:text-amber-300">
-                          <ShieldOff size={14} />
-                          Nieaktywny
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="grid gap-2">
-                        <form action={updateUserAdminAction} className="grid gap-2 xl:grid-cols-[minmax(9rem,1fr)_minmax(11rem,1fr)_minmax(9rem,1fr)_auto_auto_5rem_auto]">
-                          <input type="hidden" name="id" value={item.id} />
-                          <select name="role" defaultValue={item.role} className={fieldClass}>
-                            {roleOptions.map((role) => (
-                              <option key={role} value={role}>
-                                {roleLabels[role]}
-                              </option>
-                            ))}
-                          </select>
-                          <select name="storeId" defaultValue={item.storeId ?? ""} className={fieldClass}>
-                            <option value="">Bez sklepu</option>
-                            {stores.map((entry) => (
-                              <option key={entry.id} value={entry.id}>
-                                {entry.code} - {entry.name}
-                              </option>
-                            ))}
-                          </select>
-                          <input
-                            type="text"
-                            name="department"
-                            defaultValue={item.department ?? ""}
-                            placeholder="Dział"
-                            className={fieldClass}
-                          />
-                          <label className="inline-flex items-center gap-2 rounded-md border border-black/10 bg-white px-3 text-xs font-bold dark:border-white/10 dark:bg-white/10">
-                            <input type="checkbox" name="isActive" defaultChecked={item.isActive} className="h-4 w-4" />
-                            Aktywny
-                          </label>
-                          <label className="inline-flex items-center gap-2 rounded-md border border-black/10 bg-white px-3 text-xs font-bold dark:border-white/10 dark:bg-white/10">
-                            <input type="checkbox" name="isScheduleMember" defaultChecked={item.isScheduleMember} className="h-4 w-4" />
-                            Grafik
-                          </label>
-                          <input
-                            type="number"
-                            name="scheduleOrder"
-                            defaultValue={item.scheduleOrder ?? ""}
-                            min={0}
-                            max={999}
-                            placeholder="Lp."
-                            aria-label={`Kolejność w grafiku: ${item.name}`}
-                            className={fieldClass}
-                          />
-                          <button className="h-10 rounded-md bg-mint px-4 text-sm font-bold text-white transition hover:bg-mint/90" type="submit">
-                            Zapisz
-                          </button>
-                        </form>
-                        <div className="flex flex-wrap items-start gap-2">
-                          <UserInviteButton userId={item.id} disabled={!item.isActive || !item.mustChangePassword} />
-                          <UserDeleteButton
-                            userId={item.id}
-                            userEmail={item.email}
-                            disabled={item.id === user.id}
-                            disabledReason="Nie możesz usunąć własnego konta."
-                          />
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+          {users.map((item) => {
+            const store = stores.find((entry) => entry.id === item.storeId);
 
-        <div className="rounded-md border border-black/10 bg-white/75 p-4 dark:border-white/10 dark:bg-white/10">
+            return (
+              <article key={item.id} className="rounded-md border border-black/10 bg-white/80 p-4 dark:border-white/10 dark:bg-white/5">
+                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-black/5 pb-3 dark:border-white/5">
+                  <div className="min-w-0">
+                    <h2 className="font-black">{item.name}</h2>
+                    <div className="truncate text-xs text-ink/60 dark:text-paper/60">{item.email}</div>
+                    <div className="mt-1 text-xs text-ink/50 dark:text-paper/50">
+                      {store ? `${store.code} - ${store.name}` : "Bez sklepu"} · {item.department ?? "Bez działu"}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <RoleBadge role={item.role} />
+                    {item.isActive ? (
+                      <span className="inline-flex items-center gap-1 rounded-md bg-green-500/10 px-2 py-0.5 text-xs font-bold text-green-700 dark:text-green-300">
+                        <Shield size={14} />
+                        Aktywny
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-xs font-bold text-amber-700 dark:text-amber-300">
+                        <ShieldOff size={14} />
+                        Nieaktywny
+                      </span>
+                    )}
+                    {item.isScheduleMember ? (
+                      <span className="rounded-md bg-mint/10 px-2 py-0.5 text-xs font-bold text-mint">Grafik · {item.scheduleOrder ?? "bez kolejności"}</span>
+                    ) : null}
+                  </div>
+                </div>
+
+                <form action={updateUserAdminAction} className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  <input type="hidden" name="id" value={item.id} />
+                  <label className="grid gap-1.5 text-xs font-bold text-ink/60 dark:text-paper/60">
+                    Rola
+                    <select name="role" defaultValue={item.role} className={fieldClass}>
+                      {roleOptions.map((role) => (
+                        <option key={role} value={role}>
+                          {roleLabels[role]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="grid gap-1.5 text-xs font-bold text-ink/60 dark:text-paper/60">
+                    Sklep
+                    <select name="storeId" defaultValue={item.storeId ?? ""} className={fieldClass}>
+                      <option value="">Bez sklepu</option>
+                      {stores.map((entry) => (
+                        <option key={entry.id} value={entry.id}>
+                          {entry.code} - {entry.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="grid gap-1.5 text-xs font-bold text-ink/60 dark:text-paper/60 md:col-span-2 xl:col-span-1">
+                    Dział
+                    <input
+                      type="text"
+                      name="department"
+                      defaultValue={item.department ?? ""}
+                      placeholder="Dział"
+                      className={fieldClass}
+                    />
+                  </label>
+
+                  <div className="flex flex-wrap items-end gap-2 rounded-md border border-black/5 bg-black/[0.02] p-3 md:col-span-2 dark:border-white/5 dark:bg-white/[0.03] xl:col-span-3">
+                    <label className={toggleClass}>
+                      <input type="checkbox" name="isActive" defaultChecked={item.isActive} className="h-4 w-4" />
+                      Aktywny
+                    </label>
+                    <label className={toggleClass}>
+                      <input type="checkbox" name="isScheduleMember" defaultChecked={item.isScheduleMember} className="h-4 w-4" />
+                      Obecny w grafiku
+                    </label>
+                    <label className="grid w-28 gap-1 text-xs font-bold text-ink/60 dark:text-paper/60">
+                      Kolejność
+                      <input
+                        type="number"
+                        name="scheduleOrder"
+                        defaultValue={item.scheduleOrder ?? ""}
+                        min={0}
+                        max={999}
+                        placeholder="Lp."
+                        aria-label={`Kolejność w grafiku: ${item.name}`}
+                        className={fieldClass}
+                      />
+                    </label>
+                    <button className="h-10 rounded-md bg-mint px-5 text-sm font-bold text-white transition hover:bg-mint/90" type="submit">
+                      Zapisz zmiany
+                    </button>
+                  </div>
+                </form>
+
+                <div className="mt-3 flex flex-wrap items-start gap-2">
+                  <UserInviteButton userId={item.id} disabled={!item.isActive || !item.mustChangePassword} />
+                  <UserDeleteButton
+                    userId={item.id}
+                    userEmail={item.email}
+                    disabled={item.id === user.id}
+                    disabledReason="Nie możesz usunąć własnego konta."
+                  />
+                </div>
+              </article>
+            );
+          })}
+        </section>
+
+        <section className="rounded-md border border-black/10 bg-white/75 p-4 dark:border-white/10 dark:bg-white/10">
           <h2 className="text-lg font-black">Dziennik zmian</h2>
           <p className="mt-1 text-sm text-ink/65 dark:text-paper/65">Ostatnie zmiany ról, aktywności i słowników.</p>
-          <div className="mt-4 space-y-3">
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {auditLogs.map((log) => {
               const actor = users.find((entry) => entry.id === log.actorId);
               return (
@@ -186,7 +194,7 @@ export default async function AdminUsersPage({
               );
             })}
           </div>
-        </div>
+        </section>
       </div>
     </AppShell>
   );
@@ -194,3 +202,6 @@ export default async function AdminUsersPage({
 
 const fieldClass =
   "h-10 w-full min-w-0 rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper";
+
+const toggleClass =
+  "inline-flex h-10 items-center gap-2 whitespace-nowrap rounded-md border border-black/10 bg-white px-3 text-xs font-bold dark:border-white/10 dark:bg-white/10";
