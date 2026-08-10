@@ -2,17 +2,17 @@
 
 Dokument zawiera historyczne podsumowanie prac od Etapu 7. Bieżący stan projektu i nowe zmiany opisujemy na początku pliku oraz w `build-status.md`; starsze liczby testów i sekcje `ZROBIONE` pozostają jako zapis kolejnych etapów.
 
-## Aktualny stan — 2026-08-05
+## Aktualny stan — 2026-08-10
 
 - Etapy 0–9 są zrealizowane; ostatnim etapem funkcjonalnym był DayLog.
 - DayLog obsługuje tworzenie, edycję, usuwanie i eksport wpisów dla `AGENT` i `ADMIN`.
-- Walidacja po ostatniej zmianie: `npm run typecheck`, `npm run lint`, `npm run test` — 156 passed, 1 skipped.
-- Commit `e69dd94` zawiera edycję i usuwanie wpisów DayLog; czeka na wypchnięcie na GitHub i deploy Railway.
+- Wpis DayLog można przekształcić w jedno trwale powiązane zgłoszenie z automatycznie uzupełnionym tematem, opisem i kontaktem.
+- Walidacja po ostatniej zmianie: `npm run typecheck`, `npm run lint`, `npm run test` — 162 passed, 1 skipped; `prisma validate` — OK.
 
 ### Najbliższe zadania
 
-- Wypchnąć `e69dd94` na GitHub i zweryfikować deploy Railway.
-- Po deployu wykonać smoke test: logowanie, DayLog, utworzenie wpisu, edycja, usunięcie i eksport XLSX.
+- Zweryfikować deploy Railway zawierający migrację `20260810120000_link_daylog_ticket`.
+- Po deployu wykonać smoke test: logowanie, DayLog, utworzenie wpisu, konwersja do zgłoszenia, powrót linkiem do zgłoszenia, edycja, usunięcie i eksport XLSX.
 
 ## Decyzje zakresowe
 

@@ -126,6 +126,8 @@ export type DayLogEntry = {
   createdById: string;
   createdByName?: string;
   createdByEmail?: string;
+  ticketId?: string;
+  ticketNumber?: string;
   createdAt: string;
   updatedAt: string;
 };

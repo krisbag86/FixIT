@@ -146,6 +146,7 @@ model Ticket {
   comments    TicketComment[]
   attachments TicketAttachment[]
   events      TicketEvent[]
+  dayLogEntry DayLogEntry?
 
   @@index([status])
   @@index([priority])
@@ -250,10 +251,12 @@ model DayLogEntry {
   subject     String
   description String
   createdById String
+  ticketId    String?  @unique
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   createdBy User @relation(fields: [createdById], references: [id])
+  ticket Ticket? @relation(fields: [ticketId], references: [id], onDelete: SetNull)
 
   @@index([occurredAt])
   @@index([createdById])

@@ -194,7 +194,8 @@ model NotificationLog {
 
 `DayLogEntry` przechowuje wspólne notatki administracyjne ze zgłoszeń telefonicznych
 i ustnych. Wpis jest widoczny dla użytkowników z uprawnieniem `ticket:view-all`
-(role `AGENT` i `ADMIN`) i zawsze wskazuje autora.
+(role `AGENT` i `ADMIN`) i zawsze wskazuje autora. Opcjonalne, unikalne `ticketId`
+łączy wpis z jednym zgłoszeniem utworzonym na jego podstawie.
 
 ```prisma
 model DayLogEntry {
@@ -204,17 +205,22 @@ model DayLogEntry {
   subject     String
   description String
   createdById String
+  ticketId    String?  @unique
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   createdBy User @relation(fields: [createdById], references: [id])
+  ticket Ticket? @relation(fields: [ticketId], references: [id], onDelete: SetNull)
 
   @@index([occurredAt])
   @@index([createdById])
 }
 ```
 
-Migracja: `prisma/migrations/20260804120000_add_daylog/migration.sql`.
+Migracje:
+
+- `prisma/migrations/20260804120000_add_daylog/migration.sql` — utworzenie DayLog,
+- `prisma/migrations/20260810120000_link_daylog_ticket/migration.sql` — powiązanie wpisu ze zgłoszeniem.
 
 ## 3. Numeracja ticketow
 

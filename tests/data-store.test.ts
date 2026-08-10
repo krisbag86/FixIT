@@ -540,4 +540,44 @@ describe("ticket submission idempotency", () => {
     expect(database.events.filter((event) => event.ticketId === first.ticket.id)).toHaveLength(1);
     expect(database.notificationLogs.filter((log) => log.ticketId === first.ticket.id)).toHaveLength(1);
   });
+
+  it("links one DayLog entry to exactly one ticket", async () => {
+    const { createDayLogEntry, createTicketWithResult, findDayLogEntry, readDatabase } = await import("@/lib/data-store");
+    const entry = await createDayLogEntry({
+      occurredAt: "2026-08-10T08:30:00.000Z",
+      fromName: "Sklep Warszawa",
+      subject: "Awaria drukarki",
+      description: "Drukarka nie drukuje etykiet od rana.",
+      createdById: "usr_admin"
+    });
+    const input = {
+      title: entry.subject,
+      description: entry.description,
+      blocksWork: false,
+      contact: entry.fromName,
+      categoryId: "cat_printer",
+      reporterId: "usr_admin",
+      priority: "NORMAL" as const,
+      dayLogEntryId: entry.id
+    };
+
+    const first = await createTicketWithResult({
+      ...input,
+      submissionId: "4f6d9e62-c7e5-4c9b-a0a8-8c6c1e72a5e2"
+    });
+    const second = await createTicketWithResult({
+      ...input,
+      submissionId: "4f6d9e62-c7e5-4c9b-a0a8-8c6c1e72a5e3"
+    });
+    const linkedEntry = await findDayLogEntry(entry.id);
+    const database = await readDatabase();
+
+    expect(first.created).toBe(true);
+    expect(second).toEqual({ ticket: first.ticket, created: false });
+    expect(linkedEntry).toMatchObject({ ticketId: first.ticket.id, ticketNumber: first.ticket.number });
+    expect(database.tickets.filter((ticket) => ticket.id === first.ticket.id)).toHaveLength(1);
+    expect(database.events.find((event) => event.ticketId === first.ticket.id)?.payload).toEqual({
+      dayLogEntryId: entry.id
+    });
+  });
 });

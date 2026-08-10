@@ -138,7 +138,7 @@ Do zbudowania:
 
 ## Etap 9 - DayLog
 
-Status: funkcja bazowa zrobiona i wdrożona na Railway (2026-08-04); edycja i usuwanie wpisów przygotowane do kolejnego deployu.
+Status: funkcja bazowa wdrożona na Railway (2026-08-04); konwersja wpisu w powiązane zgłoszenie przygotowana do wdrożenia.
 
 Zrobione:
 
@@ -148,7 +148,9 @@ Zrobione:
 - Dodano eksport XLSX pod `/admin/daylog/export`.
 - Dodano link DayLog do `AdminNav`.
 - Dodano edycję wpisu (data/godzina, osoba kontaktowa, temat i opis) oraz usuwanie z potwierdzeniem.
+- Dodano tworzenie zgłoszenia z wpisu DayLog z automatycznym uzupełnieniem tematu, opisu i kontaktu.
+- Dodano trwałe powiązanie jeden-do-jednego `DayLogEntry.ticketId` oraz link do numeru utworzonego zgłoszenia.
+- Dodano ochronę przed duplikatem i walidację uprawnień dla identyfikatora źródłowego wpisu.
 - Dodano walidację i testy obu operacji dla JSON-store i Prisma data-store.
-- Walidacja po zmianach: `npm run typecheck`, `npm run lint` oraz `npm run test` (156 passed, 1 skipped).
+- Walidacja po zmianach: `npm run typecheck`, `npm run lint` oraz `npm run test` (162 passed, 1 skipped), a także `prisma validate`.
 - Railway: deployment `e38fcb7b-278f-42d2-b95c-7cb9fe9a2a0d` zakończony statusem `SUCCESS`; healthcheck `/api/health` zwraca `200`.
-- Commit z edycją/usuwaniem: `e69dd94`; nie został jeszcze wypchnięty na GitHub.

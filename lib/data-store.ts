@@ -62,6 +62,8 @@ function isUniqueConstraintError(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === "P2002";
 }
 
+class DayLogEntryLinkError extends Error {}
+
 async function getPrisma() {
   return (await import("@/lib/prisma")).prisma;
 }
@@ -229,9 +231,14 @@ function mapNotificationLog(log: Prisma.NotificationLogGetPayload<object>): Noti
   };
 }
 
-function mapDayLogEntry(
-  entry: Prisma.DayLogEntryGetPayload<{ include: { createdBy: { select: { name: true; email: true } } } }>
-): DayLogEntry {
+type DayLogEntryWithRelations = Prisma.DayLogEntryGetPayload<{
+  include: {
+    createdBy: { select: { name: true; email: true } };
+    ticket: { select: { id: true; number: true } };
+  };
+}>;
+
+function mapDayLogEntry(entry: DayLogEntryWithRelations): DayLogEntry {
   return {
     id: entry.id,
     occurredAt: iso(entry.occurredAt) ?? "",
@@ -241,6 +248,8 @@ function mapDayLogEntry(
     createdById: entry.createdById,
     createdByName: entry.createdBy.name ?? entry.createdBy.email,
     createdByEmail: entry.createdBy.email,
+    ticketId: definedString(entry.ticketId),
+    ticketNumber: entry.ticket?.number,
     createdAt: iso(entry.createdAt) ?? "",
     updatedAt: iso(entry.updatedAt) ?? ""
   };
@@ -322,7 +331,10 @@ export async function readDatabase(): Promise<Database> {
         db.responseTemplate.findMany(),
         db.responseMacro.findMany(),
         db.dayLogEntry.findMany({
-          include: { createdBy: { select: { name: true, email: true } } },
+          include: {
+            createdBy: { select: { name: true, email: true } },
+            ticket: { select: { id: true, number: true } }
+          },
           orderBy: { occurredAt: "desc" }
         })
       ]);
@@ -356,7 +368,10 @@ export async function listDayLogEntries(): Promise<DayLogEntry[]> {
   if (shouldUsePrisma()) {
     const db = await getPrisma();
     const entries = await db.dayLogEntry.findMany({
-      include: { createdBy: { select: { name: true, email: true } } },
+      include: {
+        createdBy: { select: { name: true, email: true } },
+        ticket: { select: { id: true, number: true } }
+      },
       orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }]
     });
     return entries.map(mapDayLogEntry);
@@ -367,9 +382,38 @@ export async function listDayLogEntries(): Promise<DayLogEntry[]> {
     .map((entry) => ({
       ...entry,
       createdByName: database.users.find((user) => user.id === entry.createdById)?.name,
-      createdByEmail: database.users.find((user) => user.id === entry.createdById)?.email
+      createdByEmail: database.users.find((user) => user.id === entry.createdById)?.email,
+      ticketNumber: database.tickets.find((ticket) => ticket.id === entry.ticketId)?.number
     }))
     .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt) || b.createdAt.localeCompare(a.createdAt));
+}
+
+export async function findDayLogEntry(id: string): Promise<DayLogEntry | undefined> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const entry = await db.dayLogEntry.findUnique({
+      where: { id },
+      include: {
+        createdBy: { select: { name: true, email: true } },
+        ticket: { select: { id: true, number: true } }
+      }
+    });
+    return entry ? mapDayLogEntry(entry) : undefined;
+  }
+
+  const database = await readDatabase();
+  const entry = database.dayLogEntries?.find((item) => item.id === id);
+  if (!entry) {
+    return undefined;
+  }
+
+  const author = database.users.find((user) => user.id === entry.createdById);
+  return {
+    ...entry,
+    createdByName: author?.name,
+    createdByEmail: author?.email,
+    ticketNumber: database.tickets.find((ticket) => ticket.id === entry.ticketId)?.number
+  };
 }
 
 export async function createDayLogEntry(input: {
@@ -389,7 +433,10 @@ export async function createDayLogEntry(input: {
         description: input.description,
         createdById: input.createdById
       },
-      include: { createdBy: { select: { name: true, email: true } } }
+      include: {
+        createdBy: { select: { name: true, email: true } },
+        ticket: { select: { id: true, number: true } }
+      }
     });
     return mapDayLogEntry(entry);
   }
@@ -438,7 +485,10 @@ export async function updateDayLogEntry(input: {
         subject: input.subject,
         description: input.description
       },
-      include: { createdBy: { select: { name: true, email: true } } }
+      include: {
+        createdBy: { select: { name: true, email: true } },
+        ticket: { select: { id: true, number: true } }
+      }
     });
 
     return mapDayLogEntry(entry);
@@ -2038,6 +2088,7 @@ export async function createTicketWithResult(input: {
   reporterId: string;
   priority: TicketPriority;
   submissionId?: string;
+  dayLogEntryId?: string;
 }): Promise<{ ticket: Ticket; created: boolean }> {
   if (shouldUsePrisma()) {
     const db = await getPrisma();
@@ -2049,6 +2100,19 @@ export async function createTicketWithResult(input: {
       });
       if (existing) {
         return { ticket: mapTicket(existing), created: false };
+      }
+    }
+
+    if (input.dayLogEntryId) {
+      const sourceEntry = await db.dayLogEntry.findUnique({
+        where: { id: input.dayLogEntryId },
+        include: { ticket: true }
+      });
+      if (!sourceEntry) {
+        throw new Error("Wpis DayLog nie istnieje.");
+      }
+      if (sourceEntry.ticket) {
+        return { ticket: mapTicket(sourceEntry.ticket), created: false };
       }
     }
 
@@ -2082,11 +2146,22 @@ export async function createTicketWithResult(input: {
           }
         });
 
+        if (input.dayLogEntryId) {
+          const linked = await tx.dayLogEntry.updateMany({
+            where: { id: input.dayLogEntryId, ticketId: null },
+            data: { ticketId: created.id }
+          });
+          if (linked.count !== 1) {
+            throw new DayLogEntryLinkError("Wpis DayLog został już powiązany ze zgłoszeniem.");
+          }
+        }
+
         await tx.ticketEvent.create({
           data: {
             ticketId: created.id,
             actorId: input.reporterId,
-            type: "TICKET_CREATED"
+            type: "TICKET_CREATED",
+            payload: input.dayLogEntryId ? { dayLogEntryId: input.dayLogEntryId } : undefined
           }
         });
 
@@ -2111,6 +2186,19 @@ export async function createTicketWithResult(input: {
 
       return { ticket: mapTicket(ticket), created: true };
     } catch (error) {
+      if (error instanceof DayLogEntryLinkError && input.dayLogEntryId) {
+        const sourceEntry = await db.dayLogEntry.findUnique({
+          where: { id: input.dayLogEntryId },
+          include: { ticket: true }
+        });
+        if (sourceEntry?.ticket) {
+          return { ticket: mapTicket(sourceEntry.ticket), created: false };
+        }
+        if (!sourceEntry) {
+          throw new Error("Wpis DayLog nie istnieje.");
+        }
+      }
+
       if (!input.submissionId || !isUniqueConstraintError(error)) {
         throw error;
       }
@@ -2132,6 +2220,20 @@ export async function createTicketWithResult(input: {
       : undefined;
     if (existing) {
       return { ticket: existing, created: false };
+    }
+
+    const sourceEntry = input.dayLogEntryId
+      ? database.dayLogEntries?.find((entry) => entry.id === input.dayLogEntryId)
+      : undefined;
+    if (input.dayLogEntryId && !sourceEntry) {
+      throw new Error("Wpis DayLog nie istnieje.");
+    }
+    if (sourceEntry?.ticketId) {
+      const linkedTicket = database.tickets.find((ticket) => ticket.id === sourceEntry.ticketId);
+      if (!linkedTicket) {
+        throw new Error("Powiązane zgłoszenie nie istnieje.");
+      }
+      return { ticket: linkedTicket, created: false };
     }
 
     const year = String(new Date().getFullYear());
@@ -2158,11 +2260,16 @@ export async function createTicketWithResult(input: {
     };
 
     database.tickets.push(ticket);
+    if (sourceEntry) {
+      sourceEntry.ticketId = ticket.id;
+      sourceEntry.updatedAt = timestamp;
+    }
     database.events.push({
       id: id("e"),
       ticketId: ticket.id,
       actorId: input.reporterId,
       type: "TICKET_CREATED",
+      payload: input.dayLogEntryId ? { dayLogEntryId: input.dayLogEntryId } : undefined,
       createdAt: timestamp
     });
     database.notificationLogs.push({

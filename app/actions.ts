@@ -49,7 +49,8 @@ const ticketSchema = z.object({
   department: z.string().optional(),
   blocksWork: z.boolean(),
   priority: ticketPrioritySchema,
-  submissionId: z.string().uuid()
+  submissionId: z.string().uuid(),
+  dayLogEntryId: z.string().min(1).optional()
 });
 
 const updateTicketSchema = z.object({
@@ -73,6 +74,11 @@ export async function createTicketAction(formData: FormData): Promise<void> {
     throw new Error("Brak uprawnień do tworzenia zgłoszeń.");
   }
 
+  const dayLogEntryId = optionalFormString(formData, "dayLogEntryId");
+  if (dayLogEntryId && !can(user, "ticket:view-all")) {
+    throw new Error("Brak uprawnień do tworzenia zgłoszeń z DayLog.");
+  }
+
   const categoryId = formString(formData, "categoryId");
   const category = await findCategoryById(categoryId);
 
@@ -85,7 +91,8 @@ export async function createTicketAction(formData: FormData): Promise<void> {
     department: optionalFormString(formData, "department") ?? user.department ?? "",
     blocksWork: formData.get("blocksWork") === "on",
     priority: formString(formData, "priority") || category?.defaultPriority || "NORMAL",
-    submissionId: formString(formData, "submissionId")
+    submissionId: formString(formData, "submissionId"),
+    dayLogEntryId
   });
 
   const result = await createTicketWithResult({
@@ -100,6 +107,9 @@ export async function createTicketAction(formData: FormData): Promise<void> {
   }
 
   revalidatePath("/tickets");
+  if (input.dayLogEntryId) {
+    revalidatePath("/admin/daylog");
+  }
   redirect(`/tickets/${result.ticket.id}`);
 }
 
