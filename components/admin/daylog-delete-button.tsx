@@ -8,6 +8,7 @@ export function DayLogDeleteButton({ id, subject }: { id: string; subject: strin
   return (
     <form
       action={deleteDayLogEntryAction}
+      className="w-full"
       onSubmit={(event) => {
         if (!confirm(`Usunąć wpis „${subject}”? Tej operacji nie da się cofnąć.`)) {
           event.preventDefault();
@@ -27,7 +28,7 @@ function DeleteSubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="inline-flex h-9 items-center gap-1.5 rounded-md border border-red-500/25 bg-red-500/10 px-3 text-xs font-bold text-red-700 transition hover:border-red-500/45 hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-200"
+      className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md border border-red-500/25 bg-red-500/10 px-3 text-xs font-bold text-red-700 transition hover:border-red-500/45 hover:bg-red-500/15 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-200"
     >
       <Trash2 size={14} />
       {pending ? "Usuwanie" : "Usuń"}

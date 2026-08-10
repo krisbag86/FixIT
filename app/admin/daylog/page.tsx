@@ -160,11 +160,11 @@ export default async function DayLogPage({ searchParams }: { searchParams: Promi
                     <div className="mb-3 font-semibold">{entry.fromName}</div>
                     <h3 className="mb-2 text-lg font-black">{entry.subject}</h3>
                     <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink/70 dark:text-paper/70">{entry.description}</p>
-                    <div className="mt-4 flex flex-wrap items-start gap-2 border-t border-black/10 pt-3 dark:border-white/10">
+                    <div className="mt-4 grid gap-2 border-t border-black/10 pt-3 dark:border-white/10">
                       {entry.ticketId ? (
                         <a
                           href={`/tickets/${entry.ticketId}`}
-                          className="inline-flex h-9 items-center gap-1.5 rounded-md bg-mint px-3 text-xs font-bold text-white transition hover:bg-mint/90"
+                          className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md bg-mint px-3 text-xs font-bold text-white transition hover:bg-mint/90"
                         >
                           <ExternalLink size={14} />
                           {entry.ticketNumber ?? "Otwórz zgłoszenie"}
@@ -172,14 +172,14 @@ export default async function DayLogPage({ searchParams }: { searchParams: Promi
                       ) : (
                         <a
                           href={`/tickets/new?fromDayLog=${encodeURIComponent(entry.id)}`}
-                          className="inline-flex h-9 items-center gap-1.5 rounded-md bg-mint px-3 text-xs font-bold text-white transition hover:bg-mint/90"
+                          className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md bg-mint px-3 text-xs font-bold text-white transition hover:bg-mint/90"
                         >
                           <FilePlus2 size={14} />
                           Utwórz zgłoszenie
                         </a>
                       )}
-                      <details className="min-w-0 flex-1">
-                        <summary className="inline-flex h-9 cursor-pointer list-none items-center gap-1.5 rounded-md border border-black/10 px-3 text-xs font-bold text-ink/70 transition hover:border-mint hover:text-mint dark:border-white/10 dark:text-paper/70">
+                      <details className="min-w-0">
+                        <summary className="flex h-9 w-full cursor-pointer list-none items-center justify-center gap-1.5 rounded-md border border-black/10 px-3 text-xs font-bold text-ink/70 transition hover:border-mint hover:text-mint dark:border-white/10 dark:text-paper/70">
                           <Pencil size={14} />
                           Edytuj
                         </summary>
