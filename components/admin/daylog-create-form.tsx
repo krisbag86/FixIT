@@ -4,7 +4,7 @@ import { Plus } from "lucide-react";
 import { createDayLogEntryAction } from "@/app/admin/daylog/actions";
 import { formatDateTimeLocal } from "@/lib/format";
 
-export function DayLogCreateForm() {
+export function DayLogCreateForm({ initialOccurredAt }: { initialOccurredAt: string }) {
   function setCurrentTimeForEmptyForm(details: HTMLDetailsElement) {
     if (!details.open) {
       return;
@@ -19,8 +19,19 @@ export function DayLogCreateForm() {
     const values = new FormData(form);
     const hasDraft = ["fromName", "subject", "description"].some((name) => String(values.get(name) ?? "").trim());
     if (!hasDraft) {
-      occurredAt.value = formatDateTimeLocal(new Date());
+      const currentDateTime = formatDateTimeLocal(new Date());
+      occurredAt.defaultValue = currentDateTime;
+      occurredAt.value = currentDateTime;
     }
+  }
+
+  function restoreCurrentTimeAfterReset(form: HTMLFormElement) {
+    requestAnimationFrame(() => {
+      const details = form.closest("details");
+      if (details instanceof HTMLDetailsElement) {
+        setCurrentTimeForEmptyForm(details);
+      }
+    });
   }
 
   return (
@@ -29,10 +40,14 @@ export function DayLogCreateForm() {
         <Plus size={16} />
         Nowy wpis
       </summary>
-      <form action={createDayLogEntryAction} className="mt-4 grid gap-3 border-t border-black/10 pt-4 dark:border-white/10 sm:grid-cols-2">
+      <form
+        action={createDayLogEntryAction}
+        onReset={(event) => restoreCurrentTimeAfterReset(event.currentTarget)}
+        className="mt-4 grid gap-3 border-t border-black/10 pt-4 dark:border-white/10 sm:grid-cols-2"
+      >
         <label className="grid gap-1 text-sm font-semibold">
           Data i godzina
-          <input name="occurredAt" type="datetime-local" required className={fieldClass} />
+          <input name="occurredAt" type="datetime-local" defaultValue={initialOccurredAt} required className={fieldClass} />
         </label>
         <label className="grid gap-1 text-sm font-semibold">
           Od kogo?

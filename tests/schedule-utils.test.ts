@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addScheduleDays, getScheduleWeekDays, isScheduleWeekend, resolveScheduleWeekStart } from "@/lib/schedule";
+import { addScheduleDays, getScheduleWeekDays, getScheduleWeekNumber, isScheduleWeekend, resolveScheduleWeekStart } from "@/lib/schedule";
 
 describe("schedule date helpers", () => {
   it("normalizes every day, including Sunday, to the same Monday", () => {
@@ -22,6 +22,12 @@ describe("schedule date helpers", () => {
 
   it("adds days across month and year boundaries", () => {
     expect(addScheduleDays("2026-12-28", 7)).toBe("2027-01-04");
+  });
+
+  it("returns the ISO week number, including ISO year boundaries", () => {
+    expect(getScheduleWeekNumber("2026-08-10")).toBe(33);
+    expect(getScheduleWeekNumber("2025-12-29")).toBe(1);
+    expect(getScheduleWeekNumber("2027-01-01")).toBe(53);
   });
 
   it("recognizes only Saturday and Sunday as weekend duty days", () => {
