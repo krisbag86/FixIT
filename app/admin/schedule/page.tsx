@@ -37,7 +37,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
           <CalendarDays size={20} />
           <span className="text-sm font-black uppercase">Administracja</span>
         </div>
-        <h1 className="text-3xl font-black">Grafik tygodniowy — tydzień {weekNumber}</h1>
+        <h1 className="text-3xl font-black">Grafik tygodniowy</h1>
         <p className="mt-2 text-ink/65 dark:text-paper/65">Zadania i obsada dyżurów od poniedziałku do niedzieli.</p>
       </div>
 
@@ -48,7 +48,9 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
           <ChevronLeft size={17} /> Poprzedni
         </a>
         <div className="text-center">
-          <div className="text-lg font-black">{formatDateLabel(days[0])} – {formatDateLabel(days[6])}</div>
+          <div className="text-lg font-black">
+            Tydzień {weekNumber} · {formatDateLabel(days[0])} – {formatDateLabel(days[6])}
+          </div>
           {weekStart !== currentWeek ? <a href={`/admin/schedule?week=${currentWeek}`} className="text-xs font-bold text-mint">Bieżący tydzień</a> : null}
         </div>
         <a href={`/admin/schedule?week=${nextWeek}`} aria-label="Następny tydzień" className={navButtonClass}>
