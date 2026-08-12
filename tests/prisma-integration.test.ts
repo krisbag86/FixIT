@@ -271,4 +271,16 @@ describe.skipIf(!hasDatabase)("PostgreSQL integration (Prisma runtime)", () => {
     expect(schedule.tasks).toEqual([task]);
     expect(schedule.duties).toEqual([duty]);
   });
+
+  it("stores, resolves and deletes an opaque session", async () => {
+    const { createSession, deleteSession, getSessionUser } = await import("@/lib/session-store");
+    const reporter = await createUserFixture();
+
+    const sessionId = await createSession(reporter.id);
+    expect(sessionId).toMatch(/^[0-9a-f-]{36}$/i);
+    await expect(getSessionUser(sessionId)).resolves.toMatchObject({ id: reporter.id });
+
+    await deleteSession(sessionId);
+    await expect(getSessionUser(sessionId)).resolves.toBeUndefined();
+  });
 });

@@ -70,6 +70,11 @@ jobs:
         env:
           FIXIT_DATA_PROVIDER: json
 
+      - name: Test PostgreSQL integration
+        run: npm run test:integration
+        env:
+          FIXIT_DATA_PROVIDER: prisma
+
       - name: Build
         run: npm run build
 

@@ -12,6 +12,7 @@
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "test": "TMPDIR=/tmp vitest run",
+    "test:integration": "TMPDIR=/tmp vitest run tests/prisma-integration.test.ts",
     "test:e2e": "TMPDIR=/tmp playwright test",
     "db:generate": "prisma generate",
     "db:migrate:deploy": "prisma migrate deploy",
