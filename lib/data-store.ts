@@ -1042,20 +1042,6 @@ async function ensureActiveAdminRemains(userId: string, nextRole: UserRole, next
   }
 }
 
-export async function getUsers(): Promise<User[]> {
-  if (shouldUsePrisma()) {
-    const db = await getPrisma();
-    const users = await db.user.findMany({
-      where: { isActive: true },
-      orderBy: [{ role: "asc" }, { name: "asc" }]
-    });
-    return users.map(mapUser);
-  }
-
-  const database = await readDatabase();
-  return database.users.filter((user) => user.isActive);
-}
-
 export async function getCategories(): Promise<Category[]> {
   if (shouldUsePrisma()) {
     const db = await getPrisma();
@@ -1133,28 +1119,6 @@ export async function listStoresAdmin(options?: { includeInactive?: boolean }): 
       }
 
       return a.code.localeCompare(b.code);
-    });
-}
-
-export async function listCategoriesAdmin(options?: { includeInactive?: boolean }): Promise<Category[]> {
-  if (shouldUsePrisma()) {
-    const db = await getPrisma();
-    const categories = await db.category.findMany({
-      where: options?.includeInactive ? undefined : { isActive: true },
-      orderBy: [{ isActive: "desc" }, { name: "asc" }]
-    });
-    return categories.map(mapCategory);
-  }
-
-  const database = await readDatabase();
-  return database.categories
-    .filter((category) => options?.includeInactive || category.isActive)
-    .sort((a, b) => {
-      if (a.isActive !== b.isActive) {
-        return a.isActive ? -1 : 1;
-      }
-
-      return a.name.localeCompare(b.name);
     });
 }
 
@@ -3092,17 +3056,6 @@ export async function updateNotificationLog(
   });
 }
 
-export async function getNotificationLog(notificationId: string): Promise<NotificationLog | undefined> {
-  if (shouldUsePrisma()) {
-    const db = await getPrisma();
-    const notification = await db.notificationLog.findUnique({ where: { id: notificationId } });
-    return notification ? mapNotificationLog(notification) : undefined;
-  }
-
-  const database = await readDatabase();
-  return database.notificationLogs.find((item) => item.id === notificationId);
-}
-
 export async function findLatestQueuedNotification(input: {
   ticketId: string;
   type: string;
@@ -3129,46 +3082,6 @@ export async function findLatestQueuedNotification(input: {
     .filter((log) => log.recipientEmail === input.recipientEmail)
     .filter((log) => log.status === "QUEUED")
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
-}
-
-export async function listPublishedKnowledgeArticles(options?: { categoryId?: string; query?: string }): Promise<KnowledgeArticle[]> {
-  const categoryId = options?.categoryId;
-  const query = options?.query?.toLowerCase().trim();
-
-  if (shouldUsePrisma()) {
-    const db = await getPrisma();
-    const where: Record<string, unknown> = { isPublished: true };
-    if (categoryId) where.categoryId = categoryId;
-    if (query) {
-      where.OR = [
-        { title: { contains: query, mode: "insensitive" } },
-        { body: { contains: query, mode: "insensitive" } }
-      ];
-    }
-    const articles = await db.knowledgeArticle.findMany({
-      where,
-      orderBy: { title: "asc" }
-    });
-    return articles.map(mapKnowledgeArticle);
-  }
-
-  const database = await readDatabase();
-  return database.knowledgeArticles
-    .filter((a) => a.isPublished)
-    .filter((a) => !categoryId || a.categoryId === categoryId)
-    .filter((a) => !query || a.title.toLowerCase().includes(query) || a.body.toLowerCase().includes(query))
-    .sort((a, b) => a.title.localeCompare(b.title));
-}
-
-export async function listKnowledgeArticles(): Promise<KnowledgeArticle[]> {
-  if (shouldUsePrisma()) {
-    const db = await getPrisma();
-    const articles = await db.knowledgeArticle.findMany({ orderBy: { title: "asc" } });
-    return articles.map(mapKnowledgeArticle);
-  }
-
-  const database = await readDatabase();
-  return [...database.knowledgeArticles].sort((a, b) => a.title.localeCompare(b.title));
 }
 
 export async function findKnowledgeArticleBySlug(slug: string): Promise<KnowledgeArticle | undefined> {
@@ -4003,23 +3916,6 @@ export async function getStoreDashboard(storeId: string): Promise<{
   return { openTickets, criticalTickets, blockingTickets, resolvedToday, recentEvents };
 }
 
-export async function deleteAttachment(id: string): Promise<TicketAttachment | undefined> {
-  if (shouldUsePrisma()) {
-    const db = await getPrisma();
-    const attachment = await db.ticketAttachment.findUnique({ where: { id } });
-    if (!attachment) return undefined;
-    await db.ticketAttachment.delete({ where: { id } });
-    return mapAttachment(attachment);
-  }
-
-  return withDatabase((database) => {
-    const idx = database.attachments.findIndex((a) => a.id === id);
-    if (idx === -1) return undefined;
-    const [removed] = database.attachments.splice(idx, 1);
-    return removed;
-  });
-}
-
 async function getPrismaClient() {
   return (await import("@/lib/prisma")).prisma;
 }
@@ -4067,33 +3963,6 @@ export async function listTemplates(): Promise<ResponseTemplate[]> {
   return [...database.responseTemplates].sort((a, b) =>
     a.name.localeCompare(b.name)
   );
-}
-
-export async function listActiveTemplates(): Promise<ResponseTemplate[]> {
-  if (shouldUsePrisma()) {
-    const db = await getPrismaClient();
-    const templates = await db.responseTemplate.findMany({
-      where: { isActive: true },
-      orderBy: { name: "asc" }
-    });
-    return templates.map(mapTemplate);
-  }
-
-  const database = await readDatabase();
-  return [...database.responseTemplates]
-    .filter((t) => t.isActive)
-    .sort((a, b) => a.name.localeCompare(b.name));
-}
-
-export async function findTemplate(id: string): Promise<ResponseTemplate | undefined> {
-  if (shouldUsePrisma()) {
-    const db = await getPrismaClient();
-    const template = await db.responseTemplate.findUnique({ where: { id } });
-    return template ? mapTemplate(template) : undefined;
-  }
-
-  const database = await readDatabase();
-  return database.responseTemplates.find((t) => t.id === id);
 }
 
 export async function createTemplate(input: {
@@ -4199,17 +4068,6 @@ export async function listMacros(): Promise<ResponseMacro[]> {
 
   const database = await readDatabase();
   return [...database.responseMacros].sort((a, b) => a.name.localeCompare(b.name));
-}
-
-export async function findMacro(id: string): Promise<ResponseMacro | undefined> {
-  if (shouldUsePrisma()) {
-    const db = await getPrismaClient();
-    const macro = await db.responseMacro.findUnique({ where: { id } });
-    return macro ? mapMacro(macro) : undefined;
-  }
-
-  const database = await readDatabase();
-  return database.responseMacros.find((m) => m.id === id);
 }
 
 export async function createMacro(input: {

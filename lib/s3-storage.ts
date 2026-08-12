@@ -1,7 +1,7 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { UploadValidationError, isValidStorageKey } from "@/lib/storage-utils";
 
 function getS3Config() {
@@ -85,24 +85,4 @@ export async function readAttachmentFileS3(storageKey: string): Promise<Buffer> 
 
   const body = await response.Body.transformToByteArray();
   return Buffer.from(body);
-}
-
-export async function deleteAttachmentFileS3(storageKey: string): Promise<void> {
-  if (!isValidStorageKey(storageKey)) {
-    return;
-  }
-
-  const config = getS3Config();
-  if (!config) {
-    return;
-  }
-
-  const client = getS3Client(config);
-  // DeleteObjectCommand is idempotent — succeeds even if object doesn't exist
-  await client.send(
-    new DeleteObjectCommand({
-      Bucket: config.bucket,
-      Key: storageKey
-    })
-  );
 }

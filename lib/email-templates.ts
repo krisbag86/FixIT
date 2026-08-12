@@ -3,11 +3,11 @@ import { escapeHtml } from './escape-html';
 
 const baseUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
-export function getTicketUrl(ticketId: string): string {
+function getTicketUrl(ticketId: string): string {
   return `${baseUrl}/tickets/${ticketId}`;
 }
 
-export function getLoginUrl(): string {
+function getLoginUrl(): string {
   return `${baseUrl}/login`;
 }
 

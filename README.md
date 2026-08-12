@@ -82,7 +82,6 @@ Produkcyjny auto-deploy jest uruchamiany z brancha `main`.
 | `DATABASE_URL` | URL połączenia z PostgreSQL | `postgresql://...` |
 | `APP_URL` | Publiczny URL aplikacji | `https://twoja-aplikacja.up.railway.app` |
 | `NODE_ENV` | Tryb pracy aplikacji | `production` |
-| `COOKIE_SECRET` | Sekret do podpisywania sesji | losowy sekret |
 | `EMAIL_FROM` | Zweryfikowany nadawca Brevo | `FixIT <sender@proton.me>` |
 | `BREVO_API_KEY` | Klucz Brevo API do wysyłki przez HTTPS, rekomendowane na Railway | `xkeysib-...` |
 | `SMTP_HOST` | Opcjonalny fallback SMTP, ignorowany gdy ustawiono `BREVO_API_KEY` | |

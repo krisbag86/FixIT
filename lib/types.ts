@@ -204,13 +204,13 @@ export type DashboardMetrics = {
   }[];
 };
 
-export type DailyTicketCount = {
+type DailyTicketCount = {
   date: string;
   created: number;
   resolved: number;
 };
 
-export type AgentWorkload = {
+type AgentWorkload = {
   agentId: string;
   agentName: string;
   openCount: number;

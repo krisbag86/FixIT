@@ -108,19 +108,3 @@ export async function deleteSession(sessionId: string): Promise<void> {
     await writeDatabase(database);
   }
 }
-
-/**
- * Delete all sessions for a given user (e.g., when user is deactivated).
- */
-export async function deleteUserSessions(userId: string): Promise<void> {
-  if (shouldUsePrisma()) {
-    const db = await getPrisma();
-    await db.session.deleteMany({ where: { userId } });
-    return;
-  }
-
-  const { readDatabase, writeDatabase } = await import("@/lib/data-store");
-  const database = await readDatabase();
-  database.sessions = database.sessions.filter((s) => s.userId !== userId);
-  await writeDatabase(database);
-}

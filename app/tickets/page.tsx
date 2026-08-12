@@ -1,4 +1,5 @@
 import { Filter } from "lucide-react";
+import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TicketCard } from "@/components/ticket-card";
@@ -46,9 +47,9 @@ export default async function TicketsPage({ searchParams }: { searchParams: Prom
           <button className="inline-flex h-10 items-center justify-center rounded-md bg-ink px-4 text-sm font-bold text-white dark:bg-paper dark:text-ink" type="submit">
             Filtruj
           </button>
-          <a href="/tickets" className="px-2 text-sm font-bold text-ink/65 hover:text-ink dark:text-paper/65 dark:hover:text-paper">
+          <Link href="/tickets" className="px-2 text-sm font-bold text-ink/65 hover:text-ink dark:text-paper/65 dark:hover:text-paper">
             Wyczyść
-          </a>
+          </Link>
         </form>
       </div>
 
