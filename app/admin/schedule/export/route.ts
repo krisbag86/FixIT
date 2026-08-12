@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { getWeeklySchedule } from "@/lib/data-store";
 import { formatDateLabel, parseDateOnly } from "@/lib/format";
 import { can } from "@/lib/permissions";
-import { getScheduleWeekDays, resolveScheduleWeekStart } from "@/lib/schedule";
+import { getScheduleWeekDays, isScheduleWeekend, resolveScheduleWeekStart } from "@/lib/schedule";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +49,7 @@ export async function POST(request: Request): Promise<Response> {
     "Osoba",
     ...days.map((day) => {
       const hasDuty = data.duties.some((duty) => duty.date === day);
-      return `${formatDayHeader(day)}${hasDuty ? "" : "\nBRAK DYŻURU"}`;
+      return `${formatDayHeader(day)}${isScheduleWeekend(day) && !hasDuty ? "\nBRAK DYŻURU" : ""}`;
     })
   ];
   header.height = 42;

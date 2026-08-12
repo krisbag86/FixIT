@@ -26,6 +26,16 @@ export function getScheduleWeekDays(weekStart: string): string[] {
   return Array.from({ length: SCHEDULE_DAYS }, (_, index) => addScheduleDays(monday, index));
 }
 
+export function isScheduleWeekend(date: string): boolean {
+  const parsed = parseDateOnly(date);
+  if (!parsed) {
+    return false;
+  }
+
+  const day = new Date(`${parsed}T12:00:00Z`).getUTCDay();
+  return day === 0 || day === 6;
+}
+
 export function scheduleDateValue(date: string): Date {
   const parsed = parseDateOnly(date);
   if (!parsed) {

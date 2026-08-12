@@ -599,7 +599,7 @@ describe("weekly schedule storage", () => {
     });
   }
 
-  it("stores tasks and duties for all seven days of a week", async () => {
+  it("stores schedule tasks and weekend duties", async () => {
     const { createScheduleTask, getWeeklySchedule, setScheduleDuty } = await import("@/lib/data-store");
     await enableAdminForSchedule();
 
@@ -624,8 +624,27 @@ describe("weekly schedule storage", () => {
     expect(schedule.duties).toEqual([duty]);
   });
 
+  it("rejects new duties on workdays but permits removing legacy entries", async () => {
+    const { setScheduleDuty } = await import("@/lib/data-store");
+    await enableAdminForSchedule();
+
+    await expect(setScheduleDuty({
+      date: "2026-08-10",
+      assigneeId: "usr_admin",
+      isOnCall: true,
+      actorId: "usr_admin"
+    })).rejects.toThrow("Dyżur można ustawić tylko w sobotę lub niedzielę.");
+
+    await expect(setScheduleDuty({
+      date: "2026-08-10",
+      assigneeId: "usr_admin",
+      isOnCall: false,
+      actorId: "usr_admin"
+    })).resolves.toBeUndefined();
+  });
+
   it("copies the previous week without carrying completion state", async () => {
-    const { copyPreviousScheduleWeek, createScheduleTask, getWeeklySchedule, setScheduleDuty, toggleScheduleTask } = await import("@/lib/data-store");
+    const { copyPreviousScheduleWeek, createScheduleTask, getWeeklySchedule, readDatabase, setScheduleDuty, toggleScheduleTask, writeDatabase } = await import("@/lib/data-store");
     await enableAdminForSchedule();
     const sourceTask = await createScheduleTask({
       date: "2026-08-10",
@@ -640,6 +659,16 @@ describe("weekly schedule storage", () => {
       isOnCall: true,
       actorId: "usr_admin"
     });
+    const database = await readDatabase();
+    database.scheduleDuties ??= [];
+    database.scheduleDuties.push({
+      id: "legacy-workday-duty",
+      date: "2026-08-10",
+      assigneeId: "usr_admin",
+      createdById: "usr_admin",
+      createdAt: "2026-08-10T08:00:00.000Z"
+    });
+    await writeDatabase(database);
 
     await expect(copyPreviousScheduleWeek({ targetWeekStart: "2026-08-17", actorId: "usr_admin" })).resolves.toEqual({
       taskCount: 1,

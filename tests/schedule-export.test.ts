@@ -117,7 +117,9 @@ describe("weekly schedule Excel export", () => {
     expect(sheet).toBeDefined();
     expect(sheet!.getCell("A1").text).toBe("Grafik tygodniowy");
     expect(sheet!.getCell("B4").text).toContain("Poniedziałek");
-    expect(sheet!.getCell("C4").text).toContain("BRAK DYŻURU");
+    expect(sheet!.getCell("C4").text).not.toContain("BRAK DYŻURU");
+    expect(sheet!.getCell("G4").text).toContain("BRAK DYŻURU");
+    expect(sheet!.getCell("H4").text).not.toContain("BRAK DYŻURU");
     expect(sheet!.getCell("A5").text).toContain("Agent");
     expect(sheet!.getCell("B5").text).toContain("DYŻUR");
     expect(sheet!.getCell("B5").text).toContain("○ Sprawdzenie backupu");

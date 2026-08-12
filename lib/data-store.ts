@@ -15,7 +15,7 @@ import {
   getUserAuditChanges
 } from "@/lib/admin-utils";
 import { createSeedDatabase } from "@/lib/seed";
-import { addScheduleDays, resolveScheduleWeekStart, scheduleDateValue } from "@/lib/schedule";
+import { addScheduleDays, isScheduleWeekend, resolveScheduleWeekStart, scheduleDateValue } from "@/lib/schedule";
 import { generateTicketNumber } from "@/lib/ticket-number";
 import { archivedStatuses, closedStatuses, matchesTicketFilters, type TicketListFilters } from "@/lib/ticket-filters";
 import type {
@@ -799,6 +799,10 @@ export async function setScheduleDuty(input: {
 }): Promise<ScheduleDuty | undefined> {
   const date = scheduleDateValue(input.date);
 
+  if (input.isOnCall && !isScheduleWeekend(input.date)) {
+    throw new Error("Dyżur można ustawić tylko w sobotę lub niedzielę.");
+  }
+
   if (shouldUsePrisma()) {
     const db = await getPrisma();
     if (!input.isOnCall) {
@@ -874,10 +878,11 @@ export async function copyPreviousScheduleWeek(input: {
           select: { id: true }
         });
         const memberIds = activeMembers.map((member) => member.id);
-        const [tasks, duties] = await Promise.all([
+        const [tasks, sourceDuties] = await Promise.all([
           tx.scheduleTask.findMany({ where: { date: { gte: source.start, lt: source.end }, assigneeId: { in: memberIds } } }),
           tx.scheduleDuty.findMany({ where: { date: { gte: source.start, lt: source.end }, assigneeId: { in: memberIds } } })
         ]);
+        const duties = sourceDuties.filter((duty) => isScheduleWeekend(duty.date.toISOString().slice(0, 10)));
         if (tasks.length === 0 && duties.length === 0) {
           throw new Error("Poprzedni tydzień nie zawiera danych do skopiowania.");
         }
@@ -932,7 +937,7 @@ export async function copyPreviousScheduleWeek(input: {
       (task) => task.date >= source.weekStart && task.date < sourceEnd && activeMemberIds.has(task.assigneeId)
     );
     const duties = database.scheduleDuties.filter(
-      (duty) => duty.date >= source.weekStart && duty.date < sourceEnd && activeMemberIds.has(duty.assigneeId)
+      (duty) => duty.date >= source.weekStart && duty.date < sourceEnd && activeMemberIds.has(duty.assigneeId) && isScheduleWeekend(duty.date)
     );
     if (tasks.length === 0 && duties.length === 0) {
       throw new Error("Poprzedni tydzień nie zawiera danych do skopiowania.");

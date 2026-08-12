@@ -10,7 +10,7 @@ import {
   toggleScheduleTaskAction,
   updateScheduleTaskAction
 } from "@/app/admin/schedule/actions";
-import { getScheduleWeekDays } from "@/lib/schedule";
+import { getScheduleWeekDays, isScheduleWeekend } from "@/lib/schedule";
 import type { ScheduleDuty, ScheduleTask, User, WeeklyScheduleData } from "@/lib/types";
 
 const dayFormatter = new Intl.DateTimeFormat("pl-PL", { weekday: "short", day: "2-digit", month: "2-digit", timeZone: "UTC" });
@@ -79,9 +79,9 @@ export function ScheduleBoard({
 
       <div className="lg:hidden">
         <div className="mb-3 flex gap-2 overflow-x-auto pb-2 scrollbar-none">
-          {days.map((day, index) => {
+          {days.map((day) => {
             const selected = selectedDay === day;
-            const weekend = index >= 5;
+            const weekend = isScheduleWeekend(day);
             const covered = data.duties.some((duty) => duty.date === day);
             return (
               <button
@@ -97,7 +97,7 @@ export function ScheduleBoard({
                 }`}
               >
                 {formatDay(day)}
-                {!covered ? <span className="ml-1 text-red-500">!</span> : null}
+                {weekend && !covered ? <span className="ml-1 text-red-500">!</span> : null}
               </button>
             );
           })}
@@ -132,7 +132,7 @@ export function ScheduleBoard({
                 return (
                   <th key={day} className={`min-w-56 border-r border-black/10 px-3 py-3 text-left last:border-r-0 dark:border-white/10 ${index >= 5 ? "bg-amber-400/10" : ""}`}>
                     <div className="font-black capitalize">{formatDay(day)}</div>
-                    {!covered ? <div className="mt-1 text-xs font-bold text-red-600 dark:text-red-300">Brak dyżuru</div> : null}
+                    {isScheduleWeekend(day) && !covered ? <div className="mt-1 text-xs font-bold text-red-600 dark:text-red-300">Brak dyżuru</div> : null}
                   </th>
                 );
               })}
@@ -168,10 +168,10 @@ export function ScheduleBoard({
 }
 
 function DutyCoverage({ days, duties }: { days: string[]; duties: ScheduleDuty[] }) {
-  const missing = days.filter((day) => !duties.some((duty) => duty.date === day));
+  const missing = days.filter((day) => isScheduleWeekend(day) && !duties.some((duty) => duty.date === day));
   return (
     <div className={`rounded-md px-3 py-2 text-sm font-bold ${missing.length === 0 ? "bg-green-500/10 text-green-700 dark:text-green-300" : "bg-red-500/10 text-red-700 dark:text-red-300"}`}>
-      {missing.length === 0 ? "Dyżury obsadzone na wszystkie 7 dni" : `Brak dyżuru: ${missing.map(formatDay).join(", ")}`}
+      {missing.length === 0 ? "Dyżury weekendowe obsadzone" : `Brak dyżuru: ${missing.map(formatDay).join(", ")}`}
     </div>
   );
 }
@@ -202,7 +202,7 @@ function ScheduleCell({
             <ShieldCheck size={13} /> Dyżur
           </span>
         ) : <span />}
-        {canManage && editableMember ? (
+        {canManage && editableMember && (isScheduleWeekend(date) || duty) ? (
           <form action={setScheduleDutyAction}>
             <input type="hidden" name="date" value={date} />
             <input type="hidden" name="assigneeId" value={member.id} />

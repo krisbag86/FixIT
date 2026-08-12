@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addScheduleDays, getScheduleWeekDays, resolveScheduleWeekStart } from "@/lib/schedule";
+import { addScheduleDays, getScheduleWeekDays, isScheduleWeekend, resolveScheduleWeekStart } from "@/lib/schedule";
 
 describe("schedule date helpers", () => {
   it("normalizes every day, including Sunday, to the same Monday", () => {
@@ -22,5 +22,12 @@ describe("schedule date helpers", () => {
 
   it("adds days across month and year boundaries", () => {
     expect(addScheduleDays("2026-12-28", 7)).toBe("2027-01-04");
+  });
+
+  it("recognizes only Saturday and Sunday as weekend duty days", () => {
+    expect(isScheduleWeekend("2026-08-14")).toBe(false);
+    expect(isScheduleWeekend("2026-08-15")).toBe(true);
+    expect(isScheduleWeekend("2026-08-16")).toBe(true);
+    expect(isScheduleWeekend("invalid-date")).toBe(false);
   });
 });
