@@ -26,6 +26,18 @@ export function getScheduleWeekDays(weekStart: string): string[] {
   return Array.from({ length: SCHEDULE_DAYS }, (_, index) => addScheduleDays(monday, index));
 }
 
+export function getScheduleWeekNumber(weekStart: string): number {
+  const monday = resolveScheduleWeekStart(weekStart);
+  const thursday = new Date(`${monday}T12:00:00Z`);
+  thursday.setUTCDate(thursday.getUTCDate() + 3);
+
+  const isoYear = thursday.getUTCFullYear();
+  const firstWeekStart = resolveScheduleWeekStart(`${isoYear}-01-04`);
+  const millisecondsPerWeek = 7 * 24 * 60 * 60 * 1000;
+
+  return Math.round((new Date(`${monday}T12:00:00Z`).getTime() - new Date(`${firstWeekStart}T12:00:00Z`).getTime()) / millisecondsPerWeek) + 1;
+}
+
 export function isScheduleWeekend(date: string): boolean {
   const parsed = parseDateOnly(date);
   if (!parsed) {

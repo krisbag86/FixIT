@@ -54,7 +54,7 @@ export default async function DayLogPage({ searchParams }: { searchParams: Promi
                 Eksportuj Excel
               </button>
             </form>
-            <DayLogCreateForm />
+            <DayLogCreateForm initialOccurredAt={formatDateTimeLocal(new Date())} />
           </div>
         </div>
       </section>

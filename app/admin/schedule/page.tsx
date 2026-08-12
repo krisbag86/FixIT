@@ -7,7 +7,7 @@ import { requireUser } from "@/lib/auth";
 import { getWeeklySchedule } from "@/lib/data-store";
 import { formatDateLabel, formatDateOnly } from "@/lib/format";
 import { can } from "@/lib/permissions";
-import { addScheduleDays, getScheduleWeekDays, resolveScheduleWeekStart } from "@/lib/schedule";
+import { addScheduleDays, getScheduleWeekDays, getScheduleWeekNumber, resolveScheduleWeekStart } from "@/lib/schedule";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +19,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
 
   const params = await searchParams;
   const weekStart = resolveScheduleWeekStart(params.week);
+  const weekNumber = getScheduleWeekNumber(weekStart);
   const days = getScheduleWeekDays(weekStart);
   const previousWeek = addScheduleDays(weekStart, -7);
   const canManage = can(user, "schedule:manage");
@@ -36,7 +37,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
           <CalendarDays size={20} />
           <span className="text-sm font-black uppercase">Administracja</span>
         </div>
-        <h1 className="text-3xl font-black">Grafik tygodniowy</h1>
+        <h1 className="text-3xl font-black">Grafik tygodniowy — tydzień {weekNumber}</h1>
         <p className="mt-2 text-ink/65 dark:text-paper/65">Zadania i obsada dyżurów od poniedziałku do niedzieli.</p>
       </div>
 
