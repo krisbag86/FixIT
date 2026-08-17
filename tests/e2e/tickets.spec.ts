@@ -33,7 +33,7 @@ test.describe('Create Ticket', () => {
     await page.goto('/tickets/new');
     
     // Try to submit without title (title is required)
-    await page.click('button:has-text("Utworz zgloszenie")');
+    await page.getByTestId('new-ticket-form').locator('button[type="submit"]').click();
     
     // Browser validation should prevent submission
     // Check that we're still on the form page

@@ -57,13 +57,13 @@ export function LoginForm() {
           />
           <span className="text-xs leading-5 text-ink/70 dark:text-paper/70">
             Akceptuję{" "}
-            <a href="/terms" className="font-medium text-mint underline decoration-mint/30 hover:decoration-mint/70">
+            <Link href="/terms" className="font-medium text-mint underline decoration-mint/30 hover:decoration-mint/70">
               Regulamin
-            </a>{" "}
-i wyrażam zgodę na{" "}
-            <a href="/privacy" className="font-medium text-mint underline decoration-mint/30 hover:decoration-mint/70">
+            </Link>{" "}
+            i wyrażam zgodę na{" "}
+            <Link href="/privacy" className="font-medium text-mint underline decoration-mint/30 hover:decoration-mint/70">
               przetwarzanie danych osobowych
-            </a>{" "}
+            </Link>{" "}
             przez Bagietka Sp. z o.o. w celu korzystania z systemu FixIT.
           </span>
         </label>
@@ -73,7 +73,7 @@ i wyrażam zgodę na{" "}
       </div>
 
       {error ? (
-        <div className="flex items-start gap-2.5 rounded-xl bg-red-500/10 p-3.5 text-sm font-medium text-red-600 shadow-sm dark:text-red-300">
+        <div data-testid="login-error" className="flex items-start gap-2.5 rounded-xl bg-red-500/10 p-3.5 text-sm font-medium text-red-600 shadow-sm dark:text-red-300">
           <AlertCircle size={18} className="mt-0.5 shrink-0" />
           <span>{error}</span>
         </div>

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import {
@@ -15,8 +15,6 @@ import {
 const storageRoot = path.join(process.cwd(), ".data", "attachments");
 
 export {
-  ALLOWED_MIME_PREFIXES,
-  formatFileSize,
   isValidStorageKey,
   UploadValidationError
 } from "@/lib/storage-utils";
@@ -81,24 +79,4 @@ export async function readAttachmentFile(storageKey: string): Promise<Buffer> {
 
   const fullPath = path.join(storageRoot, storageKey);
   return readFile(fullPath);
-}
-
-export async function deleteAttachmentFile(storageKey: string): Promise<void> {
-  if (!isValidStorageKey(storageKey)) {
-    return;
-  }
-
-  if (isS3Configured()) {
-    const { deleteAttachmentFileS3 } = await import("@/lib/s3-storage");
-    return deleteAttachmentFileS3(storageKey);
-  }
-
-  const fullPath = path.join(storageRoot, storageKey);
-  try {
-    await unlink(fullPath);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-      throw error;
-    }
-  }
 }

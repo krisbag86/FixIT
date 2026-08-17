@@ -1,4 +1,5 @@
 import { CalendarClock, Download, ExternalLink, FilePlus2, Pencil } from "lucide-react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { updateDayLogEntryAction } from "@/app/admin/daylog/actions";
 import { DayLogDeleteButton } from "@/components/admin/daylog-delete-button";
@@ -86,9 +87,9 @@ export default async function DayLogPage({ searchParams }: { searchParams: Promi
                 Filtruj
               </button>
               {selectedDate ? (
-                <a href="/admin/daylog" className="px-1 text-sm font-bold text-ink/65 hover:text-ink dark:text-paper/65 dark:hover:text-paper">
+                <Link href="/admin/daylog" className="px-1 text-sm font-bold text-ink/65 hover:text-ink dark:text-paper/65 dark:hover:text-paper">
                   Wyczyść
-                </a>
+                </Link>
               ) : null}
             </form>
             <span className="rounded-full bg-ink/5 px-3 py-1 text-xs font-bold text-ink/60 dark:bg-white/10 dark:text-paper/60">{entries.length} wpisów</span>
@@ -117,21 +118,21 @@ export default async function DayLogPage({ searchParams }: { searchParams: Promi
                     <p className="whitespace-pre-wrap pb-4 text-sm leading-relaxed text-ink/70 dark:text-paper/70">{entry.description}</p>
                     <div className="mt-auto grid gap-2 border-t border-black/10 pt-3 dark:border-white/10">
                       {entry.ticketId ? (
-                        <a
-                          href={`/tickets/${entry.ticketId}`}
+                        <Link
+                          href={`/admin/tickets/${entry.ticketId}`}
                           className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md bg-mint px-3 text-xs font-bold text-white transition hover:bg-mint/90"
                         >
                           <ExternalLink size={14} />
                           {entry.ticketNumber ?? "Otwórz zgłoszenie"}
-                        </a>
+                        </Link>
                       ) : (
-                        <a
+                        <Link
                           href={`/tickets/new?fromDayLog=${encodeURIComponent(entry.id)}`}
                           className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-md bg-mint px-3 text-xs font-bold text-white transition hover:bg-mint/90"
                         >
                           <FilePlus2 size={14} />
                           Utwórz zgłoszenie
-                        </a>
+                        </Link>
                       )}
                       <details className="min-w-0">
                         <summary className="flex h-9 w-full cursor-pointer list-none items-center justify-center gap-1.5 rounded-md border border-black/10 px-3 text-xs font-bold text-ink/70 transition hover:border-mint hover:text-mint dark:border-white/10 dark:text-paper/70">

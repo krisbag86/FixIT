@@ -17,6 +17,10 @@ export async function POST(
     return NextResponse.json({ error: "Brak autoryzacji." }, { status: 401 });
   }
 
+  if (user.mustChangePassword) {
+    return NextResponse.json({ error: "Najpierw ustaw nowe hasło." }, { status: 403 });
+  }
+
   if (!can(user, "ticket:view")) {
     return NextResponse.json({ error: "Brak uprawnień." }, { status: 403 });
   }

@@ -17,6 +17,10 @@ export async function GET(
     return NextResponse.json({ error: "Brak autoryzacji." }, { status: 401 });
   }
 
+  if (user.mustChangePassword) {
+    return NextResponse.json({ error: "Najpierw ustaw nowe hasło." }, { status: 403 });
+  }
+
   const { id } = await params;
   const attachment = await findAttachment(id);
 

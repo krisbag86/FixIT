@@ -40,7 +40,7 @@ const securityHeaders: Record<string, string> = {
  * API requests (POST, PUT, PATCH, DELETE) to API routes.
  * Server actions have built-in CSRF protection via Next.js action IDs.
  */
-function isCSRFProtected(request: NextRequest): boolean {
+export function isCSRFProtected(request: NextRequest): boolean {
   // Only protect API routes (not server actions or page navigations)
   if (!request.nextUrl.pathname.startsWith("/api/")) {
     return true; // Not applicable
@@ -60,11 +60,16 @@ function isCSRFProtected(request: NextRequest): boolean {
     return false;
   }
 
-  const expectedHost = request.headers.get("host") || "";
-  const expectedOrigin = `https://${expectedHost}`;
+  const expectedOrigin = getExpectedOrigin(request);
+
+  // Production must use the configured public origin. Deriving it from the
+  // Host header would let a caller choose the origin used for validation.
+  if (!expectedOrigin) {
+    return false;
+  }
 
   // Check Origin header if present
-  if (origin && !origin.startsWith(expectedOrigin) && !origin.startsWith(`http://${expectedHost}`)) {
+  if (origin && !isSameOrigin(origin, expectedOrigin)) {
     return false;
   }
 
@@ -72,7 +77,7 @@ function isCSRFProtected(request: NextRequest): boolean {
   if (!origin && referer) {
     try {
       const refererUrl = new URL(referer);
-      if (refererUrl.origin !== expectedOrigin && refererUrl.origin !== `http://${expectedHost}`) {
+      if (refererUrl.origin !== expectedOrigin) {
         return false;
       }
     } catch {
@@ -81,6 +86,32 @@ function isCSRFProtected(request: NextRequest): boolean {
   }
 
   return true;
+}
+
+function getExpectedOrigin(request: NextRequest): string | undefined {
+  const configuredUrl = process.env.APP_URL?.trim();
+
+  if (configuredUrl) {
+    try {
+      return new URL(configuredUrl).origin;
+    } catch {
+      return undefined;
+    }
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    return undefined;
+  }
+
+  return request.nextUrl.origin;
+}
+
+function isSameOrigin(candidate: string, expectedOrigin: string): boolean {
+  try {
+    return new URL(candidate).origin === expectedOrigin;
+  } catch {
+    return false;
+  }
 }
 
 export function middleware(request: NextRequest): NextResponse | undefined {

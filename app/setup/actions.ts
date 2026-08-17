@@ -5,7 +5,8 @@ import { hashPassword } from "@/lib/password";
 import { z } from "zod";
 import { consumeSetupToken } from "@/lib/setup-token";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter";
-import { headers } from "next/headers";
+import { deleteUserSessions } from "@/lib/session-store";
+import { recordSecurityAudit } from "@/lib/data-store";
 
 const setupSchema = z
   .object({
@@ -41,12 +42,9 @@ export async function setupPasswordAction(
     return input.error.issues[0]?.message ?? "Nieprawidłowe dane.";
   }
 
-  // Rate limit
-  const headersList = await headers();
-  const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim()
-    || headersList.get("x-real-ip")
-    || "unknown";
-  const rateLimitKey = `setup:${ip}`;
+  // Rate limit each bearer token without trusting client-supplied proxy
+  // headers. The token itself is high entropy and is the relevant boundary.
+  const rateLimitKey = `setup:${input.data.token}`;
   const rateCheck = await checkRateLimit(rateLimitKey, RATE_LIMITS.LOGIN.windowMs, RATE_LIMITS.LOGIN.maxAttempts);
   if (!rateCheck.allowed) {
     return "Zbyt wiele prób. Spróbuj ponownie za kilka minut.";
@@ -73,6 +71,8 @@ export async function setupPasswordAction(
         mustChangePassword: false
       }
     });
+    await deleteUserSessions(user.id);
+    await recordSecurityAudit({ action: "PASSWORD_SETUP", actorId: user.id, entityId: user.id, summary: `${user.email}: ustawiono hasło przez link aktywacyjny` });
   } else {
     const { readDatabase, writeDatabase } = await import("@/lib/data-store");
     const database = await readDatabase();
@@ -83,6 +83,8 @@ export async function setupPasswordAction(
     user.passwordHash = newHash;
     (user as Record<string, unknown>).mustChangePassword = false;
     await writeDatabase(database);
+    await deleteUserSessions(user.id);
+    await recordSecurityAudit({ action: "PASSWORD_SETUP", actorId: user.id, entityId: user.id, summary: `${user.email}: ustawiono hasło przez link aktywacyjny` });
   }
 
   redirect("/login?setup=ok");

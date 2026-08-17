@@ -25,6 +25,7 @@ export function TicketFormFaq({
                   key={article.id}
                   href={`/knowledge/${article.slug}`}
                   target="_blank"
+                  rel="noopener noreferrer"
                   className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-ink/70 transition hover:bg-white/70 dark:text-paper/70 dark:hover:bg-white/10"
                 >
                   <FileText size={14} className="shrink-0 text-mint" />
@@ -44,6 +45,7 @@ export function TicketFormFaq({
         <Link
           href="/knowledge"
           target="_blank"
+          rel="noopener noreferrer"
           className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-mint hover:underline"
         >
           Przeglądaj całą bazę wiedzy

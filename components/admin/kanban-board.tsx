@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle, GripVertical, X } from "lucide-react";
 import { PriorityBadge } from "@/components/badges";
@@ -154,6 +155,8 @@ export function KanbanBoard({
       {/* Mobile column selector */}
       <div className="mb-4 flex gap-1 overflow-x-auto pb-2 md:hidden scrollbar-none">
         <button
+          type="button"
+          aria-pressed={!mobileColumn}
           onClick={() => setMobileColumn(null)}
           className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-bold transition ${
             !mobileColumn
@@ -166,6 +169,8 @@ export function KanbanBoard({
         {columns.map((col) => (
           <button
             key={col.status}
+            type="button"
+            aria-pressed={mobileColumn === col.status}
             onClick={() => setMobileColumn(col.status)}
             className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-bold transition ${
               mobileColumn === col.status
@@ -236,9 +241,11 @@ function KanbanCard({
   );
 
   return (
-    <div
+    <Link
+      href={`/admin/tickets/${ticket.id}`}
       draggable
       data-testid="kanban-card"
+      aria-label={`Otwórz zgłoszenie ${ticket.number}: ${ticket.title}`}
       onDragStart={(e) => {
         e.dataTransfer.setData("text/ticket-id", ticket.id);
         e.dataTransfer.effectAllowed = "move";
@@ -266,6 +273,6 @@ function KanbanCard({
           Blokuje sprzedaż
         </div>
       )}
-    </div>
+    </Link>
   );
 }

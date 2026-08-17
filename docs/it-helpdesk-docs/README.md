@@ -15,6 +15,8 @@ Dokumentacja startowa dla wewnetrznej aplikacji webowej do obslugi zgloszen IT d
 - `testing-quality.md` - testy, kryteria akceptacji i eval-first workflow.
 - `build-status.md` - aktualny status budowy aplikacji, rzeczy zrobione i pozostale.
 - `remaining-tasks.md` - historyczne podsumowanie etapów i bieżące zadania operacyjne.
+- `v1.2-plan.md` - zakres i bramki jakości dla kolejnego wydania.
+- `v1.2-changelog.md` - roboczy changelog zmian przygotowywanych na branchu `codex/v1.2`.
 
 ## Rekomendowany stack
 

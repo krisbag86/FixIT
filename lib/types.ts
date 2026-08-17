@@ -36,6 +36,8 @@ export type User = {
   scheduleOrder?: number;
   passwordHash?: string;
   mustChangePassword?: boolean;
+  mfaEnabled?: boolean;
+  mfaSecret?: string;
 };
 
 export type Category = {
@@ -166,7 +168,7 @@ export type AdminAuditLog = {
   id: string;
   actorId?: string;
   action: string;
-  entityType: "USER" | "STORE" | "CATEGORY" | "KNOWLEDGE_ARTICLE";
+  entityType: "USER" | "STORE" | "CATEGORY" | "KNOWLEDGE_ARTICLE" | "AUTH";
   entityId: string;
   summary: string;
   payload?: Record<string, string>;
@@ -178,6 +180,7 @@ export type Session = {
   userId: string;
   createdAt: string;
   expiresAt: string;
+  mfaVerified?: boolean;
 };
 
 export type SetupToken = {
@@ -204,13 +207,13 @@ export type DashboardMetrics = {
   }[];
 };
 
-export type DailyTicketCount = {
+type DailyTicketCount = {
   date: string;
   created: number;
   resolved: number;
 };
 
-export type AgentWorkload = {
+type AgentWorkload = {
   agentId: string;
   agentName: string;
   openCount: number;

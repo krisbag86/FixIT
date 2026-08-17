@@ -1,6 +1,6 @@
 import { formatDateOnly, parseDateOnly } from "@/lib/format";
 
-export const SCHEDULE_DAYS = 7;
+const SCHEDULE_DAYS = 7;
 
 export function addScheduleDays(date: string, days: number): string {
   const parsed = parseDateOnly(date);

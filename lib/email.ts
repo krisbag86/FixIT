@@ -99,7 +99,7 @@ async function sendBrevoEmail(payload: EmailPayload): Promise<EmailSendResult> {
   }
 }
 
-export function getEmailTransporter() {
+function getEmailTransporter() {
   if (!transporter) {
     if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
       console.warn('SMTP configuration incomplete. Email sending disabled.');
@@ -188,12 +188,4 @@ export async function sendEmailWithResult(payload: EmailPayload): Promise<EmailS
 export async function sendEmail(payload: EmailPayload): Promise<boolean> {
   const result = await sendEmailWithResult(payload);
   return result.ok;
-}
-
-// Send email in background without blocking
-export async function sendEmailAsync(payload: EmailPayload): Promise<void> {
-  // Fire and forget - don't await or block
-  sendEmail(payload).catch((error) => {
-    console.error(`Background email send failed:`, error);
-  });
 }

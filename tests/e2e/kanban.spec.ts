@@ -52,7 +52,7 @@ test.describe("Kanban Board", () => {
     // Each card should have a priority badge (NORMAL, HIGH, etc)
     const cardCount = await cards.count();
     for (let i = 0; i < cardCount; i++) {
-      const priorityBadge = cards.nth(i).locator("span").filter({ hasText: /NORMAL|WYSOKI|KRYTYCZNY|NISKI/ });
+      const priorityBadge = cards.nth(i).locator("span").filter({ hasText: /Normalny|Wysoki|Krytyczny|Niski/ });
       await expect(priorityBadge).toBeVisible();
     }
   });
@@ -67,7 +67,7 @@ test.describe("Kanban Board", () => {
 
     // IN_PROGRESS column should have 1 ticket (t_001)
     const inProgressColumn = page.locator('[data-kanban-column="IN_PROGRESS"]');
-    await expect(inProgressColumn.locator("span").filter({ hasText: "1" })).toBeVisible();
+    await expect(inProgressColumn.locator("span").filter({ hasText: "1" }).first()).toBeVisible();
   });
 
   test("should move ticket to new column via drag and drop and update status", async ({ page }) => {

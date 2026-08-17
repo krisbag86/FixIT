@@ -68,12 +68,11 @@ Wymuszenie powinno wystepowac w:
 - OAuth / SSO callback,
 - zaproszeniach lub tworzeniu uzytkownikow przez admina.
 
-W aktualnym MVP:
-
-- `/register` pozwala pracownikowi samodzielnie zalozyc konto `REPORTER`,
-- `/admin/users` pozwala adminowi utworzyc konto z dowolna rola biznesowa,
-- tworzenie usera przez admina generuje jednorazowy link aktywacyjny i ustawia wymuszona zmiane hasla przy pierwszym logowaniu,
-- wysylka linku aktywacyjnego e-mailem uzywa Brevo API na Railway, a SMTP zostaje tylko jako fallback.
+W aktualnym MVP publiczna rejestracja jest wylaczona. Sama domena `bagietka.pl` nie
+potwierdza wlasnosci skrzynki, dlatego konta tworzy administrator w `/admin/users`.
+Tworzenie usera przez admina generuje jednorazowy link aktywacyjny i ustawia wymuszona
+zmiane hasla przy pierwszym logowaniu. Wysylka linku aktywacyjnego e-mailem uzywa
+Brevo API na Railway, a SMTP zostaje tylko jako fallback.
 
 ## 5. Role
 
@@ -88,12 +87,39 @@ Sam fakt posiadania emaila `@bagietka.pl` nie daje uprawnien admina.
 
 Uprawnienia wynikaja z rekordu uzytkownika w bazie danych.
 
-Domyslne sciezki tworzenia kont:
+Domyslna sciezka tworzenia kont:
 
-- self-registration -> `REPORTER`,
 - admin panel -> `REPORTER`, `STORE_MANAGER`, `AGENT`, `ADMIN`.
 
-## 6. Permission matrix
+## 6. Ochrona danych uwierzytelniajacych
+
+- `passwordHash` jest uzywany tylko po stronie serwera podczas logowania lub zmiany hasla.
+- Mapowania uzytkownikow zwracane do UI i server actions domyslnie pomijaja hash hasla.
+- Po zmianie hasla wszystkie dotychczasowe sesje sa uniewazniane, a uzytkownik otrzymuje nowa sesje.
+- Zmiana roli lub dezaktywacja konta uniewaznia aktywne sesje tego uzytkownika.
+
+## 7. Linki aktywacyjne i limity
+
+- Token aktywacyjny jest przechowywany w bazie w postaci hasha, wygasa po 48 godzinach i moze byc uzyty tylko raz.
+- Wygenerowanie nowego linku uniewaznia poprzednie niewykorzystane tokeny.
+- Konsumpcja tokenu w Prisma jest atomowa, aby rownolegla proba nie mogla uzyc go dwa razy.
+- Limity logowania, aktywacji i zmiany hasla nie ufaja naglowkom `X-Forwarded-For` ani `X-Real-IP` dostarczanym przez klienta.
+- W produkcji z `DATABASE_URL` limiter korzysta ze wspoldzielonego magazynu Prisma/PostgreSQL; uruchomienie bez niego jest blokowane.
+
+## 8. Widocznosc bazy wiedzy
+
+- `ADMIN` widzi artykuly opublikowane i nieopublikowane.
+- `AGENT` widzi tylko artykuly opublikowane.
+- Odpowiedzi z szablonow/makr sa celowa funkcja dla reporterow i nie sa bledem uprawnien.
+
+## 9. MFA administratorow
+
+- Administrator moze wlaczyc MFA TOTP w `/admin/users`.
+- Sekret jest wyswietlany tylko podczas konfiguracji, a logowanie z wlaczonym MFA wymaga kodu z aplikacji uwierzytelniajacej.
+- Sesja z poprawnym haslem pozostaje w stanie oczekujacym i nie daje dostepu do aplikacji przed potwierdzeniem kodu MFA.
+- W produkcji `APP_URL` musi wskazywac dokladny publiczny origin aplikacji, aby walidacja CSRF nie opierala sie na naglowku `Host`.
+
+## 10. Permission matrix
 
 | Akcja | REPORTER | STORE_MANAGER | AGENT | ADMIN |
 |---|---:|---:|---:|---:|
@@ -110,7 +136,7 @@ Domyslne sciezki tworzenia kont:
 | Zarzadzanie kategoriami | no | no | no | yes |
 | Zarzadzanie FAQ | no | no | no | yes |
 
-## 7. Testy domeny
+## 11. Testy domeny
 
 ```ts
 describe("isAllowedBagietkaEmail", () => {
@@ -144,12 +170,11 @@ describe("isAllowedBagietkaEmail", () => {
 });
 ```
 
-## 8. Dodatkowe rekomendacje
+## 12. Dodatkowe rekomendacje
 
 - Wymusic HTTPS w produkcji.
 - Ustawic secure cookies.
 - Nie logowac tokenow i hasel.
-- Ograniczyc rate limit logowania.
-- Ograniczyc rate limit rejestracji.
-- Dla adminow rozwazyc MFA.
+- Monitorowac skutecznosc rate limitingu logowania i aktywacji.
+- Rozwazyc wymuszenie MFA dla wszystkich kont administracyjnych.
 - Zapisywac audit log dla zmian statusu, roli i uprawnien.

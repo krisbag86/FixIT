@@ -1,4 +1,5 @@
 import { Filter } from "lucide-react";
+import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TicketCard } from "@/components/ticket-card";
@@ -26,6 +27,7 @@ export default async function TicketsPage({ searchParams }: { searchParams: Prom
           <Filter size={18} className="text-ink/50 dark:text-paper/50" />
           <input
             name="q"
+            type="search"
             defaultValue={filters.query ?? ""}
             placeholder="Szukaj zgłoszeń"
             className="h-10 min-w-52 rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper"
@@ -33,6 +35,7 @@ export default async function TicketsPage({ searchParams }: { searchParams: Prom
           />
           <select
             name="status"
+            aria-label="Filtruj po statusie"
             defaultValue={filters.status ?? ""}
             className="h-10 min-w-48 rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper"
           >
@@ -46,9 +49,9 @@ export default async function TicketsPage({ searchParams }: { searchParams: Prom
           <button className="inline-flex h-10 items-center justify-center rounded-md bg-ink px-4 text-sm font-bold text-white dark:bg-paper dark:text-ink" type="submit">
             Filtruj
           </button>
-          <a href="/tickets" className="px-2 text-sm font-bold text-ink/65 hover:text-ink dark:text-paper/65 dark:hover:text-paper">
+          <Link href="/tickets" className="px-2 text-sm font-bold text-ink/65 hover:text-ink dark:text-paper/65 dark:hover:text-paper">
             Wyczyść
-          </a>
+          </Link>
         </form>
       </div>
 

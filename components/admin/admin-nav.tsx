@@ -19,18 +19,22 @@ const links = [
 
 export function AdminNav({ user, currentPath }: { user: User; currentPath: string }) {
   return (
-    <div className="mb-6 flex flex-nowrap gap-2 overflow-x-auto rounded-md border border-black/10 bg-white/70 p-2 scrollbar-none dark:border-white/10 dark:bg-white/10 lg:flex-wrap lg:overflow-visible">
+    <nav
+      aria-label="Nawigacja panelu IT"
+      className="mb-6 flex flex-nowrap gap-2 overflow-x-auto rounded-md border border-black/10 bg-white/70 p-2 scrollbar-none dark:border-white/10 dark:bg-white/10 lg:flex-wrap lg:overflow-visible"
+    >
       {links
         .filter((link) => !link.adminOnly || user.role === "ADMIN")
         .map((link) => {
           const Icon = link.icon;
-          const active = currentPath === link.href;
+          const active = currentPath === link.href || currentPath.startsWith(`${link.href}/`);
 
           return (
             <Link
               key={link.href}
               href={link.href}
-              className={`inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-3 text-sm font-bold transition ${
+              aria-current={active ? "page" : undefined}
+              className={`inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-3 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mint/60 ${
                 active
                   ? "bg-ink text-white dark:bg-paper dark:text-ink"
                   : "text-ink/70 hover:bg-white hover:text-ink dark:text-paper/70 dark:hover:bg-white/10 dark:hover:text-paper"
@@ -41,6 +45,6 @@ export function AdminNav({ user, currentPath }: { user: User; currentPath: strin
             </Link>
           );
         })}
-    </div>
+    </nav>
   );
 }

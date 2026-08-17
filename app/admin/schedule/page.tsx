@@ -1,4 +1,5 @@
 import { CalendarDays, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { ScheduleBoard } from "@/components/admin/schedule-board";
@@ -44,18 +45,18 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
       <AdminNav user={user} currentPath="/admin/schedule" />
 
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-md border border-black/10 bg-white/70 p-3 dark:border-white/10 dark:bg-white/5">
-        <a href={`/admin/schedule?week=${previousWeek}`} aria-label="Poprzedni tydzień" className={navButtonClass}>
+        <Link href={`/admin/schedule?week=${previousWeek}`} aria-label="Poprzedni tydzień" className={navButtonClass}>
           <ChevronLeft size={17} /> Poprzedni
-        </a>
+        </Link>
         <div className="text-center">
           <div className="text-lg font-black">
             Tydzień {weekNumber} · {formatDateLabel(days[0])} – {formatDateLabel(days[6])}
           </div>
-          {weekStart !== currentWeek ? <a href={`/admin/schedule?week=${currentWeek}`} className="text-xs font-bold text-mint">Bieżący tydzień</a> : null}
+          {weekStart !== currentWeek ? <Link href={`/admin/schedule?week=${currentWeek}`} className="text-xs font-bold text-mint">Bieżący tydzień</Link> : null}
         </div>
-        <a href={`/admin/schedule?week=${nextWeek}`} aria-label="Następny tydzień" className={navButtonClass}>
+        <Link href={`/admin/schedule?week=${nextWeek}`} aria-label="Następny tydzień" className={navButtonClass}>
           Następny <ChevronRight size={17} />
-        </a>
+        </Link>
       </div>
 
       <div className="mb-4 flex justify-end">

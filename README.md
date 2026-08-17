@@ -10,7 +10,8 @@ Wewnętrzny system helpdesk IT dla sklepów i biura **Bagietka**. Nowoczesna apl
 - **Panel IT** — Dashboard z metrykami, wykresami i SLA
 - **Kanban** — Wizualne zarządzanie zgłoszeniami metodą przeciągnij i upuść
 - **Baza wiedzy** — Artykuły FAQ dla użytkowników
-- **Autoryzacja** — Logowanie i rejestracja tylko dla adresów w domenie `bagietka.pl`
+- **Autoryzacja** — Logowanie dla kont utworzonych przez administratora; dozwolona domena to `bagietka.pl`
+- **MFA administratorów** — Opcjonalne kody TOTP i unieważnianie sesji oczekujących na potwierdzenie
 - **Administracja użytkownikami** — Admin może tworzyć, usuwać i dezaktywować konta, nadawać role oraz wysyłać lub regenerować link aktywacyjny
 - **DayLog** — Wspólna dla agentów i administratorów oś czasu notatek z rozmów telefonicznych/ustnych, z aktualną godziną nowego wpisu, oznaczeniem autora, edycją, usuwaniem, eksportem do XLSX i konwersją wpisu w powiązane zgłoszenie
 - **Grafik tygodniowy** — Plan zadań i dyżurów od poniedziałku do niedzieli, z konfigurowalnym składem zespołu, kopiowaniem poprzedniego tygodnia i eksportem do Excela
@@ -82,7 +83,6 @@ Produkcyjny auto-deploy jest uruchamiany z brancha `main`.
 | `DATABASE_URL` | URL połączenia z PostgreSQL | `postgresql://...` |
 | `APP_URL` | Publiczny URL aplikacji | `https://twoja-aplikacja.up.railway.app` |
 | `NODE_ENV` | Tryb pracy aplikacji | `production` |
-| `COOKIE_SECRET` | Sekret do podpisywania sesji | losowy sekret |
 | `EMAIL_FROM` | Zweryfikowany nadawca Brevo | `FixIT <sender@proton.me>` |
 | `BREVO_API_KEY` | Klucz Brevo API do wysyłki przez HTTPS, rekomendowane na Railway | `xkeysib-...` |
 | `SMTP_HOST` | Opcjonalny fallback SMTP, ignorowany gdy ustawiono `BREVO_API_KEY` | |
@@ -104,9 +104,8 @@ Produkcyjny auto-deploy jest uruchamiany z brancha `main`.
 
 ### Dostęp użytkowników
 
-- Każdy pracownik z adresem `@bagietka.pl` może samodzielnie założyć konto przez `/register`.
-- Samodzielna rejestracja tworzy konto z rolą `REPORTER`.
-- Administrator może dodać użytkownika ręcznie w `/admin/users` i opcjonalnie wysłać jednorazowy link aktywacyjny e-mailem.
+- Publiczna rejestracja pod `/register` jest wyłączona — sama domena e-mail nie potwierdza własności adresu.
+- Administrator tworzy użytkowników w `/admin/users`, nadaje role i wysyła jednorazowe linki aktywacyjne.
 - Produkcyjna wysyłka na Railway działa przez Brevo API (`BREVO_API_KEY`) i zweryfikowany `EMAIL_FROM`. Jeśli wysyłka się nie powiedzie, panel pokaże awaryjny link aktywacyjny. Przy istniejącym aktywnym koncie bez ustawionego hasła można kliknąć `Link`, aby wygenerować i wysłać nowy link.
 - Usunięcie konta jest dostępne tylko dla użytkowników bez historii zgłoszeń/komentarzy/treści. Konta z historią należy dezaktywować, aby zachować spójność danych.
 - Konta tworzone przez admina mają wymuszoną zmianę hasła przy pierwszym logowaniu.
@@ -145,6 +144,8 @@ npm run lint
 # Testy E2E (wymaga Playwright)
 npm run test:e2e
 ```
+
+Pull requesty są sprawdzane przez GitHub Actions: typecheck, lint, testy, build, Playwright E2E, `npm audit` i skan sekretów.
 
 ---
 

@@ -9,7 +9,3 @@ export function toastSuccess(message: string) {
 export function toastError(message: string) {
   toast.error(message);
 }
-
-export function toastInfo(message: string) {
-  toast.info(message);
-}

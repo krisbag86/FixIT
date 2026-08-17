@@ -4,6 +4,21 @@
 
 ---
 
+## v1.2 — Hardening uwierzytelniania (2026-08-17)
+
+- Wyłączono publiczną rejestrację: domena `bagietka.pl` nie jest dowodem własności skrzynki. Konta tworzy administrator i aktywuje je jednorazowym linkiem.
+- Hash haseł nie jest przekazywany do danych używanych przez UI; jest pobierany wyłącznie w ścieżkach logowania i zmiany hasła.
+- Zmiana hasła, roli lub statusu aktywności unieważnia istniejące sesje użytkownika.
+- Tokeny aktywacyjne są hashowane, jednorazowe, ważne 48 godzin, a wydanie nowego tokenu unieważnia poprzednie. Konsumpcja tokenu jest atomowa w Prisma/PostgreSQL.
+- Produkcyjne limity logowania, aktywacji i zmiany hasła wymagają współdzielonego magazynu Prisma/PostgreSQL i nie opierają kluczy na nagłówkach proxy dostarczanych przez klienta.
+- Agenci widzą wyłącznie opublikowane artykuły bazy wiedzy; nieopublikowane treści pozostają dostępne dla administratorów.
+- Dodano testy regresyjne dla bezpiecznych mapowań użytkowników, unieważniania sesji, rotacji tokenów i wyłączenia rejestracji.
+- Dodano opcjonalne TOTP MFA dla administratorów oraz stan sesji oczekującej na potwierdzenie drugiego składnika.
+- Zdarzenia logowania, wylogowania, zmian haseł, MFA, zaproszeń i unieważnień sesji trafiają do dziennika audytowego bez zapisywania haseł, kodów ani tokenów.
+- Dodano workflow CI z wymaganym typecheckiem, lintem, testami, buildem, E2E, audytem zależności i skanowaniem sekretów.
+
+---
+
 ## P0 — Autoryzacja i hasła
 
 ### PBKDF2 hashowanie haseł
@@ -50,8 +65,9 @@ verifyPassword("admin123", stored)  // → true/false
 | **Login** | 15 minut | 5 |
 | **Mutacje** (ticket, komentarz, itp.) | 1 minuta | 20 |
 
-- In-memory sliding window — reset przy restarcie serwera
-- Klucz: `login:{email}:{ip}` dla logowania, `mutation:{userId}` dla mutacji
+- W produkcji z `DATABASE_URL` limiter używa współdzielonego magazynu Prisma/PostgreSQL; brak tej konfiguracji blokuje uruchomienie limitowanych ścieżek.
+- In-memory sliding window pozostaje trybem deweloperskim/testowym i resetuje się przy restarcie procesu.
+- Klucz logowania nie korzysta z nagłówków proxy dostarczanych przez klienta; mutacje są kluczowane identyfikatorem użytkownika.
 - Zwraca `{ allowed, remaining, resetInSeconds }`
 
 **Użycie:** `app/login/actions.ts` (login), `app/actions.ts` (mutacje)
@@ -105,6 +121,7 @@ Zamiana stateless sesji (userId + HMAC w ciasteczku) na server-side opaque sessi
 - Sesja wygasa po **14 dniach** (automatyczne czyszczenie przy odczycie)
 - Logout faktycznie **unieważnia sesję** (usuwa z DB)
 - **Dezaktywacja użytkownika** automatycznie unieważnia dostęp (`findUserById` filtruje `isActive: true`)
+- Zmiana hasła, roli lub statusu aktywności usuwa wszystkie sesje użytkownika; po zmianie hasła tworzona jest nowa sesja.
 - Opaque UUID — brak informacji o użytkowniku w ciasteczku
 - Brak HMAC, brak sekretu — sesja istnieje tylko w DB
 

@@ -140,4 +140,4 @@ export function matchesTicketFilters(ticket: Ticket, filters: TicketListFilters,
   return true;
 }
 
-export { archivedStatuses, closedStatuses, slaHours };
+export { archivedStatuses, closedStatuses };

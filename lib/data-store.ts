@@ -76,6 +76,12 @@ function now(): string {
   return new Date().toISOString();
 }
 
+function nextTimestamp(previous?: string): string {
+  const current = Date.now();
+  const previousTime = previous ? Date.parse(previous) : Number.NaN;
+  return new Date(Math.max(current, Number.isFinite(previousTime) ? previousTime + 1 : current)).toISOString();
+}
+
 function id(prefix: string): string {
   return `${prefix}_${crypto.randomUUID().slice(0, 8)}`;
 }
@@ -92,7 +98,13 @@ function definedString(value: string | null | undefined): string | undefined {
   return value ?? undefined;
 }
 
-function mapUser(user: Prisma.UserGetPayload<object> & { passwordHash?: string | null; mustChangePassword?: boolean }): User {
+function mapUser(
+  user: Prisma.UserGetPayload<object> & { passwordHash?: string | null; mustChangePassword?: boolean; mfaSecret?: string | null },
+  options?: { includePasswordHash?: boolean; includeMfaSecret?: boolean }
+): User {
+  const passwordHash = definedString((user as { passwordHash?: string | null }).passwordHash);
+  const mfaSecret = definedString((user as { mfaSecret?: string | null }).mfaSecret);
+
   return {
     id: user.id,
     name: user.name ?? user.email,
@@ -103,8 +115,19 @@ function mapUser(user: Prisma.UserGetPayload<object> & { passwordHash?: string |
     isActive: user.isActive,
     isScheduleMember: user.isScheduleMember,
     scheduleOrder: user.scheduleOrder ?? undefined,
-    passwordHash: definedString((user as { passwordHash?: string | null }).passwordHash),
-    mustChangePassword: (user as { mustChangePassword?: boolean }).mustChangePassword
+    mustChangePassword: (user as { mustChangePassword?: boolean }).mustChangePassword,
+    mfaEnabled: (user as { mfaEnabled?: boolean }).mfaEnabled ?? false,
+    ...(options?.includeMfaSecret && mfaSecret ? { mfaSecret } : {}),
+    ...(options?.includePasswordHash && passwordHash ? { passwordHash } : {})
+  };
+}
+
+function mapStoredUser(user: User, options?: { includePasswordHash?: boolean; includeMfaSecret?: boolean }): User {
+  const { passwordHash, mfaSecret, ...safeUser } = user;
+  return {
+    ...safeUser,
+    ...(options?.includePasswordHash && passwordHash ? { passwordHash } : {}),
+    ...(options?.includeMfaSecret && mfaSecret ? { mfaSecret } : {})
   };
 }
 
@@ -209,7 +232,8 @@ function mapSession(session: Prisma.SessionGetPayload<object>): Session {
     id: session.id,
     userId: session.userId,
     createdAt: iso(session.createdAt) ?? "",
-    expiresAt: iso(session.expiresAt) ?? ""
+    expiresAt: iso(session.expiresAt) ?? "",
+    mfaVerified: session.mfaVerified
   };
 }
 
@@ -382,7 +406,7 @@ export async function readDatabase(): Promise<Database> {
       meta: {
         ticketSequences: Object.fromEntries(counters.map((counter) => [String(counter.year), counter.sequence]))
       },
-      users: users.map(mapUser),
+      users: users.map((user) => mapUser(user)),
       stores: stores.map(mapStore),
       categories: categories.map(mapCategory),
       tickets: tickets.map(mapTicket),
@@ -546,7 +570,7 @@ export async function updateDayLogEntry(input: {
     entry.fromName = input.fromName;
     entry.subject = input.subject;
     entry.description = input.description;
-    entry.updatedAt = now();
+    entry.updatedAt = nextTimestamp(entry.updatedAt);
     return entry;
   });
 }
@@ -630,7 +654,7 @@ export async function getWeeklySchedule(weekStart: string): Promise<WeeklySchedu
 
     return {
       weekStart: range.weekStart,
-      members: sortScheduleMembers([...activeMembers, ...historicalMembers].map(mapUser)),
+      members: sortScheduleMembers([...activeMembers, ...historicalMembers].map((user) => mapUser(user))),
       tasks: tasks.map(mapScheduleTask),
       duties: duties.map(mapScheduleDuty)
     };
@@ -644,7 +668,9 @@ export async function getWeeklySchedule(weekStart: string): Promise<WeeklySchedu
     .filter((duty) => duty.date >= range.weekStart && duty.date < addScheduleDays(range.weekStart, 7))
     .sort((left, right) => left.date.localeCompare(right.date) || left.createdAt.localeCompare(right.createdAt));
   const referencedIds = new Set([...tasks.map((task) => task.assigneeId), ...duties.map((duty) => duty.assigneeId)]);
-  const members = database.users.filter((user) => isEligibleScheduleMember(user) || referencedIds.has(user.id));
+  const members = database.users
+    .filter((user) => isEligibleScheduleMember(user) || referencedIds.has(user.id))
+    .map((user) => mapStoredUser(user));
 
   return {
     weekStart: range.weekStart,
@@ -1012,6 +1038,100 @@ function appendAdminAuditLog(
   return log;
 }
 
+export async function recordSecurityAudit(input: {
+  actorId?: string;
+  action: string;
+  entityId: string;
+  summary: string;
+  payload?: Record<string, string>;
+}): Promise<void> {
+  try {
+    if (shouldUsePrisma()) {
+      const db = await getPrisma();
+      await db.adminAuditLog.create({
+        data: {
+          actorId: input.actorId,
+          action: input.action,
+          entityType: "AUTH",
+          entityId: input.entityId,
+          summary: input.summary,
+          payload: input.payload
+        }
+      });
+      return;
+    }
+
+    await withDatabase((database) => {
+      appendAdminAuditLog(database, {
+        actorId: input.actorId,
+        action: input.action,
+        entityType: "AUTH",
+        entityId: input.entityId,
+        summary: input.summary,
+        payload: input.payload
+      });
+    });
+  } catch (error) {
+    // Authentication must remain available if the audit sink is temporarily
+    // unavailable; the failure is still visible to server-side monitoring.
+    console.error("Security audit write failed:", error);
+  }
+}
+
+export async function updateUserMfa(input: {
+  userId: string;
+  enabled: boolean;
+  secret?: string | null;
+  actorId: string;
+  auditAction?: string;
+}): Promise<User | undefined> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const updated = await db.$transaction(async (tx) => {
+      const user = await tx.user.update({
+        where: { id: input.userId },
+        data: {
+          mfaEnabled: input.enabled,
+          mfaSecret: input.secret === undefined ? null : input.secret
+        }
+      });
+
+      await tx.adminAuditLog.create({
+        data: {
+          actorId: input.actorId,
+          action: input.auditAction ?? (input.enabled ? "MFA_ENABLED" : "MFA_DISABLED"),
+          entityType: "AUTH",
+          entityId: user.id,
+          summary: `${user.email}: MFA ${input.enabled ? "włączone" : "wyłączone"}`
+        }
+      });
+
+      return user;
+    });
+
+    return mapUser(updated);
+  }
+
+  return withDatabase((database) => {
+    const user = database.users.find((item) => item.id === input.userId);
+    if (!user) {
+      return undefined;
+    }
+
+    user.mfaEnabled = input.enabled;
+    user.mfaSecret = input.secret === undefined || input.secret === null ? undefined : input.secret;
+    appendAdminAuditLog(database, {
+      actorId: input.actorId,
+      action: input.auditAction ?? (input.enabled ? "MFA_ENABLED" : "MFA_DISABLED"),
+      entityType: "AUTH",
+      entityId: user.id,
+      summary: `${user.email}: MFA ${input.enabled ? "włączone" : "wyłączone"}`
+    });
+
+    return mapStoredUser(user);
+  });
+}
+
 async function ensureActiveAdminRemains(userId: string, nextRole: UserRole, nextIsActive: boolean): Promise<void> {
   if (nextRole === "ADMIN" && nextIsActive) {
     return;
@@ -1040,20 +1160,6 @@ async function ensureActiveAdminRemains(userId: string, nextRole: UserRole, next
   if (activeAdminCount === 0) {
     throw new Error("Nie można odebrać ostatniego aktywnego administratora.");
   }
-}
-
-export async function getUsers(): Promise<User[]> {
-  if (shouldUsePrisma()) {
-    const db = await getPrisma();
-    const users = await db.user.findMany({
-      where: { isActive: true },
-      orderBy: [{ role: "asc" }, { name: "asc" }]
-    });
-    return users.map(mapUser);
-  }
-
-  const database = await readDatabase();
-  return database.users.filter((user) => user.isActive);
 }
 
 export async function getCategories(): Promise<Category[]> {
@@ -1090,7 +1196,7 @@ export async function listUsersAdmin(options?: { includeInactive?: boolean; quer
       },
       orderBy: [{ isActive: "desc" }, { role: "asc" }, { name: "asc" }, { email: "asc" }]
     });
-    return users.map(mapUser);
+    return users.map((user) => mapUser(user));
   }
 
   const database = await readDatabase();
@@ -1111,7 +1217,8 @@ export async function listUsersAdmin(options?: { includeInactive?: boolean; quer
       }
 
       return `${a.role}-${a.name}-${a.email}`.localeCompare(`${b.role}-${b.name}-${b.email}`);
-    });
+    })
+    .map((user) => mapStoredUser(user));
 }
 
 export async function listStoresAdmin(options?: { includeInactive?: boolean }): Promise<Store[]> {
@@ -1133,28 +1240,6 @@ export async function listStoresAdmin(options?: { includeInactive?: boolean }): 
       }
 
       return a.code.localeCompare(b.code);
-    });
-}
-
-export async function listCategoriesAdmin(options?: { includeInactive?: boolean }): Promise<Category[]> {
-  if (shouldUsePrisma()) {
-    const db = await getPrisma();
-    const categories = await db.category.findMany({
-      where: options?.includeInactive ? undefined : { isActive: true },
-      orderBy: [{ isActive: "desc" }, { name: "asc" }]
-    });
-    return categories.map(mapCategory);
-  }
-
-  const database = await readDatabase();
-  return database.categories
-    .filter((category) => options?.includeInactive || category.isActive)
-    .sort((a, b) => {
-      if (a.isActive !== b.isActive) {
-        return a.isActive ? -1 : 1;
-      }
-
-      return a.name.localeCompare(b.name);
     });
 }
 
@@ -1317,11 +1402,14 @@ export async function getTicketBoardData(user: User): Promise<{ tickets: Ticket[
       db.ticket.findMany({ where: { status: { notIn: [...archivedStatuses] } }, orderBy: [{ updatedAt: "desc" }, { id: "desc" }] }),
       db.user.findMany({ where: { isActive: true }, orderBy: [{ role: "asc" }, { name: "asc" }, { email: "asc" }] })
     ]);
-    return { tickets: tickets.map(mapTicket), users: users.map(mapUser) };
+    return { tickets: tickets.map(mapTicket), users: users.map((user) => mapUser(user)) };
   }
 
   const database = await readDatabase();
-  return { tickets: filterVisibleTickets(database.tickets, user, {}), users: database.users.filter((item) => item.isActive) };
+  return {
+    tickets: filterVisibleTickets(database.tickets, user, {}),
+    users: database.users.filter((item) => item.isActive).map((item) => mapStoredUser(item))
+  };
 }
 
 export async function listAdminAuditLogs(limit = 20): Promise<AdminAuditLog[]> {
@@ -1340,7 +1428,10 @@ export async function listAdminAuditLogs(limit = 20): Promise<AdminAuditLog[]> {
     .slice(0, limit);
 }
 
-export async function findUserByEmail(email: string, options?: { includeInactive?: boolean }): Promise<User | undefined> {
+export async function findUserByEmail(
+  email: string,
+  options?: { includeInactive?: boolean; includePasswordHash?: boolean; includeMfaSecret?: boolean }
+): Promise<User | undefined> {
   if (shouldUsePrisma()) {
     const db = await getPrisma();
     const user = await db.user.findUnique({ where: { email } });
@@ -1349,22 +1440,29 @@ export async function findUserByEmail(email: string, options?: { includeInactive
       return undefined;
     }
 
-    return mapUser(user);
+    return mapUser(user, options);
   }
 
   const database = await readDatabase();
-  return database.users.find((user) => user.email === email && (options?.includeInactive || user.isActive));
+  const user = database.users.find((item) => item.email === email && (options?.includeInactive || item.isActive));
+  return user ? mapStoredUser(user, options) : undefined;
 }
 
-export async function findUserById(userId: string): Promise<User | undefined> {
+export async function findUserById(
+  userId: string,
+  options?: { includeInactive?: boolean; includePasswordHash?: boolean; includeMfaSecret?: boolean }
+): Promise<User | undefined> {
   if (shouldUsePrisma()) {
     const db = await getPrisma();
-    const user = await db.user.findFirst({ where: { id: userId, isActive: true } });
-    return user ? mapUser(user) : undefined;
+    const user = await db.user.findFirst({
+      where: { id: userId, ...(options?.includeInactive ? {} : { isActive: true }) }
+    });
+    return user ? mapUser(user, options) : undefined;
   }
 
   const database = await readDatabase();
-  return database.users.find((user) => user.id === userId && user.isActive);
+  const user = database.users.find((item) => item.id === userId && (options?.includeInactive || item.isActive));
+  return user ? mapStoredUser(user, options) : undefined;
 }
 
 export async function findUsersByIds(userIds: string[], options?: { includeInactive?: boolean }): Promise<User[]> {
@@ -1379,11 +1477,13 @@ export async function findUsersByIds(userIds: string[], options?: { includeInact
         ...(options?.includeInactive ? {} : { isActive: true })
       }
     });
-    return users.map(mapUser);
+    return users.map((user) => mapUser(user));
   }
 
   const database = await readDatabase();
-  return database.users.filter((user) => ids.includes(user.id) && (options?.includeInactive || user.isActive));
+  return database.users
+    .filter((user) => ids.includes(user.id) && (options?.includeInactive || user.isActive))
+    .map((user) => mapStoredUser(user));
 }
 
 export async function getTicketDetailReferences(input: {
@@ -1410,7 +1510,7 @@ export async function getTicketDetailReferences(input: {
       input.ticket.storeId ? db.store.findMany({ where: { id: input.ticket.storeId } }) : Promise.resolve([])
     ]);
     return {
-      users: users.map(mapUser),
+      users: users.map((user) => mapUser(user)),
       categories: categories.map(mapCategory),
       stores: stores.map(mapStore)
     };
@@ -1421,7 +1521,7 @@ export async function getTicketDetailReferences(input: {
   return {
     users: database.users.filter(
       (user) => userIdSet.has(user.id) || (includeAssignees && user.isActive && (user.role === "AGENT" || user.role === "ADMIN"))
-    ),
+    ).map((user) => mapStoredUser(user)),
     categories: input.ticket.categoryId
       ? database.categories.filter((category) => category.id === input.ticket.categoryId)
       : [],
@@ -2450,7 +2550,7 @@ export async function getTicketListPageData(
       tickets,
       hasMore,
       ...(hasMore && tickets.length > 0 ? { nextCursor: encodeTicketCursor(tickets[tickets.length - 1]) } : {}),
-      users: users.map(mapUser),
+      users: users.map((user) => mapUser(user)),
       stores: stores.map(mapStore),
       categories: categories.map(mapCategory),
       openTickets,
@@ -2475,7 +2575,9 @@ export async function getTicketListPageData(
     tickets,
     hasMore,
     ...(hasMore && tickets.length > 0 ? { nextCursor: encodeTicketCursor(tickets[tickets.length - 1]) } : {}),
-    users: database.users.filter((item) => includeFilterOptions || ticketUserIds.has(item.id)),
+    users: database.users
+      .filter((item) => includeFilterOptions || ticketUserIds.has(item.id))
+      .map((item) => mapStoredUser(item)),
     stores: database.stores.filter((item) => includeFilterOptions || ticketStoreIds.has(item.id)),
     categories: database.categories.filter((item) => includeFilterOptions || ticketCategoryIds.has(item.id)),
     openTickets: includeQueueSummary ? database.tickets.filter((ticket) => !closedStatuses.has(ticket.status)).length : 0,
@@ -3092,17 +3194,6 @@ export async function updateNotificationLog(
   });
 }
 
-export async function getNotificationLog(notificationId: string): Promise<NotificationLog | undefined> {
-  if (shouldUsePrisma()) {
-    const db = await getPrisma();
-    const notification = await db.notificationLog.findUnique({ where: { id: notificationId } });
-    return notification ? mapNotificationLog(notification) : undefined;
-  }
-
-  const database = await readDatabase();
-  return database.notificationLogs.find((item) => item.id === notificationId);
-}
-
 export async function findLatestQueuedNotification(input: {
   ticketId: string;
   type: string;
@@ -3129,46 +3220,6 @@ export async function findLatestQueuedNotification(input: {
     .filter((log) => log.recipientEmail === input.recipientEmail)
     .filter((log) => log.status === "QUEUED")
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
-}
-
-export async function listPublishedKnowledgeArticles(options?: { categoryId?: string; query?: string }): Promise<KnowledgeArticle[]> {
-  const categoryId = options?.categoryId;
-  const query = options?.query?.toLowerCase().trim();
-
-  if (shouldUsePrisma()) {
-    const db = await getPrisma();
-    const where: Record<string, unknown> = { isPublished: true };
-    if (categoryId) where.categoryId = categoryId;
-    if (query) {
-      where.OR = [
-        { title: { contains: query, mode: "insensitive" } },
-        { body: { contains: query, mode: "insensitive" } }
-      ];
-    }
-    const articles = await db.knowledgeArticle.findMany({
-      where,
-      orderBy: { title: "asc" }
-    });
-    return articles.map(mapKnowledgeArticle);
-  }
-
-  const database = await readDatabase();
-  return database.knowledgeArticles
-    .filter((a) => a.isPublished)
-    .filter((a) => !categoryId || a.categoryId === categoryId)
-    .filter((a) => !query || a.title.toLowerCase().includes(query) || a.body.toLowerCase().includes(query))
-    .sort((a, b) => a.title.localeCompare(b.title));
-}
-
-export async function listKnowledgeArticles(): Promise<KnowledgeArticle[]> {
-  if (shouldUsePrisma()) {
-    const db = await getPrisma();
-    const articles = await db.knowledgeArticle.findMany({ orderBy: { title: "asc" } });
-    return articles.map(mapKnowledgeArticle);
-  }
-
-  const database = await readDatabase();
-  return [...database.knowledgeArticles].sort((a, b) => a.title.localeCompare(b.title));
 }
 
 export async function findKnowledgeArticleBySlug(slug: string): Promise<KnowledgeArticle | undefined> {
@@ -4003,23 +4054,6 @@ export async function getStoreDashboard(storeId: string): Promise<{
   return { openTickets, criticalTickets, blockingTickets, resolvedToday, recentEvents };
 }
 
-export async function deleteAttachment(id: string): Promise<TicketAttachment | undefined> {
-  if (shouldUsePrisma()) {
-    const db = await getPrisma();
-    const attachment = await db.ticketAttachment.findUnique({ where: { id } });
-    if (!attachment) return undefined;
-    await db.ticketAttachment.delete({ where: { id } });
-    return mapAttachment(attachment);
-  }
-
-  return withDatabase((database) => {
-    const idx = database.attachments.findIndex((a) => a.id === id);
-    if (idx === -1) return undefined;
-    const [removed] = database.attachments.splice(idx, 1);
-    return removed;
-  });
-}
-
 async function getPrismaClient() {
   return (await import("@/lib/prisma")).prisma;
 }
@@ -4067,33 +4101,6 @@ export async function listTemplates(): Promise<ResponseTemplate[]> {
   return [...database.responseTemplates].sort((a, b) =>
     a.name.localeCompare(b.name)
   );
-}
-
-export async function listActiveTemplates(): Promise<ResponseTemplate[]> {
-  if (shouldUsePrisma()) {
-    const db = await getPrismaClient();
-    const templates = await db.responseTemplate.findMany({
-      where: { isActive: true },
-      orderBy: { name: "asc" }
-    });
-    return templates.map(mapTemplate);
-  }
-
-  const database = await readDatabase();
-  return [...database.responseTemplates]
-    .filter((t) => t.isActive)
-    .sort((a, b) => a.name.localeCompare(b.name));
-}
-
-export async function findTemplate(id: string): Promise<ResponseTemplate | undefined> {
-  if (shouldUsePrisma()) {
-    const db = await getPrismaClient();
-    const template = await db.responseTemplate.findUnique({ where: { id } });
-    return template ? mapTemplate(template) : undefined;
-  }
-
-  const database = await readDatabase();
-  return database.responseTemplates.find((t) => t.id === id);
 }
 
 export async function createTemplate(input: {
@@ -4199,17 +4206,6 @@ export async function listMacros(): Promise<ResponseMacro[]> {
 
   const database = await readDatabase();
   return [...database.responseMacros].sort((a, b) => a.name.localeCompare(b.name));
-}
-
-export async function findMacro(id: string): Promise<ResponseMacro | undefined> {
-  if (shouldUsePrisma()) {
-    const db = await getPrismaClient();
-    const macro = await db.responseMacro.findUnique({ where: { id } });
-    return macro ? mapMacro(macro) : undefined;
-  }
-
-  const database = await readDatabase();
-  return database.responseMacros.find((m) => m.id === id);
 }
 
 export async function createMacro(input: {
