@@ -6,10 +6,12 @@ import { AutoRefresh } from "@/components/auto-refresh";
 import { RoleBadge } from "@/components/badges";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { canUseAdmin } from "@/lib/permissions";
+import { isRequesterPortalUser } from "@/lib/requester-portal";
 import type { User } from "@/lib/types";
 
 export function AppShell({ user, children }: { user: User; children: React.ReactNode }) {
   const admin = canUseAdmin(user);
+  const requesterPortal = isRequesterPortalUser(user);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -26,14 +28,14 @@ export function AppShell({ user, children }: { user: User; children: React.React
             </div>
           </Link>
 
-          <AppNav role={user.role} hasStore={Boolean(user.storeId)} admin={admin} />
+          <AppNav admin={admin} />
 
           <div className="flex items-center gap-2">
             <div className="hidden text-right sm:block">
               <div className="text-sm font-semibold">{user.name}</div>
-              <div data-testid="user-email" className="text-xs text-ink/55 dark:text-paper/55">{user.email}</div>
+              {!requesterPortal ? <div data-testid="user-email" className="text-xs text-ink/55 dark:text-paper/55">{user.email}</div> : null}
             </div>
-            <RoleBadge role={user.role} />
+            {!requesterPortal ? <RoleBadge role={user.role} /> : null}
             <ThemeToggle />
             <form action={logoutAction}>
               <button
@@ -48,7 +50,7 @@ export function AppShell({ user, children }: { user: User; children: React.React
             </form>
           </div>
         </div>
-        <AppNav role={user.role} hasStore={Boolean(user.storeId)} admin={admin} mobile />
+        <AppNav admin={admin} mobile />
       </header>
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:py-8">{children}</main>
 

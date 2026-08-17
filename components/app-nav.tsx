@@ -1,9 +1,8 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Archive, BookOpen, ClipboardList, LayoutDashboard, Plus, Store } from "lucide-react";
+import { Archive, BookOpen, ClipboardList, LayoutDashboard, Plus } from "lucide-react";
 import Link from "next/link";
-import type { UserRole } from "@/lib/types";
 
 const navItems = [
   { href: "/tickets", label: "Moje zgłoszenia", compactLabel: "Moje", icon: ClipboardList },
@@ -12,13 +11,10 @@ const navItems = [
   { href: "/knowledge", label: "Baza wiedzy", compactLabel: "Wiedza", icon: BookOpen }
 ] as const;
 
-export function AppNav({ role, hasStore, admin, mobile = false }: { role: UserRole; hasStore: boolean; admin: boolean; mobile?: boolean }) {
+export function AppNav({ admin, mobile = false }: { admin: boolean; mobile?: boolean }) {
   const pathname = usePathname();
   const items = [
     ...navItems,
-    ...(role === "STORE_MANAGER" && hasStore
-      ? [{ href: "/store", label: "Mój sklep", compactLabel: "Sklep", icon: Store }]
-      : []),
     ...(admin ? [{ href: "/admin/tickets", label: "Panel IT", compactLabel: "IT", icon: LayoutDashboard }] : [])
   ];
 

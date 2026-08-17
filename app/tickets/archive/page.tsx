@@ -3,12 +3,14 @@ import { Archive, Filter } from "lucide-react";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { AppShell } from "@/components/app-shell";
 import { TicketCard } from "@/components/ticket-card";
+import { RequesterTicketCard } from "@/components/requester/requester-ticket-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { requireUser } from "@/lib/auth";
 import { getTicketListPageData } from "@/lib/data-store";
 import { archivedTicketStatuses, statusLabels } from "@/lib/labels";
 import { buildTicketListHref, getTicketListCursor, parseTicketListFilters, type TicketListSearchParams } from "@/lib/ticket-filters";
 import { canUseAdmin } from "@/lib/permissions";
+import { isRequesterPortalUser } from "@/lib/requester-portal";
 
 export default async function TicketArchivePage({
   searchParams
@@ -19,6 +21,11 @@ export default async function TicketArchivePage({
   const params = await searchParams;
   const filters = { ...parseTicketListFilters(params), archived: true };
   const page = await getTicketListPageData(user, filters, { cursor: getTicketListCursor(params) });
+
+  if (isRequesterPortalUser(user)) {
+    return <RequesterArchivePage user={user} page={page} />;
+  }
+
   const admin = canUseAdmin(user);
   const ticketPath = admin ? "/admin/tickets" : "/tickets";
   const usersById = new Map(page.users.map((item) => [item.id, item]));
@@ -102,6 +109,25 @@ export default async function TicketArchivePage({
           </a>
         </div>
       ) : null}
+    </AppShell>
+  );
+}
+
+function RequesterArchivePage({ user, page }: { user: Awaited<ReturnType<typeof requireUser>>; page: Awaited<ReturnType<typeof getTicketListPageData>> }) {
+  return (
+    <AppShell user={user}>
+      <div className="mb-8">
+        <p className="text-sm font-black uppercase tracking-wider text-mint">Moje zgłoszenia</p>
+        <h1 className="mt-2 text-3xl font-black">Archiwum zgłoszeń</h1>
+        <p className="mt-2 text-ink/65 dark:text-paper/65">Zamknięte i anulowane zgłoszenia pozostają tutaj do wglądu.</p>
+      </div>
+      {page.tickets.length > 0 ? (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {page.tickets.map((ticket) => <RequesterTicketCard key={ticket.id} ticket={ticket} href={`/tickets/${ticket.id}`} />)}
+        </div>
+      ) : (
+        <EmptyState variant="search" title="Archiwum jest puste" description="Nie ma jeszcze zamkniętych ani anulowanych zgłoszeń." actionHref="/tickets" actionLabel="Wróć do zgłoszeń" />
+      )}
     </AppShell>
   );
 }

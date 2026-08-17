@@ -3,16 +3,23 @@ import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TicketCard } from "@/components/ticket-card";
+import { RequesterTicketCard } from "@/components/requester/requester-ticket-card";
 import { requireUser } from "@/lib/auth";
 import { getTicketListPageData } from "@/lib/data-store";
 import { activeTicketStatuses, statusLabels } from "@/lib/labels";
 import { buildTicketListHref, getTicketListCursor, parseTicketListFilters, type TicketListSearchParams } from "@/lib/ticket-filters";
+import { isRequesterPortalUser } from "@/lib/requester-portal";
 
 export default async function TicketsPage({ searchParams }: { searchParams: Promise<TicketListSearchParams> }) {
   const user = await requireUser();
   const params = await searchParams;
   const filters = parseTicketListFilters(params);
   const page = await getTicketListPageData(user, filters, { cursor: getTicketListCursor(params) });
+
+  if (isRequesterPortalUser(user)) {
+    return <RequesterTicketsPage user={user} page={page} />;
+  }
+
   const usersById = new Map(page.users.map((item) => [item.id, item]));
   const categoriesById = new Map(page.categories.map((item) => [item.id, item]));
   const storesById = new Map(page.stores.map((item) => [item.id, item]));
@@ -90,6 +97,36 @@ export default async function TicketsPage({ searchParams }: { searchParams: Prom
           </a>
         </div>
       ) : null}
+    </AppShell>
+  );
+}
+
+function RequesterTicketsPage({ user, page }: { user: Awaited<ReturnType<typeof requireUser>>; page: Awaited<ReturnType<typeof getTicketListPageData>> }) {
+  return (
+    <AppShell user={user}>
+      <div className="mb-8 flex flex-col justify-between gap-5 rounded-2xl border border-mint/20 bg-gradient-to-br from-mint/10 via-white/70 to-river/10 p-6 dark:from-mint/10 dark:via-white/[0.04] dark:to-river/10 sm:flex-row sm:items-center sm:p-8">
+        <div>
+          <p className="text-sm font-black uppercase tracking-wider text-mint">Portal zgłoszeń</p>
+          <h1 className="mt-2 text-3xl font-black">W czym możemy pomóc?</h1>
+          <p className="mt-2 max-w-xl text-ink/65 dark:text-paper/65">Opisz problem, a my zajmiemy się resztą. Tutaj sprawdzisz też postęp swoich zgłoszeń.</p>
+        </div>
+        <Link href="/tickets/new" className="inline-flex h-12 shrink-0 items-center justify-center rounded-xl bg-mint px-5 text-sm font-black text-white shadow-lg shadow-mint/20 transition hover:bg-mint/90">
+          Zgłoś problem
+        </Link>
+      </div>
+
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="text-xl font-black">Moje aktywne zgłoszenia</h2>
+        <Link href="/tickets/archive" className="text-sm font-bold text-mint hover:underline">Zobacz archiwum</Link>
+      </div>
+
+      {page.tickets.length > 0 ? (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {page.tickets.map((ticket) => <RequesterTicketCard key={ticket.id} ticket={ticket} href={`/tickets/${ticket.id}`} />)}
+        </div>
+      ) : (
+        <EmptyState variant="tickets" title="Brak aktywnych zgłoszeń" description="Jeśli masz problem, opisz go w nowym zgłoszeniu." actionHref="/tickets/new" actionLabel="Zgłoś problem" />
+      )}
     </AppShell>
   );
 }
