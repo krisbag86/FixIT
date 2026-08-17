@@ -26,7 +26,7 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: "FIXIT_DATA_PROVIDER=json FIXIT_E2E=true PORT=3000 APP_URL=http://127.0.0.1:3000 npm run dev",
+    command: "FIXIT_DATA_PROVIDER=json FIXIT_E2E=true PORT=3000 APP_URL=http://localhost:3000 npm run dev",
     url: "http://127.0.0.1:3000/login",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000

@@ -29,7 +29,9 @@ export function createSeedDatabase(): Database {
           department: "IT",
           isActive: true,
           passwordHash: e2ePasswordHash,
-          mustChangePassword: false
+          mustChangePassword: false,
+          isScheduleMember: true,
+          scheduleOrder: 1
         },
         {
           id: "usr_e2e_agent",
@@ -39,7 +41,9 @@ export function createSeedDatabase(): Database {
           department: "IT",
           isActive: true,
           passwordHash: e2ePasswordHash,
-          mustChangePassword: false
+          mustChangePassword: false,
+          isScheduleMember: true,
+          scheduleOrder: 2
         },
         {
           id: "usr_e2e_manager",
