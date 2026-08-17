@@ -3,7 +3,7 @@ import { Activity, AlertTriangle, CheckCircle, Clock, Filter, Store } from "luci
 import { AppShell } from "@/components/app-shell";
 import { TicketCard } from "@/components/ticket-card";
 import { requireUser } from "@/lib/auth";
-import { getStoreDashboard, getTicketListPageData } from "@/lib/data-store";
+import { getStorePageData } from "@/lib/data-store";
 import { formatDateTime } from "@/lib/format";
 import { activeTicketStatuses, priorityLabels, statusLabels, ticketPriorities } from "@/lib/labels";
 import { buildTicketListHref, getTicketListCursor, parseTicketListFilters, type TicketListSearchParams } from "@/lib/ticket-filters";
@@ -26,14 +26,11 @@ export default async function StoreDashboardPage({
   }
 
   const params = await searchParams;
-  const filters = { ...parseTicketListFilters(params as TicketListSearchParams), storeId };
-  const [dashboard, page] = await Promise.all([
-    getStoreDashboard(storeId),
-    getTicketListPageData(user, filters, {
-      cursor: getTicketListCursor(params as TicketListSearchParams),
-      includeFilterOptions: true
-    })
-  ]);
+  const filters = parseTicketListFilters(params as TicketListSearchParams);
+  const { dashboard, page } = await getStorePageData(user, storeId, filters, {
+    cursor: getTicketListCursor(params as TicketListSearchParams),
+    includeFilterOptions: true
+  });
   const store = page.stores.find((s) => s.id === storeId);
 
   if (!store) {

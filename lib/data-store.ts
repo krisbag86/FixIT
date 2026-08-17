@@ -2374,6 +2374,13 @@ export type TicketListPageData = TicketListPage & {
   criticalTickets: number;
 };
 
+export type TicketListPageOptions = {
+  cursor?: string;
+  limit?: number;
+  includeFilterOptions?: boolean;
+  includeQueueSummary?: boolean;
+};
+
 function buildVisibleTicketQuery(user: User, filters: TicketListFilters, cursor?: string): { where: Prisma.TicketWhereInput } {
   const visibilityWhere: Prisma.TicketWhereInput =
     user.role === "AGENT" || user.role === "ADMIN"
@@ -2512,7 +2519,7 @@ export async function listVisibleTicketsPage(
 export async function getTicketListPageData(
   user: User,
   filters: TicketListFilters = {},
-  options?: { cursor?: string; limit?: number; includeFilterOptions?: boolean; includeQueueSummary?: boolean }
+  options?: TicketListPageOptions
 ): Promise<TicketListPageData> {
   const includeFilterOptions = options?.includeFilterOptions ?? false;
   const includeQueueSummary = options?.includeQueueSummary ?? false;
@@ -3700,38 +3707,76 @@ export async function getDashboardData(): Promise<DashboardData> {
 
   if (shouldUsePrisma()) {
     const db = await getPrisma();
-    const [allTickets, categories, users, events] = await Promise.all([
-      db.ticket.findMany(),
-      db.category.findMany(),
-      db.user.findMany({ where: { isActive: true } }),
-      db.ticketEvent.findMany({ orderBy: { createdAt: "desc" }, take: 20 })
+    const now = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const openTicketWhere: Prisma.TicketWhereInput = {
+      status: { notIn: [...resolvedOrClosedStatuses] }
+    };
+    const slaBreachedWhere: Prisma.TicketWhereInput = {
+      ...openTicketWhere,
+      OR: [
+        { priority: "CRITICAL", createdAt: { lt: new Date(now.getTime() - 4 * 60 * 60 * 1000) } },
+        { priority: "HIGH", createdAt: { lt: new Date(now.getTime() - 8 * 60 * 60 * 1000) } },
+        { priority: "NORMAL", createdAt: { lt: new Date(now.getTime() - 24 * 60 * 60 * 1000) } },
+        { priority: "LOW", createdAt: { lt: new Date(now.getTime() - 48 * 60 * 60 * 1000) } }
+      ]
+    };
+
+    const [
+      openTickets,
+      criticalTickets,
+      resolvedTickets,
+      slaBreachedCount,
+      recentTicketStats,
+      categoryCounts,
+      workloadCounts,
+      unassignedCount,
+      events
+    ] = await Promise.all([
+      db.ticket.count({ where: openTicketWhere }),
+      db.ticket.count({ where: { ...openTicketWhere, priority: "CRITICAL" } }),
+      db.ticket.findMany({
+        where: { resolvedAt: { not: null } },
+        select: { createdAt: true, resolvedAt: true }
+      }),
+      db.ticket.count({ where: slaBreachedWhere }),
+      db.ticket.findMany({
+        where: {
+          OR: [{ createdAt: { gte: thirtyDaysAgo } }, { resolvedAt: { gte: thirtyDaysAgo } }]
+        },
+        select: { createdAt: true, resolvedAt: true }
+      }),
+      db.ticket.groupBy({
+        by: ["categoryId"],
+        where: { ...openTicketWhere, categoryId: { not: null } },
+        _count: { _all: true }
+      }),
+      db.ticket.groupBy({
+        by: ["assigneeId"],
+        where: { ...openTicketWhere, assigneeId: { not: null } },
+        _count: { _all: true }
+      }),
+      db.ticket.count({ where: { ...openTicketWhere, assigneeId: null } }),
+      db.ticketEvent.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        include: {
+          actor: { select: { name: true, email: true } },
+          ticket: { select: { number: true } }
+        }
+      })
     ]);
 
-    // KPI
-    const openTickets = allTickets.filter((t) => !resolvedOrClosedStatuses.has(t.status)).length;
-    const criticalTickets = allTickets.filter((t) => t.priority === "CRITICAL" && !resolvedOrClosedStatuses.has(t.status)).length;
-
-    const resolvedTickets = allTickets.filter((t) => t.resolvedAt);
     const avgResolutionHours =
       resolvedTickets.length > 0
-        ? resolvedTickets.reduce((sum, t) => {
-            return sum + (t.resolvedAt!.getTime() - t.createdAt.getTime()) / (1000 * 60 * 60);
+        ? resolvedTickets.reduce((sum, ticket) => {
+            return sum + (ticket.resolvedAt!.getTime() - ticket.createdAt.getTime()) / (1000 * 60 * 60);
           }, 0) / resolvedTickets.length
         : null;
 
-    const now = new Date();
-    let slaBreachedCount = 0;
-    for (const t of allTickets) {
-      if (resolvedOrClosedStatuses.has(t.status)) continue;
-      const slaHours = slaRules[t.priority];
-      if (!slaHours) continue;
-      const deadline = new Date(t.createdAt.getTime() + slaHours * 60 * 60 * 1000);
-      if (now > deadline) slaBreachedCount++;
-    }
-
     // Daily ticket counts (last 30 days)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const dailyCounts: Record<string, { created: number; resolved: number }> = {};
     for (let i = 0; i < 30; i++) {
       const d = new Date(thirtyDaysAgo);
@@ -3739,11 +3784,11 @@ export async function getDashboardData(): Promise<DashboardData> {
       const key = d.toISOString().slice(0, 10);
       dailyCounts[key] = { created: 0, resolved: 0 };
     }
-    for (const t of allTickets) {
-      const createdKey = t.createdAt.toISOString().slice(0, 10);
+    for (const ticket of recentTicketStats) {
+      const createdKey = ticket.createdAt.toISOString().slice(0, 10);
       if (dailyCounts[createdKey]) dailyCounts[createdKey].created++;
-      if (t.resolvedAt) {
-        const resolvedKey = t.resolvedAt.toISOString().slice(0, 10);
+      if (ticket.resolvedAt) {
+        const resolvedKey = ticket.resolvedAt.toISOString().slice(0, 10);
         if (dailyCounts[resolvedKey]) dailyCounts[resolvedKey].resolved++;
       }
     }
@@ -3752,40 +3797,35 @@ export async function getDashboardData(): Promise<DashboardData> {
       .map(([date, counts]) => ({ date, ...counts }));
 
     // Top categories (open tickets)
-    const categoryCounts = new Map<string, number>();
-    for (const t of allTickets) {
-      if (!resolvedOrClosedStatuses.has(t.status) && t.categoryId) {
-        categoryCounts.set(t.categoryId, (categoryCounts.get(t.categoryId) ?? 0) + 1);
-      }
-    }
-    const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
-    const topCategories = [...categoryCounts.entries()]
-      .sort((a, b) => b[1] - a[1])
+    const topCategoryCounts = categoryCounts
+      .sort((a, b) => b._count._all - a._count._all)
       .slice(0, 8)
-      .map(([categoryId, count]) => ({
-        categoryId,
-        categoryName: categoryMap.get(categoryId) ?? "Nieznana",
-        count
-      }));
+    const categoryIds = topCategoryCounts.map((item) => item.categoryId).filter(Boolean) as string[];
+    const categories = categoryIds.length > 0
+      ? await db.category.findMany({ where: { id: { in: categoryIds } }, select: { id: true, name: true } })
+      : [];
+    const categoryMap = new Map(categories.map((category) => [category.id, category.name]));
+    const topCategories = topCategoryCounts.map((item) => ({
+      categoryId: item.categoryId!,
+      categoryName: categoryMap.get(item.categoryId!) ?? "Nieznana",
+      count: item._count._all
+    }));
 
     // Agent workload (open tickets per agent)
-    const workloadMap = new Map<string, number>();
-    for (const t of allTickets) {
-      if (!resolvedOrClosedStatuses.has(t.status) && t.assigneeId) {
-        workloadMap.set(t.assigneeId, (workloadMap.get(t.assigneeId) ?? 0) + 1);
-      }
-    }
-    // Add unassigned
-    const unassignedCount = allTickets.filter(
-      (t) => !resolvedOrClosedStatuses.has(t.status) && !t.assigneeId
-    ).length;
-    const userMap = new Map(users.map((u) => [u.id, u]));
-    const agentWorkload = [...workloadMap.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .map(([agentId, openCount]) => ({
-        agentId,
-        agentName: userMap.get(agentId)?.name ?? "Nieznany",
-        openCount
+    const agentIds = workloadCounts.map((item) => item.assigneeId).filter(Boolean) as string[];
+    const users = agentIds.length > 0
+      ? await db.user.findMany({
+          where: { id: { in: agentIds }, isActive: true },
+          select: { id: true, name: true, email: true }
+        })
+      : [];
+    const userMap = new Map(users.map((user) => [user.id, user]));
+    const agentWorkload = workloadCounts
+      .sort((a, b) => b._count._all - a._count._all)
+      .map((item) => ({
+        agentId: item.assigneeId!,
+        agentName: userMap.get(item.assigneeId!)?.name ?? "Nieznany",
+        openCount: item._count._all
       }));
     if (unassignedCount > 0) {
       agentWorkload.unshift({ agentId: "_unassigned", agentName: "Nieprzypisane", openCount: unassignedCount });
@@ -3794,8 +3834,8 @@ export async function getDashboardData(): Promise<DashboardData> {
     // Recent events
     const recentEvents = events.map((e) => ({
       ...mapEvent(e),
-      actorName: userMap.get(e.actorId ?? "")?.name ?? undefined,
-      ticketNumber: allTickets.find((t) => t.id === e.ticketId)?.number
+      actorName: e.actor?.name ?? e.actor?.email ?? undefined,
+      ticketNumber: e.ticket.number
     }));
 
     return {
@@ -3994,37 +4034,37 @@ function escapeCSV(value: string): string {
   return sanitized;
 }
 
-export async function getStoreDashboard(storeId: string): Promise<{
+export type StoreDashboardData = {
   openTickets: number;
   criticalTickets: number;
   blockingTickets: number;
   resolvedToday: number;
   recentEvents: (TicketEvent & { ticketNumber?: string; actorName?: string })[];
-}> {
+};
+
+export async function getStoreDashboard(storeId: string): Promise<StoreDashboardData> {
   const today = new Date().toISOString().slice(0, 10);
 
   if (shouldUsePrisma()) {
     const db = await getPrisma();
-    const storeTickets = await db.ticket.findMany({ where: { storeId } });
-    const storeTicketIds = storeTickets.map((t) => t.id);
-
-    const openTickets = storeTickets.filter((t) => isTicketOpen(t.status)).length;
-    const criticalTickets = storeTickets.filter((t) => t.priority === "CRITICAL").length;
-    const blockingTickets = storeTickets.filter((t) => t.blocksWork).length;
-    const resolvedToday = storeTickets.filter(
-      (t) => t.resolvedAt && t.resolvedAt.toISOString().slice(0, 10) === today
-    ).length;
-
-    const recentEventsRaw = await db.ticketEvent.findMany({
-      where: { ticketId: { in: storeTicketIds } },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-      include: { actor: { select: { name: true, email: true } } }
-    });
-    const ticketMap = new Map(storeTickets.map((t) => [t.id, t.number]));
+    const [openTickets, criticalTickets, blockingTickets, resolvedToday, recentEventsRaw] = await Promise.all([
+      db.ticket.count({ where: { storeId, status: { notIn: [...resolvedOrClosedStatuses] } } }),
+      db.ticket.count({ where: { storeId, priority: "CRITICAL" } }),
+      db.ticket.count({ where: { storeId, blocksWork: true } }),
+      db.ticket.count({ where: { storeId, resolvedAt: { gte: new Date(`${today}T00:00:00.000Z`), lt: new Date(`${today}T23:59:59.999Z`) } } }),
+      db.ticketEvent.findMany({
+        where: { ticket: { storeId } },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        include: {
+          actor: { select: { name: true, email: true } },
+          ticket: { select: { number: true } }
+        }
+      })
+    ]);
     const recentEvents = recentEventsRaw.map((e) => ({
       ...mapEvent(e),
-      ticketNumber: ticketMap.get(e.ticketId) ?? undefined,
+      ticketNumber: e.ticket.number,
       actorName: e.actor?.name ?? e.actor?.email ?? undefined
     }));
 
@@ -4053,6 +4093,20 @@ export async function getStoreDashboard(storeId: string): Promise<{
     }));
 
   return { openTickets, criticalTickets, blockingTickets, resolvedToday, recentEvents };
+}
+
+export async function getStorePageData(
+  user: User,
+  storeId: string,
+  filters: TicketListFilters = {},
+  options?: TicketListPageOptions
+): Promise<{ dashboard: StoreDashboardData; page: TicketListPageData }> {
+  const [dashboard, page] = await Promise.all([
+    getStoreDashboard(storeId),
+    getTicketListPageData(user, { ...filters, storeId }, options)
+  ]);
+
+  return { dashboard, page };
 }
 
 async function getPrismaClient() {
