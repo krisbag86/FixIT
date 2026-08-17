@@ -12,7 +12,10 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
       bodySizeLimit: "2mb"
-    }
+    },
+    // Cap build workers so `next build` stays within memory limits
+    // of constrained environments (CI, containers, sandboxes).
+    cpus: 2
   }
 };
 
