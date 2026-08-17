@@ -1,4 +1,5 @@
 import type { Ticket, User } from "@/lib/types";
+import { isRequesterPortalUser } from "@/lib/requester-portal";
 
 export type PermissionAction =
   | "ticket:create"
@@ -53,6 +54,10 @@ export function can(user: User, action: PermissionAction): boolean {
 export function canViewTicket(user: User, ticket: Ticket): boolean {
   if (can(user, "ticket:view-all")) {
     return true;
+  }
+
+  if (isRequesterPortalUser(user)) {
+    return ticket.reporterId === user.id;
   }
 
   if (ticket.reporterId === user.id) {

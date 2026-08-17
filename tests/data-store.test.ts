@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { unlink } from "node:fs/promises";
 import path from "node:path";
+import type { User } from "@/lib/types";
 
 // Mock server-only and next/cache for vitest environment
 vi.mock("server-only", () => ({}));
@@ -125,6 +126,37 @@ describe("listVisibleTickets filters", () => {
 
     expect(results).toHaveLength(1);
     expect(results[0]?.title).toBe("Drukarka fiskalna nie działa");
+  });
+
+  it("limits store manager lists to tickets they reported", async () => {
+    const { readDatabase, writeDatabase, listVisibleTickets } = await import("@/lib/data-store");
+    const database = await readDatabase();
+    const manager: User = { id: "manager", name: "Manager", email: "manager@bagietka.pl", role: "STORE_MANAGER", storeId: "store1", isActive: true };
+    const otherReporter: User = { ...manager, id: "other", email: "other@bagietka.pl", role: "REPORTER" };
+    const baseTicket = {
+      id: "ticket-template",
+      number: "IT-2026-0001",
+      title: "Test ticket",
+      description: "Description long enough for a data-store fixture.",
+      status: "NEW" as const,
+      priority: "NORMAL" as const,
+      blocksWork: false,
+      contact: "manager@bagietka.pl",
+      categoryId: "cat_other",
+      storeId: "store1",
+      reporterId: manager.id,
+      createdAt: "2026-08-17T10:00:00.000Z",
+      updatedAt: "2026-08-17T10:00:00.000Z"
+    };
+    database.users.push(manager, otherReporter);
+    database.tickets.push(
+      { ...baseTicket, id: "own", reporterId: manager.id },
+      { ...baseTicket, id: "coworker", reporterId: otherReporter.id }
+    );
+    await writeDatabase(database);
+
+    const visible = await listVisibleTickets(manager);
+    expect(visible.map((item) => item.id)).toEqual(["own"]);
   });
 });
 

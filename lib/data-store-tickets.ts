@@ -3,6 +3,7 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import { generateTicketNumber } from "@/lib/ticket-number";
 import { archivedStatuses, closedStatuses, matchesTicketFilters, type TicketListFilters } from "@/lib/ticket-filters";
+import { isRequesterPortalUser } from "@/lib/requester-portal";
 import {
   DayLogEntryLinkError,
   getPrisma,
@@ -60,10 +61,11 @@ export type TicketListPageOptions = {
 };
 
 function buildVisibleTicketQuery(user: User, filters: TicketListFilters, cursor?: string): { where: Prisma.TicketWhereInput } {
-  const visibilityWhere: Prisma.TicketWhereInput =
-    user.role === "AGENT" || user.role === "ADMIN"
+  const visibilityWhere: Prisma.TicketWhereInput = isRequesterPortalUser(user)
+    ? { reporterId: user.id }
+    : user.role === "AGENT" || user.role === "ADMIN"
       ? {}
-      : { OR: [{ reporterId: user.id }, ...(user.role === "STORE_MANAGER" && user.storeId ? [{ storeId: user.storeId }] : [])] };
+      : { reporterId: user.id };
   const query = filters.query?.trim();
   const currentTime = new Date();
   const filterWhere: Prisma.TicketWhereInput[] = [visibilityWhere];
@@ -115,7 +117,9 @@ function filterVisibleTickets(tickets: Ticket[], user: User, filters: TicketList
   return tickets
     .filter((ticket) => {
       if (user.role === "AGENT" || user.role === "ADMIN") return matchesTicketFilters(ticket, filters, user.id);
-      const visible = ticket.reporterId === user.id || (user.role === "STORE_MANAGER" && Boolean(user.storeId) && user.storeId === ticket.storeId);
+      const visible = isRequesterPortalUser(user)
+        ? ticket.reporterId === user.id
+        : ticket.reporterId === user.id || (user.role === "STORE_MANAGER" && Boolean(user.storeId) && user.storeId === ticket.storeId);
       return visible && matchesTicketFilters(ticket, filters, user.id);
     })
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || b.id.localeCompare(a.id));

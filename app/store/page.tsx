@@ -15,8 +15,11 @@ export default async function StoreDashboardPage({
 }) {
   const user = await requireUser();
 
-  // Tylko STORE_MANAGER lub wyższe role
-  if (user.role !== "STORE_MANAGER" && user.role !== "ADMIN" && user.role !== "AGENT") {
+  if (user.role === "STORE_MANAGER") {
+    redirect("/tickets");
+  }
+
+  if (user.role !== "ADMIN" && user.role !== "AGENT") {
     redirect("/tickets");
   }
 

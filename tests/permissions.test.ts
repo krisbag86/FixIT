@@ -55,8 +55,17 @@ describe("permissions", () => {
 
     expect(canViewTicket(baseUser, ticket)).toBe(true);
     expect(canViewTicket(reporter, ticket)).toBe(false);
-    expect(canViewTicket(manager, ticket)).toBe(true);
+    expect(canViewTicket(manager, ticket)).toBe(false);
     expect(canViewTicket(otherManager, ticket)).toBe(false);
+  });
+
+  it("limits requester roles to tickets they reported", () => {
+    const manager: User = { ...baseUser, id: "manager", role: "STORE_MANAGER", storeId: "store1" };
+    const own = { ...ticket, reporterId: manager.id, storeId: "store1" };
+    const coworker = { ...ticket, reporterId: "other", storeId: "store1" };
+
+    expect(canViewTicket(manager, own)).toBe(true);
+    expect(canViewTicket(manager, coworker)).toBe(false);
   });
 
   it("recomputes permissions and visibility correctly after a role change", () => {
@@ -71,6 +80,6 @@ describe("permissions", () => {
     expect(canViewTicket(demotedReporter, ticket)).toBe(false);
 
     expect(can(managerInStore, "ticket:view-store")).toBe(true);
-    expect(canViewTicket(managerInStore, ticket)).toBe(true);
+    expect(canViewTicket(managerInStore, ticket)).toBe(false);
   });
 });
