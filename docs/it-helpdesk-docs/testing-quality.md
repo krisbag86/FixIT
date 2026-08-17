@@ -45,6 +45,27 @@ Scenariusze:
 - ukrycie notatek wewnetrznych przed reporterem,
 - wysylka notification log.
 
+### Testy integracyjne PostgreSQL (runtime Prisma)
+
+`tests/prisma-integration.test.ts` weryfikuje parzystość runtime Prisma `lib/data-store.ts` z JSON-store na prawdziwej bazie PostgreSQL:
+
+- numeracja ticketów i cykl życia statusów (`resolvedAt`/`closedAt`),
+- ukrycie hashów haseł i dziennik audytu admina,
+- widoczność notatek wewnętrznych,
+- powiązanie wpisu DayLog ze zgłoszeniem (idempotencja),
+- grafik tygodniowy (dyżury tylko w weekendy).
+
+Bez `DATABASE_URL` plik jest pomijany. Uruchomienie lokalnie (Docker):
+
+```bash
+docker compose up -d postgres
+DATABASE_URL="postgresql://fixit:fixit@localhost:5433/fixit" npm run db:migrate:deploy
+DATABASE_URL="postgresql://fixit:fixit@localhost:5433/fixit" npm run db:seed
+DATABASE_URL="postgresql://fixit:fixit@localhost:5433/fixit" npm run test
+```
+
+CI uruchamia te same testy na usłudze Postgres 16 (migracje + seed przed testami).
+
 ## 5. Testy e2e
 
 ### Tworzenie ticketu
