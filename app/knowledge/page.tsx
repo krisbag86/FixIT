@@ -16,6 +16,7 @@ export default async function KnowledgePage({
     categoryId: params.category || undefined,
     query: params.q || undefined
   });
+  const categoriesById = new Map(categories.map((category) => [category.id, category]));
 
   return (
     <AppShell user={user}>
@@ -69,7 +70,7 @@ export default async function KnowledgePage({
             <ArticleCard
               key={article.id}
               article={article}
-              category={categories.find((c) => c.id === article.categoryId)}
+              category={categoriesById.get(article.categoryId ?? "")}
             />
           ))}
         </div>

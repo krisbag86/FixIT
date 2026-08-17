@@ -31,7 +31,10 @@ export default async function StoreDashboardPage({
     cursor: getTicketListCursor(params as TicketListSearchParams),
     includeFilterOptions: true
   });
-  const store = page.stores.find((s) => s.id === storeId);
+  const usersById = new Map(page.users.map((item) => [item.id, item]));
+  const categoriesById = new Map(page.categories.map((item) => [item.id, item]));
+  const storesById = new Map(page.stores.map((item) => [item.id, item]));
+  const store = storesById.get(storeId);
 
   if (!store) {
     redirect("/tickets");
@@ -117,9 +120,9 @@ export default async function StoreDashboardPage({
                   key={ticket.id}
                   ticket={ticket}
                   href={`/tickets/${ticket.id}`}
-                  reporter={page.users.find((item) => item.id === ticket.reporterId)}
-                  assignee={page.users.find((item) => item.id === ticket.assigneeId)}
-                  category={page.categories.find((item) => item.id === ticket.categoryId)}
+                  reporter={usersById.get(ticket.reporterId)}
+                  assignee={usersById.get(ticket.assigneeId ?? "")}
+                  category={categoriesById.get(ticket.categoryId)}
                   store={store}
                 />
               ))}

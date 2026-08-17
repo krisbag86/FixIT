@@ -34,10 +34,13 @@ export function TicketDetail({
   templates?: ResponseTemplate[];
   macros?: ResponseMacro[];
 }) {
-  const reporter = users.find((user) => user.id === ticket.reporterId);
-  const assignee = users.find((user) => user.id === ticket.assigneeId);
-  const category = categories.find((item) => item.id === ticket.categoryId);
-  const store = stores.find((item) => item.id === ticket.storeId);
+  const usersById = new Map(users.map((user) => [user.id, user]));
+  const categoriesById = new Map(categories.map((item) => [item.id, item]));
+  const storesById = new Map(stores.map((item) => [item.id, item]));
+  const reporter = usersById.get(ticket.reporterId);
+  const assignee = usersById.get(ticket.assigneeId ?? "");
+  const category = categoriesById.get(ticket.categoryId);
+  const store = storesById.get(ticket.storeId ?? "");
   const canEdit = can(currentUser, "ticket:update");
   const canAddInternal = can(currentUser, "comment:internal");
   const canConfirmResolution = !adminMode && ticket.status === "RESOLVED" && can(currentUser, "ticket:confirm-resolution");
@@ -70,7 +73,7 @@ export function TicketDetail({
           </div>
           <div className="space-y-3">
             {comments.map((comment) => {
-              const author = users.find((user) => user.id === comment.authorId);
+              const author = usersById.get(comment.authorId);
               return (
                 <article key={comment.id} data-testid="comment-item" className="rounded-md border border-black/10 bg-paper/70 p-4 dark:border-white/10 dark:bg-white/5">
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -169,7 +172,7 @@ export function TicketDetail({
           <h2 className="mb-4 text-lg font-black">{adminMode ? "Dziennik zmian" : "Historia"}</h2>
           <div className="space-y-3">
             {events.map((event) => {
-              const actor = users.find((user) => user.id === event.actorId);
+              const actor = usersById.get(event.actorId ?? "");
               return (
                 <div key={event.id} className="border-l-2 border-mint/50 pl-3">
                   <div className="text-sm font-bold">{event.type}</div>

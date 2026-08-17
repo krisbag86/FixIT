@@ -21,6 +21,9 @@ export default async function TicketArchivePage({
   const page = await getTicketListPageData(user, filters, { cursor: getTicketListCursor(params) });
   const admin = canUseAdmin(user);
   const ticketPath = admin ? "/admin/tickets" : "/tickets";
+  const usersById = new Map(page.users.map((item) => [item.id, item]));
+  const categoriesById = new Map(page.categories.map((item) => [item.id, item]));
+  const storesById = new Map(page.stores.map((item) => [item.id, item]));
 
   return (
     <AppShell user={user}>
@@ -72,10 +75,10 @@ export default async function TicketArchivePage({
               key={ticket.id}
               ticket={ticket}
               href={`${ticketPath}/${ticket.id}`}
-              reporter={page.users.find((item) => item.id === ticket.reporterId)}
-              assignee={page.users.find((item) => item.id === ticket.assigneeId)}
-              category={page.categories.find((item) => item.id === ticket.categoryId)}
-              store={page.stores.find((item) => item.id === ticket.storeId)}
+              reporter={usersById.get(ticket.reporterId)}
+              assignee={usersById.get(ticket.assigneeId ?? "")}
+              category={categoriesById.get(ticket.categoryId)}
+              store={storesById.get(ticket.storeId ?? "")}
             />
           ))}
         </div>

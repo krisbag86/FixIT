@@ -33,6 +33,8 @@ export default async function AdminUsersPage({
     listStoresAdmin({ includeInactive: true }),
     listAdminAuditLogs(12)
   ]);
+  const storesById = new Map(stores.map((store) => [store.id, store]));
+  const usersById = new Map(users.map((item) => [item.id, item]));
 
   return (
     <AppShell user={user}>
@@ -73,7 +75,7 @@ export default async function AdminUsersPage({
           ) : null}
 
           {users.map((item) => {
-            const store = stores.find((entry) => entry.id === item.storeId);
+            const store = storesById.get(item.storeId ?? "");
 
             return (
               <article key={item.id} className="rounded-md border border-black/10 bg-white/80 p-4 dark:border-white/10 dark:bg-white/5">
@@ -185,7 +187,7 @@ export default async function AdminUsersPage({
           <p className="mt-1 text-sm text-ink/65 dark:text-paper/65">Ostatnie zmiany ról, aktywności, zaproszeń i zdarzeń bezpieczeństwa.</p>
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {auditLogs.map((log) => {
-              const actor = users.find((entry) => entry.id === log.actorId);
+              const actor = usersById.get(log.actorId ?? "");
               return (
                 <div key={log.id} className="rounded-md border border-black/10 bg-white/80 p-3 dark:border-white/10 dark:bg-white/5">
                   <div className="text-xs font-bold uppercase text-ink/45 dark:text-paper/45">{log.action}</div>

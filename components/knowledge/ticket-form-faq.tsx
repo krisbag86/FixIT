@@ -9,6 +9,8 @@ export function TicketFormFaq({
   articles: KnowledgeArticle[];
   categories: Category[];
 }) {
+  const categoriesById = new Map(categories.map((category) => [category.id, category]));
+
   return (
     <div className="lg:col-span-2" id="faq-suggestions">
       <label className="mb-2 block text-sm font-bold">Może znajdziesz odpowiedź w bazie wiedzy?</label>
@@ -19,7 +21,7 @@ export function TicketFormFaq({
         <div className="mt-2 space-y-1">
           {articles.length > 0 ? (
             articles.map((article) => {
-              const category = categories.find((c) => c.id === article.categoryId);
+              const category = categoriesById.get(article.categoryId ?? "");
               return (
                 <Link
                   key={article.id}

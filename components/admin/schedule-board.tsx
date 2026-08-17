@@ -51,6 +51,17 @@ export function ScheduleBoard({
     );
   }
 
+  const tasksByCell = new Map<string, ScheduleTask[]>();
+  for (const task of data.tasks) {
+    const key = scheduleCellKey(task.date, task.assigneeId);
+    const tasks = tasksByCell.get(key) ?? [];
+    tasks.push(task);
+    tasksByCell.set(key, tasks);
+  }
+  const dutiesByCell = new Map(data.duties.map((duty) => [scheduleCellKey(duty.date, duty.assigneeId), duty]));
+  const tasksForCell = (date: string, memberId: string) => tasksByCell.get(scheduleCellKey(date, memberId)) ?? [];
+  const dutyForCell = (date: string, memberId: string) => dutiesByCell.get(scheduleCellKey(date, memberId));
+
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -110,8 +121,8 @@ export function ScheduleBoard({
               <ScheduleCell
                 date={selectedDay}
                 member={member}
-                tasks={data.tasks.filter((task) => task.date === selectedDay && task.assigneeId === member.id)}
-                duty={data.duties.find((duty) => duty.date === selectedDay && duty.assigneeId === member.id)}
+                tasks={tasksForCell(selectedDay, member.id)}
+                duty={dutyForCell(selectedDay, member.id)}
                 currentUserId={currentUserId}
                 canManage={canManage}
                 canCompleteOwn={canCompleteOwn}
@@ -151,8 +162,8 @@ export function ScheduleBoard({
                     <ScheduleCell
                       date={day}
                       member={member}
-                      tasks={data.tasks.filter((task) => task.date === day && task.assigneeId === member.id)}
-                      duty={data.duties.find((duty) => duty.date === day && duty.assigneeId === member.id)}
+                      tasks={tasksForCell(day, member.id)}
+                      duty={dutyForCell(day, member.id)}
                       currentUserId={currentUserId}
                       canManage={canManage}
                       canCompleteOwn={canCompleteOwn}
@@ -166,6 +177,10 @@ export function ScheduleBoard({
       </div>
     </>
   );
+}
+
+function scheduleCellKey(date: string, memberId: string): string {
+  return `${date}:${memberId}`;
 }
 
 function DutyCoverage({ days, duties }: { days: string[]; duties: ScheduleDuty[] }) {

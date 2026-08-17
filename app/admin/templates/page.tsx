@@ -29,6 +29,7 @@ export default async function AdminTemplatesPage() {
     listTemplates(),
     listMacros()
   ]);
+  const templatesById = new Map(templates.map((template) => [template.id, template]));
 
   return (
     <AppShell user={user}>
@@ -207,8 +208,8 @@ export default async function AdminTemplatesPage() {
               </tr>
             </thead>
             <tbody>
-              {macros.map((macro) => {
-                const template = templates.find((t) => t.id === macro.templateId);
+            {macros.map((macro) => {
+              const template = templatesById.get(macro.templateId ?? "");
                 return (
                   <tr
                     key={macro.id}

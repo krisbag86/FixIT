@@ -56,17 +56,26 @@ export function KanbanBoard({
     return () => clearTimeout(timer);
   }, [error]);
 
+  const ticketsById = new Map(localTickets.map((ticket) => [ticket.id, ticket]));
+  const ticketsByStatus = new Map<TicketStatus, Ticket[]>();
+  for (const ticket of localTickets) {
+    const tickets = ticketsByStatus.get(ticket.status) ?? [];
+    tickets.push(ticket);
+    ticketsByStatus.set(ticket.status, tickets);
+  }
+  const usersById = new Map(users.map((user) => [user.id, user]));
+
   const columns = KANBAN_COLUMNS.map(({ status, label }) => ({
     status,
     label,
-    tickets: localTickets.filter((t) => t.status === status).sort(sortByPriority)
+    tickets: [...(ticketsByStatus.get(status) ?? [])].sort(sortByPriority)
   }));
 
   async function handleDrop(ticketId: string, newStatus: TicketStatus) {
     setError(null);
 
     // Find the ticket
-    const ticket = localTickets.find((t) => t.id === ticketId);
+    const ticket = ticketsById.get(ticketId);
     if (!ticket || ticket.status === newStatus) return;
 
     const oldStatus = ticket.status;
@@ -210,7 +219,7 @@ export function KanbanBoard({
                 <KanbanCard
                   key={ticket.id}
                   ticket={ticket}
-                  assignee={users.find((u) => u.id === ticket.assigneeId)}
+                  assignee={usersById.get(ticket.assigneeId ?? "")}
                   isMoving={movingIds.has(ticket.id)}
                 />
               ))}

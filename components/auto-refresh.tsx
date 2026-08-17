@@ -3,27 +3,26 @@
 import { useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
-const REFRESH_INTERVAL_MS = 60_000;
-const REFRESH_AFTER_RETURN_MS = 30_000;
-const autoRefreshPaths = new Set([
-  "/tickets",
-  "/tickets/archive",
-  "/store",
-  "/admin/dashboard",
-  "/admin/tickets",
-  "/admin/kanban",
-  "/admin/daylog",
-  "/admin/reports",
-  "/admin/schedule"
-]);
+const autoRefreshConfig: Record<string, { intervalMs: number; refreshAfterReturnMs: number }> = {
+  "/tickets": { intervalMs: 60_000, refreshAfterReturnMs: 30_000 },
+  "/store": { intervalMs: 60_000, refreshAfterReturnMs: 30_000 },
+  "/admin/tickets": { intervalMs: 30_000, refreshAfterReturnMs: 15_000 },
+  "/admin/kanban": { intervalMs: 30_000, refreshAfterReturnMs: 15_000 },
+  "/tickets/archive": { intervalMs: 5 * 60_000, refreshAfterReturnMs: 2 * 60_000 },
+  "/admin/dashboard": { intervalMs: 2 * 60_000, refreshAfterReturnMs: 60_000 },
+  "/admin/daylog": { intervalMs: 2 * 60_000, refreshAfterReturnMs: 60_000 },
+  "/admin/reports": { intervalMs: 5 * 60_000, refreshAfterReturnMs: 2 * 60_000 },
+  "/admin/schedule": { intervalMs: 5 * 60_000, refreshAfterReturnMs: 2 * 60_000 }
+};
 
 export function AutoRefresh() {
   const pathname = usePathname();
   const router = useRouter();
   const lastRefreshAt = useRef(Date.now());
+  const config = autoRefreshConfig[pathname];
 
   useEffect(() => {
-    if (!autoRefreshPaths.has(pathname)) {
+    if (!config) {
       return;
     }
 
@@ -42,12 +41,12 @@ export function AutoRefresh() {
     };
 
     const refreshAfterReturn = () => {
-      if (Date.now() - lastRefreshAt.current >= REFRESH_AFTER_RETURN_MS) {
+      if (Date.now() - lastRefreshAt.current >= config.refreshAfterReturnMs) {
         refresh();
       }
     };
 
-    const interval = window.setInterval(refresh, REFRESH_INTERVAL_MS);
+    const interval = window.setInterval(refresh, config.intervalMs);
     document.addEventListener("visibilitychange", refreshAfterReturn);
     window.addEventListener("focus", refreshAfterReturn);
 
@@ -56,7 +55,7 @@ export function AutoRefresh() {
       document.removeEventListener("visibilitychange", refreshAfterReturn);
       window.removeEventListener("focus", refreshAfterReturn);
     };
-  }, [pathname, router]);
+  }, [config, pathname, router]);
 
   return null;
 }

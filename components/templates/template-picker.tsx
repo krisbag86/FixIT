@@ -23,6 +23,7 @@ export function TemplatePicker({
 }) {
   const activeTemplates = templates.filter((t) => t.isActive);
   const activeMacros = macros.filter((m) => m.isActive);
+  const templatesById = new Map(activeTemplates.map((template) => [template.id, template]));
 
   if (activeTemplates.length === 0 && activeMacros.length === 0) {
     return null;
@@ -35,7 +36,7 @@ export function TemplatePicker({
           <span className="text-xs font-bold uppercase text-ink/50 dark:text-paper/50">Makra:</span>
           <div className="mt-1 flex flex-wrap gap-2">
             {activeMacros.map((macro) => {
-              const template = activeTemplates.find((t) => t.id === macro.templateId);
+              const template = templatesById.get(macro.templateId ?? "");
               const body = template
                 ? resolveTemplateVariables(template.body, {
                     ticket: { title: ticket.title, number: ticket.number, description: ticket.description },
@@ -65,7 +66,7 @@ export function TemplatePicker({
           <select
             className="h-8 min-w-40 rounded-md border border-black/10 bg-white px-2 text-xs outline-none dark:border-white/10 dark:bg-white/10"
             onChange={(e) => {
-              const template = activeTemplates.find((t) => t.id === e.target.value);
+              const template = templatesById.get(e.target.value);
               if (template) {
                 const body = resolveTemplateVariables(template.body, {
                   ticket: { title: ticket.title, number: ticket.number, description: ticket.description },
