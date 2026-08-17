@@ -27,7 +27,15 @@ vi.mock("@/lib/data-store", () => ({
       adminAuditLogs: [],
       sessions: mockSessions
     }),
-  writeDatabase: () => Promise.resolve()
+  writeDatabase: (database: { sessions: typeof mockSessions }) => {
+    mockSessions.splice(0, mockSessions.length, ...database.sessions);
+    return Promise.resolve();
+  },
+  withDatabase: async (mutator: (database: { sessions: typeof mockSessions }) => void) => {
+    const database = { sessions: mockSessions };
+    mutator(database);
+    mockSessions.splice(0, mockSessions.length, ...database.sessions);
+  }
 }));
 
 describe("session store (JSON mode)", () => {
@@ -99,5 +107,15 @@ describe("session store (JSON mode)", () => {
 
     expect(session1).not.toBe(session2);
     expect(mockSessions).toHaveLength(2);
+  });
+
+  it("deletes every session for a user", async () => {
+    const { createSession, deleteUserSessions } = await import("@/lib/session-store");
+    await createSession("usr_admin");
+    await createSession("usr_admin");
+
+    await deleteUserSessions("usr_admin");
+
+    expect(mockSessions).toHaveLength(0);
   });
 });

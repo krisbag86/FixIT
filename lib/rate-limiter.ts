@@ -21,9 +21,11 @@ interface RateLimitResult {
 }
 
 function shouldUsePrisma(): boolean {
-  if (process.env.FIXIT_DATA_PROVIDER === "json") return false;
-  if (process.env.FIXIT_DATA_PROVIDER === "prisma") return true;
-  return process.env.NODE_ENV === "production" && Boolean(process.env.DATABASE_URL);
+  if (process.env.NODE_ENV === "production") {
+    return Boolean(process.env.DATABASE_URL);
+  }
+
+  return process.env.FIXIT_DATA_PROVIDER === "prisma";
 }
 
 /**
@@ -53,6 +55,10 @@ export async function checkRateLimit(
   maxAttempts: number = RATE_LIMITS.LOGIN.maxAttempts
 ): Promise<RateLimitResult> {
   const now = Date.now();
+
+  if (process.env.NODE_ENV === "production" && !shouldUsePrisma()) {
+    throw new Error("Współdzielony magazyn limitów żądań nie jest skonfigurowany.");
+  }
 
   if (shouldUsePrisma()) {
     return checkRateLimitDatabase(key, windowMs, maxAttempts, now);

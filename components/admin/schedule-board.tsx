@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Check, Circle, ClipboardCopy, Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import {
   copyPreviousScheduleWeekAction,
@@ -42,9 +43,9 @@ export function ScheduleBoard({
           Administrator musi zaznaczyć opcję „Grafik” przy aktywnych kontach agentów lub administratorów.
         </p>
         {canManage ? (
-          <a href="/admin/users" className="mt-4 inline-flex h-10 items-center rounded-md bg-mint px-4 text-sm font-bold text-white">
+          <Link href="/admin/users" className="mt-4 inline-flex h-10 items-center rounded-md bg-mint px-4 text-sm font-bold text-white">
             Przejdź do użytkowników
-          </a>
+          </Link>
         ) : null}
       </div>
     );

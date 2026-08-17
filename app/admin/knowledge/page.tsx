@@ -15,7 +15,7 @@ export default async function AdminKnowledgePage() {
     redirect("/tickets");
   }
 
-  const { articles, categories } = await getKnowledgePageData({ includeUnpublished: true });
+  const { articles, categories } = await getKnowledgePageData({ includeUnpublished: user.role === "ADMIN" });
 
   const canManageFaq = user.role === "ADMIN";
 

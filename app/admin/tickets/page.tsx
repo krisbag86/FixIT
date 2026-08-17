@@ -54,12 +54,13 @@ export default async function AdminTicketsPage({
         <Filter size={18} className="text-ink/50 dark:text-paper/50" />
         <input
           name="q"
+          type="search"
           defaultValue={filters.query ?? ""}
           placeholder="Szukaj numeru, tytułu lub opisu"
           className={`${filterClass} min-w-64`}
           aria-label="Szukaj ticketów"
         />
-        <select name="status" defaultValue={filters.status ?? ""} className={filterClass}>
+        <select name="status" aria-label="Filtruj po statusie" defaultValue={filters.status ?? ""} className={filterClass}>
           <option value="">Status</option>
           {activeTicketStatuses.map((status) => (
             <option key={status} value={status}>
@@ -67,7 +68,7 @@ export default async function AdminTicketsPage({
             </option>
           ))}
         </select>
-        <select name="priority" defaultValue={filters.priority ?? ""} className={filterClass}>
+        <select name="priority" aria-label="Filtruj po priorytecie" defaultValue={filters.priority ?? ""} className={filterClass}>
           <option value="">Priorytet</option>
           {ticketPriorities.map((priority) => (
             <option key={priority} value={priority}>
@@ -75,7 +76,7 @@ export default async function AdminTicketsPage({
             </option>
           ))}
         </select>
-        <select name="assignee" defaultValue={filters.assigneeId ?? ""} className={filterClass}>
+        <select name="assignee" aria-label="Filtruj po wykonawcy" defaultValue={filters.assigneeId ?? ""} className={filterClass}>
           <option value="">Wykonawca</option>
           {page.users
             .filter((item) => item.isActive && (item.role === "AGENT" || item.role === "ADMIN"))
@@ -85,7 +86,7 @@ export default async function AdminTicketsPage({
               </option>
             ))}
         </select>
-        <select name="store" defaultValue={filters.storeId ?? ""} className={filterClass}>
+        <select name="store" aria-label="Filtruj po sklepie" defaultValue={filters.storeId ?? ""} className={filterClass}>
           <option value="">Sklep</option>
           {page.stores
             .filter((item) => item.isActive)
@@ -95,7 +96,7 @@ export default async function AdminTicketsPage({
               </option>
             ))}
         </select>
-        <select name="category" defaultValue={filters.categoryId ?? ""} className={filterClass}>
+        <select name="category" aria-label="Filtruj po kategorii" defaultValue={filters.categoryId ?? ""} className={filterClass}>
           <option value="">Kategoria</option>
           {page.categories
             .filter((item) => item.isActive)
@@ -150,12 +151,12 @@ export default async function AdminTicketsPage({
       )}
       {page.hasMore ? (
         <div className="mt-6 flex justify-end">
-          <a
+          <Link
             href={buildTicketListHref("/admin/tickets", params, page.nextCursor)}
             className="inline-flex h-10 items-center justify-center rounded-md border border-black/10 px-4 text-sm font-bold text-ink/70 hover:border-mint hover:text-ink dark:border-white/10 dark:text-paper/70 dark:hover:text-paper"
           >
             Następna strona
-          </a>
+          </Link>
         </div>
       ) : null}
     </AppShell>

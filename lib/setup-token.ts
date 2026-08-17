@@ -37,19 +37,23 @@ export async function createSetupToken(email: string): Promise<string> {
 
   if (shouldUsePrisma()) {
     const db = await getPrisma();
-    await db.setupToken.create({
-      data: {
-        tokenHash,
-        email,
-        expiresAt,
-        createdAt: now
-      }
+    await db.$transaction(async (tx) => {
+      await tx.setupToken.deleteMany({ where: { email, usedAt: null } });
+      await tx.setupToken.create({
+        data: {
+          tokenHash,
+          email,
+          expiresAt,
+          createdAt: now
+        }
+      });
     });
     return token;
   }
 
   const { withDatabase } = await import("@/lib/data-store");
   await withDatabase((database) => {
+    database.setupTokens = database.setupTokens.filter((item) => item.email !== email || item.usedAt);
     database.setupTokens.push({
       id: `setup_${randomUUID().slice(0, 8)}`,
       tokenHash,
@@ -97,15 +101,20 @@ export async function consumeSetupToken(token: string): Promise<string | null> {
   if (shouldUsePrisma()) {
     const db = await getPrisma();
     return db.$transaction(async (tx) => {
-      const row = await tx.setupToken.findUnique({ where: { tokenHash } });
-      if (!row || row.usedAt || isExpired(row.expiresAt)) return null;
-
-      await tx.setupToken.update({
-        where: { tokenHash },
+      const consumed = await tx.setupToken.updateMany({
+        where: {
+          tokenHash,
+          usedAt: null,
+          expiresAt: { gt: now }
+        },
         data: { usedAt: now }
       });
 
-      return row.email;
+      if (consumed.count !== 1) return null;
+
+      const row = await tx.setupToken.findUnique({ where: { tokenHash } });
+
+      return row?.email ?? null;
     });
   }
 

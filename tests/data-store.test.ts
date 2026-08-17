@@ -298,6 +298,22 @@ describe("user creation", () => {
     expect(found?.id).toBe(user.id);
   });
 
+  it("does not expose password hashes from display-oriented user lookups", async () => {
+    const { createUser, findUserByEmail } = await import("@/lib/data-store");
+
+    await createUser({
+      name: "Jan Kowalski",
+      email: "jan.kowalski@bagietka.pl",
+      role: "REPORTER",
+      isActive: true,
+      passwordHash: "salt:hash",
+      mustChangePassword: false
+    });
+
+    expect((await findUserByEmail("jan.kowalski@bagietka.pl"))?.passwordHash).toBeUndefined();
+    expect((await findUserByEmail("jan.kowalski@bagietka.pl", { includePasswordHash: true }))?.passwordHash).toBe("salt:hash");
+  });
+
   it("does not return inactive users from standard email lookup", async () => {
     const { createUser, findUserByEmail } = await import("@/lib/data-store");
 

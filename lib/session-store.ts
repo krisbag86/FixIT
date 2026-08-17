@@ -54,7 +54,10 @@ export async function createSession(userId: string): Promise<string> {
  * Look up a session by its opaque ID. Returns the user if the session
  * is valid and not expired. Automatically cleans up expired sessions.
  */
-export async function getSessionUser(sessionId: string): Promise<User | undefined> {
+export async function getSessionUser(
+  sessionId: string,
+  options?: { includePasswordHash?: boolean }
+): Promise<User | undefined> {
   if (shouldUsePrisma()) {
     const db = await getPrisma();
     const session = await db.session.findUnique({ where: { id: sessionId } });
@@ -66,7 +69,7 @@ export async function getSessionUser(sessionId: string): Promise<User | undefine
       return undefined;
     }
 
-    return findUserById(session.userId);
+    return findUserById(session.userId, options);
   }
 
   // JSON store mode
@@ -84,7 +87,7 @@ export async function getSessionUser(sessionId: string): Promise<User | undefine
     return undefined;
   }
 
-  return findUserById(session.userId);
+  return findUserById(session.userId, options);
 }
 
 /**
@@ -107,4 +110,18 @@ export async function deleteSession(sessionId: string): Promise<void> {
     database.sessions.splice(idx, 1);
     await writeDatabase(database);
   }
+}
+
+/** Delete every active session belonging to a user. */
+export async function deleteUserSessions(userId: string): Promise<void> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    await db.session.deleteMany({ where: { userId } });
+    return;
+  }
+
+  const { withDatabase } = await import("@/lib/data-store");
+  await withDatabase((database) => {
+    database.sessions = database.sessions.filter((session) => session.userId !== userId);
+  });
 }

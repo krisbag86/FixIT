@@ -76,10 +76,10 @@ Dokument zawiera historyczne podsumowanie prac od Etapu 7. Bieżący stan projek
     - blokada usuniecia sklepu/kategorii, jesli sa powiazane z danymi runtime.
   - Walidacja: `npm run db:generate` OK, `npm run lint` OK, `npm run typecheck` OK, `npm run test` OK, 32 passed / 1 skipped.
 - Auth / onboarding uzytkownikow zostaly rozszerzone:
-  - publiczna rejestracja `/register` dla adresow w domenie `bagietka.pl`,
-  - self-registration tworzy konto `REPORTER` i od razu loguje do aplikacji,
-  - `/admin/users` pozwala utworzyc konto recznie i opcjonalnie wyslac jednorazowy link aktywacyjny e-mailem,
-  - konta tworzone przez admina maja wymuszona zmiane hasla przy pierwszym logowaniu.
+  - publiczna rejestracja `/register` pozostaje wylaczona, bo domena e-mail nie potwierdza wlasnosci skrzynki,
+  - `/admin/users` pozwala utworzyc konto recznie i wyslac jednorazowy link aktywacyjny e-mailem,
+  - konta tworzone przez admina maja wymuszona zmiane hasla przy pierwszym logowaniu,
+  - zmiana hasla, roli lub statusu aktywnosci uniewaznia aktywne sesje.
 - Aktualizacja 2026-06-22:
   - runtime Node zostal przypiety do `20.20.2` w `Dockerfile`, `docker-compose.yml`, `.nvmrc`, `.node-version` i `package.json#engines`,
   - Railway pozostaje na `DOCKERFILE` builderze z `railway.json`; nie trzeba ustawiac `RAILPACK_NODE_VERSION`,
@@ -103,7 +103,7 @@ Dokument zawiera historyczne podsumowanie prac od Etapu 7. Bieżący stan projek
 - Ustalic polityke seedowania produkcji, zeby seed testowy nie tworzyl danych na produkcji.
 - Po merge do `main` sprawdzic Railway build log pod katem obrazu `node:20.20.2-bookworm-slim`.
 - SMTP nie jest wymagane na Railway, jesli dziala `BREVO_API_KEY`. Awaryjny link aktywacyjny w `/admin/users` zostaje fallbackiem przy problemach z providerem email.
-- Smoke test po kolejnych zmianach: logowanie + rejestracja + utworzenie ticketu + przypisanie/status + komentarz na staging/production.
+- Smoke test po kolejnych zmianach: logowanie przez konto utworzone przez admina + utworzenie ticketu + przypisanie/status + komentarz na staging/production.
 
 ## Priorytet 5 - Zalaczniki [ZROBIONE]
 

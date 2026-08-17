@@ -6,7 +6,7 @@ import type { User } from "@/lib/types";
 
 export const sessionCookieName = "fixit_session";
 
-export async function getCurrentUser(): Promise<User | undefined> {
+export async function getCurrentUser(options?: { includePasswordHash?: boolean }): Promise<User | undefined> {
   const cookieStore = await cookies();
   const sessionId = cookieStore.get(sessionCookieName)?.value;
 
@@ -15,7 +15,7 @@ export async function getCurrentUser(): Promise<User | undefined> {
   }
 
   const { getSessionUser } = await import("@/lib/session-store");
-  return getSessionUser(sessionId);
+  return getSessionUser(sessionId, options);
 }
 
 export async function requireUser(): Promise<User> {

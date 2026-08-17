@@ -124,9 +124,8 @@ Nie ma potrzeby recznego uruchamiania migracji na Railway, chyba ze diagnozujesz
 
 ## 5a. Auth i konta uzytkownikow
 
-- Publiczna rejestracja jest dostepna pod `/register`.
-- Rejestracja akceptuje tylko adresy z dokladnej domeny `bagietka.pl`.
-- Samodzielna rejestracja tworzy aktywne konto `REPORTER`.
+- Publiczna rejestracja pod `/register` jest wylaczona, poniewaz sama domena e-mail nie potwierdza wlasnosci adresu.
+- Konta tworzy administrator z `/admin/users`, nadaje role i wysyla jednorazowe linki aktywacyjne.
 - Admin moze tworzyc konta recznie z `/admin/users`, nadawac role i wysylac jednorazowe linki aktywacyjne.
 - Admin wysyla jednorazowy link aktywacyjny e-mailem. Haslo tymczasowe nie jest wysylane w tresci wiadomosci.
 - Na Railway wysylka produkcyjna jest skonfigurowana przez Brevo API (`BREVO_API_KEY`) i zweryfikowany `EMAIL_FROM`.
@@ -157,7 +156,7 @@ Rozwiazania:
 - [ ] Railway Bucket S3 skonfigurowany (jesli potrzebujesz persistent zalacznikow)
 - [ ] Domena `bagietka.pl` wymuszona po stronie serwera (dziala domyslnie)
 - [ ] Healthcheck dziala: `GET /api/health` → `{"status":"ok","database":"connected"}`
-- [ ] Publiczna rejestracja `/register` dziala dla `@bagietka.pl`
+- [ ] Rejestracja `/register` pozostaje wylaczona; konta sa tworzone przez `/admin/users`
 - [ ] Tworzenie usera z `/admin/users` wysyla mail poprawnie przez Brevo API
 
 ## 8. Backupy i bezpieczenstwo

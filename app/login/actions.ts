@@ -1,6 +1,6 @@
 "use server";
 
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { findUserByEmail } from "@/lib/data-store";
 import { verifyPassword } from "@/lib/password";
@@ -21,12 +21,9 @@ export async function loginAction(_previousState: string | undefined, formData: 
     return "Podaj hasło.";
   }
 
-  // Rate limit: 5 attempts per 15 minutes per email
-  const headersList = await headers();
-  const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim()
-    || headersList.get("x-real-ip")
-    || "unknown";
-  const rateLimitKey = `login:${email}:${ip}`;
+  // Rate limit by account identity. Do not trust client-supplied proxy headers
+  // as part of the key because they can be changed on every request.
+  const rateLimitKey = `login:${email}`;
   const rateCheck = await checkRateLimit(rateLimitKey, RATE_LIMITS.LOGIN.windowMs, RATE_LIMITS.LOGIN.maxAttempts);
 
   if (!rateCheck.allowed) {
@@ -34,7 +31,7 @@ export async function loginAction(_previousState: string | undefined, formData: 
     return `Zbyt wiele prób logowania. Spróbuj ponownie za ${minutes} min.`;
   }
 
-  const user = await findUserByEmail(email);
+  const user = await findUserByEmail(email, { includePasswordHash: true });
 
   if (!user) {
     // Use the same generic message for both missing user and wrong password
@@ -52,8 +49,8 @@ export async function loginAction(_previousState: string | undefined, formData: 
 
   const sessionId = await createSession(user.id);
 
-  // Determine if the connection is secure — check x-forwarded-proto for proxy environments
-  const isSecure = process.env.NODE_ENV === "production" || headersList.get("x-forwarded-proto") === "https";
+  // Production deployments terminate HTTPS before reaching the app.
+  const isSecure = process.env.NODE_ENV === "production";
 
   const cookieStore = await cookies();
   cookieStore.set(sessionCookieName, sessionId, {

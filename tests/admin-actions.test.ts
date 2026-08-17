@@ -60,6 +60,7 @@ function installActionMocks(sendResult: { ok: boolean; error?: string }, existin
   };
   const sendEmailWithResult = vi.fn(async () => sendResult);
   const createSetupToken = vi.fn(async () => "setup-token");
+  const deleteUserSessions = vi.fn(async () => undefined);
 
   vi.doMock("@/lib/auth", () => ({
     requireUser: vi.fn(async () => adminUser)
@@ -71,12 +72,15 @@ function installActionMocks(sendResult: { ok: boolean; error?: string }, existin
   vi.doMock("@/lib/setup-token", () => ({
     createSetupToken
   }));
+  vi.doMock("@/lib/session-store", () => ({
+    deleteUserSessions
+  }));
   vi.doMock("@/lib/password", () => ({
     generateTemporaryPassword: () => "TempPass123!",
     hashPassword: (password: string) => `hash:${password}`
   }));
 
-  return { dataStoreMock, sendEmailWithResult, createSetupToken };
+  return { dataStoreMock, sendEmailWithResult, createSetupToken, deleteUserSessions };
 }
 
 describe("admin user invitation actions", () => {
@@ -90,6 +94,7 @@ describe("admin user invitation actions", () => {
     vi.doUnmock("@/lib/data-store");
     vi.doUnmock("@/lib/email");
     vi.doUnmock("@/lib/setup-token");
+    vi.doUnmock("@/lib/session-store");
     vi.doUnmock("@/lib/password");
     delete process.env.APP_URL;
   });

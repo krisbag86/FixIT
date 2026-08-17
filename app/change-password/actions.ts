@@ -1,10 +1,11 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { hashPassword, verifyPassword } from "@/lib/password";
-import { headers } from "next/headers";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, sessionCookieName } from "@/lib/auth";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter";
+import { createSession, deleteUserSessions } from "@/lib/session-store";
 
 async function getPrisma() {
   return (await import("@/lib/prisma")).prisma;
@@ -17,18 +18,15 @@ function shouldUsePrisma(): boolean {
 }
 
 export async function changePasswordAction(_previousState: string | undefined, formData: FormData): Promise<string | undefined> {
-  const user = await getCurrentUser();
+  const user = await getCurrentUser({ includePasswordHash: true });
 
   if (!user) {
     return "Musisz być zalogowany, aby zmienić hasło.";
   }
 
-  // Rate limit: 5 attempts per 15 minutes per user
-  const headersList = await headers();
-  const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim()
-    || headersList.get("x-real-ip")
-    || "unknown";
-  const rateLimitKey = `change-password:${user.id}:${ip}`;
+  // Rate limit by authenticated account. Do not trust client-supplied proxy
+  // headers as part of the key because they can be changed on every request.
+  const rateLimitKey = `change-password:${user.id}`;
   const rateCheck = await checkRateLimit(rateLimitKey, RATE_LIMITS.LOGIN.windowMs, RATE_LIMITS.LOGIN.maxAttempts);
 
   if (!rateCheck.allowed) {
@@ -93,6 +91,19 @@ export async function changePasswordAction(_previousState: string | undefined, f
       await writeDatabase(database);
     }
   }
+
+  // Rotate the authenticated session after a credential change. This revokes
+  // every previously issued session while preserving the user's flow.
+  await deleteUserSessions(user.id);
+  const sessionId = await createSession(user.id);
+  const cookieStore = await cookies();
+  cookieStore.set(sessionCookieName, sessionId, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 14
+  });
 
   redirect("/tickets");
 }

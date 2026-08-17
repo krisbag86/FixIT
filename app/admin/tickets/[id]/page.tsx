@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { AdminNav } from "@/components/admin/admin-nav";
 import { AppShell } from "@/components/app-shell";
 import { TicketDetail } from "@/components/ticket-detail";
 import { requireUser } from "@/lib/auth";
@@ -34,6 +35,7 @@ export default async function AdminTicketDetailsPage({ params }: { params: Promi
 
   return (
     <AppShell user={user}>
+      <AdminNav user={user} currentPath="/admin/tickets" />
       <TicketDetail
         currentUser={user}
         ticket={ticket}

@@ -98,7 +98,12 @@ function definedString(value: string | null | undefined): string | undefined {
   return value ?? undefined;
 }
 
-function mapUser(user: Prisma.UserGetPayload<object> & { passwordHash?: string | null; mustChangePassword?: boolean }): User {
+function mapUser(
+  user: Prisma.UserGetPayload<object> & { passwordHash?: string | null; mustChangePassword?: boolean },
+  options?: { includePasswordHash?: boolean }
+): User {
+  const passwordHash = definedString((user as { passwordHash?: string | null }).passwordHash);
+
   return {
     id: user.id,
     name: user.name ?? user.email,
@@ -109,9 +114,14 @@ function mapUser(user: Prisma.UserGetPayload<object> & { passwordHash?: string |
     isActive: user.isActive,
     isScheduleMember: user.isScheduleMember,
     scheduleOrder: user.scheduleOrder ?? undefined,
-    passwordHash: definedString((user as { passwordHash?: string | null }).passwordHash),
-    mustChangePassword: (user as { mustChangePassword?: boolean }).mustChangePassword
+    mustChangePassword: (user as { mustChangePassword?: boolean }).mustChangePassword,
+    ...(options?.includePasswordHash && passwordHash ? { passwordHash } : {})
   };
+}
+
+function mapStoredUser(user: User, options?: { includePasswordHash?: boolean }): User {
+  const { passwordHash, ...safeUser } = user;
+  return options?.includePasswordHash && passwordHash ? { ...safeUser, passwordHash } : safeUser;
 }
 
 function mapStore(store: Prisma.StoreGetPayload<object>): Store {
@@ -388,7 +398,7 @@ export async function readDatabase(): Promise<Database> {
       meta: {
         ticketSequences: Object.fromEntries(counters.map((counter) => [String(counter.year), counter.sequence]))
       },
-      users: users.map(mapUser),
+      users: users.map((user) => mapUser(user)),
       stores: stores.map(mapStore),
       categories: categories.map(mapCategory),
       tickets: tickets.map(mapTicket),
@@ -636,7 +646,7 @@ export async function getWeeklySchedule(weekStart: string): Promise<WeeklySchedu
 
     return {
       weekStart: range.weekStart,
-      members: sortScheduleMembers([...activeMembers, ...historicalMembers].map(mapUser)),
+      members: sortScheduleMembers([...activeMembers, ...historicalMembers].map((user) => mapUser(user))),
       tasks: tasks.map(mapScheduleTask),
       duties: duties.map(mapScheduleDuty)
     };
@@ -650,7 +660,9 @@ export async function getWeeklySchedule(weekStart: string): Promise<WeeklySchedu
     .filter((duty) => duty.date >= range.weekStart && duty.date < addScheduleDays(range.weekStart, 7))
     .sort((left, right) => left.date.localeCompare(right.date) || left.createdAt.localeCompare(right.createdAt));
   const referencedIds = new Set([...tasks.map((task) => task.assigneeId), ...duties.map((duty) => duty.assigneeId)]);
-  const members = database.users.filter((user) => isEligibleScheduleMember(user) || referencedIds.has(user.id));
+  const members = database.users
+    .filter((user) => isEligibleScheduleMember(user) || referencedIds.has(user.id))
+    .map((user) => mapStoredUser(user));
 
   return {
     weekStart: range.weekStart,
@@ -1082,7 +1094,7 @@ export async function listUsersAdmin(options?: { includeInactive?: boolean; quer
       },
       orderBy: [{ isActive: "desc" }, { role: "asc" }, { name: "asc" }, { email: "asc" }]
     });
-    return users.map(mapUser);
+    return users.map((user) => mapUser(user));
   }
 
   const database = await readDatabase();
@@ -1103,7 +1115,8 @@ export async function listUsersAdmin(options?: { includeInactive?: boolean; quer
       }
 
       return `${a.role}-${a.name}-${a.email}`.localeCompare(`${b.role}-${b.name}-${b.email}`);
-    });
+    })
+    .map((user) => mapStoredUser(user));
 }
 
 export async function listStoresAdmin(options?: { includeInactive?: boolean }): Promise<Store[]> {
@@ -1287,11 +1300,14 @@ export async function getTicketBoardData(user: User): Promise<{ tickets: Ticket[
       db.ticket.findMany({ where: { status: { notIn: [...archivedStatuses] } }, orderBy: [{ updatedAt: "desc" }, { id: "desc" }] }),
       db.user.findMany({ where: { isActive: true }, orderBy: [{ role: "asc" }, { name: "asc" }, { email: "asc" }] })
     ]);
-    return { tickets: tickets.map(mapTicket), users: users.map(mapUser) };
+    return { tickets: tickets.map(mapTicket), users: users.map((user) => mapUser(user)) };
   }
 
   const database = await readDatabase();
-  return { tickets: filterVisibleTickets(database.tickets, user, {}), users: database.users.filter((item) => item.isActive) };
+  return {
+    tickets: filterVisibleTickets(database.tickets, user, {}),
+    users: database.users.filter((item) => item.isActive).map((item) => mapStoredUser(item))
+  };
 }
 
 export async function listAdminAuditLogs(limit = 20): Promise<AdminAuditLog[]> {
@@ -1310,7 +1326,10 @@ export async function listAdminAuditLogs(limit = 20): Promise<AdminAuditLog[]> {
     .slice(0, limit);
 }
 
-export async function findUserByEmail(email: string, options?: { includeInactive?: boolean }): Promise<User | undefined> {
+export async function findUserByEmail(
+  email: string,
+  options?: { includeInactive?: boolean; includePasswordHash?: boolean }
+): Promise<User | undefined> {
   if (shouldUsePrisma()) {
     const db = await getPrisma();
     const user = await db.user.findUnique({ where: { email } });
@@ -1319,22 +1338,29 @@ export async function findUserByEmail(email: string, options?: { includeInactive
       return undefined;
     }
 
-    return mapUser(user);
+    return mapUser(user, options);
   }
 
   const database = await readDatabase();
-  return database.users.find((user) => user.email === email && (options?.includeInactive || user.isActive));
+  const user = database.users.find((item) => item.email === email && (options?.includeInactive || item.isActive));
+  return user ? mapStoredUser(user, options) : undefined;
 }
 
-export async function findUserById(userId: string): Promise<User | undefined> {
+export async function findUserById(
+  userId: string,
+  options?: { includeInactive?: boolean; includePasswordHash?: boolean }
+): Promise<User | undefined> {
   if (shouldUsePrisma()) {
     const db = await getPrisma();
-    const user = await db.user.findFirst({ where: { id: userId, isActive: true } });
-    return user ? mapUser(user) : undefined;
+    const user = await db.user.findFirst({
+      where: { id: userId, ...(options?.includeInactive ? {} : { isActive: true }) }
+    });
+    return user ? mapUser(user, options) : undefined;
   }
 
   const database = await readDatabase();
-  return database.users.find((user) => user.id === userId && user.isActive);
+  const user = database.users.find((item) => item.id === userId && (options?.includeInactive || item.isActive));
+  return user ? mapStoredUser(user, options) : undefined;
 }
 
 export async function findUsersByIds(userIds: string[], options?: { includeInactive?: boolean }): Promise<User[]> {
@@ -1349,11 +1375,13 @@ export async function findUsersByIds(userIds: string[], options?: { includeInact
         ...(options?.includeInactive ? {} : { isActive: true })
       }
     });
-    return users.map(mapUser);
+    return users.map((user) => mapUser(user));
   }
 
   const database = await readDatabase();
-  return database.users.filter((user) => ids.includes(user.id) && (options?.includeInactive || user.isActive));
+  return database.users
+    .filter((user) => ids.includes(user.id) && (options?.includeInactive || user.isActive))
+    .map((user) => mapStoredUser(user));
 }
 
 export async function getTicketDetailReferences(input: {
@@ -1380,7 +1408,7 @@ export async function getTicketDetailReferences(input: {
       input.ticket.storeId ? db.store.findMany({ where: { id: input.ticket.storeId } }) : Promise.resolve([])
     ]);
     return {
-      users: users.map(mapUser),
+      users: users.map((user) => mapUser(user)),
       categories: categories.map(mapCategory),
       stores: stores.map(mapStore)
     };
@@ -1391,7 +1419,7 @@ export async function getTicketDetailReferences(input: {
   return {
     users: database.users.filter(
       (user) => userIdSet.has(user.id) || (includeAssignees && user.isActive && (user.role === "AGENT" || user.role === "ADMIN"))
-    ),
+    ).map((user) => mapStoredUser(user)),
     categories: input.ticket.categoryId
       ? database.categories.filter((category) => category.id === input.ticket.categoryId)
       : [],
@@ -2420,7 +2448,7 @@ export async function getTicketListPageData(
       tickets,
       hasMore,
       ...(hasMore && tickets.length > 0 ? { nextCursor: encodeTicketCursor(tickets[tickets.length - 1]) } : {}),
-      users: users.map(mapUser),
+      users: users.map((user) => mapUser(user)),
       stores: stores.map(mapStore),
       categories: categories.map(mapCategory),
       openTickets,
@@ -2445,7 +2473,9 @@ export async function getTicketListPageData(
     tickets,
     hasMore,
     ...(hasMore && tickets.length > 0 ? { nextCursor: encodeTicketCursor(tickets[tickets.length - 1]) } : {}),
-    users: database.users.filter((item) => includeFilterOptions || ticketUserIds.has(item.id)),
+    users: database.users
+      .filter((item) => includeFilterOptions || ticketUserIds.has(item.id))
+      .map((item) => mapStoredUser(item)),
     stores: database.stores.filter((item) => includeFilterOptions || ticketStoreIds.has(item.id)),
     categories: database.categories.filter((item) => includeFilterOptions || ticketCategoryIds.has(item.id)),
     openTickets: includeQueueSummary ? database.tickets.filter((ticket) => !closedStatuses.has(ticket.status)).length : 0,

@@ -29,6 +29,7 @@ import { sanitizeText } from "@/lib/escape-html";
 import { generateTemporaryPassword, hashPassword } from "@/lib/password";
 import { can } from "@/lib/permissions";
 import { createSetupToken } from "@/lib/setup-token";
+import { deleteUserSessions } from "@/lib/session-store";
 import type { User } from "@/lib/types";
 
 const roleSchema = z.enum(["REPORTER", "STORE_MANAGER", "AGENT", "ADMIN"]);
@@ -188,6 +189,8 @@ export async function updateUserAdminAction(formData: FormData): Promise<void> {
     scheduleOrder: normalizeOptionalInteger(formData.get("scheduleOrder"))
   });
 
+  const target = await findUserById(input.id, { includeInactive: true });
+
   if (input.id === actor.id && (input.role !== actor.role || !input.isActive)) {
     throw new Error("Nie możesz odebrać sobie roli administratora ani dezaktywować swojego konta.");
   }
@@ -208,6 +211,10 @@ export async function updateUserAdminAction(formData: FormData): Promise<void> {
     scheduleOrder: input.scheduleOrder,
     actorId: actor.id
   });
+
+  if (target && (target.role !== input.role || target.isActive !== input.isActive)) {
+    await deleteUserSessions(input.id);
+  }
 
   revalidatePath("/admin/users");
   revalidatePath("/admin/tickets");
@@ -355,7 +362,7 @@ export async function resendUserInviteAdminAction(
       id: String(formData.get("id") ?? "")
     });
 
-    const user = await findUserById(input.id);
+    const user = await findUserById(input.id, { includePasswordHash: false });
     if (!user) {
       return {
         status: "error",

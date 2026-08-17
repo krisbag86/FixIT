@@ -56,4 +56,14 @@ describe("setup tokens", () => {
 
     expect(await verifySetupToken(token)).toBeNull();
   });
+
+  it("invalidates an older unused token when a new one is issued", async () => {
+    const { createSetupToken, verifySetupToken } = await import("@/lib/setup-token");
+
+    const olderToken = await createSetupToken("jan.kowalski@bagietka.pl");
+    const currentToken = await createSetupToken("jan.kowalski@bagietka.pl");
+
+    expect(await verifySetupToken(olderToken)).toBeNull();
+    expect(await verifySetupToken(currentToken)).toBe("jan.kowalski@bagietka.pl");
+  });
 });
