@@ -8,6 +8,8 @@ import { findDayLogEntry, getNewTicketFormData } from "@/lib/data-store";
 import { priorityLabels, ticketPriorities } from "@/lib/labels";
 import { CreateTicketSubmit } from "@/components/tickets/create-ticket-submit";
 import { can } from "@/lib/permissions";
+import { isRequesterPortalUser } from "@/lib/requester-portal";
+import { RequesterTicketForm } from "@/components/requester/requester-ticket-form";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +36,20 @@ export default async function NewTicketPage({ searchParams }: { searchParams: Pr
     sourceEntry && (sourceEntry.subject.length > 120 || sourceEntry.description.length > 2000 || sourceEntry.fromName.length > 120)
   );
   const { stores: availableStores, categories, articles } = await getNewTicketFormData();
+
+  if (isRequesterPortalUser(user)) {
+    return (
+      <AppShell user={user}>
+        <div className="mb-6">
+          <p className="text-sm font-black uppercase tracking-wider text-mint">Nowe zgłoszenie</p>
+          <h1 className="mt-2 text-3xl font-black">Zgłoś problem</h1>
+          <p className="mt-2 max-w-2xl text-ink/65 dark:text-paper/65">Opisz problem własnymi słowami. Kategoria pomoże nam szybciej skierować sprawę do właściwej osoby.</p>
+        </div>
+        <RequesterTicketForm categories={categories} articles={articles} submissionId={randomUUID()} />
+      </AppShell>
+    );
+  }
+
   const storeCollator = new Intl.Collator("pl", { numeric: true, sensitivity: "base" });
   const stores = availableStores.sort((a, b) => storeCollator.compare(a.city, b.city) || storeCollator.compare(a.code, b.code));
 

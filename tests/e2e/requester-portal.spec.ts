@@ -40,3 +40,18 @@ test("requester archive has no technical filters", async ({ page }) => {
   await expect(page.locator('input[name="q"]')).toHaveCount(0);
   await expect(page.locator('select[name="status"]')).toHaveCount(0);
 });
+
+test("requester form keeps only essential fields and FAQ", async ({ page }) => {
+  await loginAs(page, "kasjer@bagietka.pl");
+  await page.goto("/tickets/new");
+
+  await expect(page.getByTestId("requester-ticket-form")).toBeVisible();
+  await expect(page.locator('select[name="categoryId"]')).toBeVisible();
+  await expect(page.locator('input[name="title"]')).toBeVisible();
+  await expect(page.locator('textarea[name="description"]')).toBeVisible();
+  await expect(page.locator('input[name="contact"]')).toBeVisible();
+  await expect(page.locator("#faq-suggestions")).toBeVisible();
+  await expect(page.locator('select[name="priority"]')).toHaveCount(0);
+  await expect(page.locator('select[name="storeId"]')).toHaveCount(0);
+  await expect(page.locator('input[name="blocksWork"]')).toHaveCount(0);
+});

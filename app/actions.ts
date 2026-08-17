@@ -9,6 +9,7 @@ import { sanitizeText } from "@/lib/escape-html";
 import { notifyCommentAdded, notifyTicketCreated, notifyTicketUpdated } from "@/lib/notifications";
 import { can, canViewTicket } from "@/lib/permissions";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter";
+import { isRequesterPortalUser } from "@/lib/requester-portal";
 
 const ticketStatusSchema = z.enum([
   "NEW",
@@ -81,16 +82,18 @@ export async function createTicketAction(formData: FormData): Promise<void> {
 
   const categoryId = formString(formData, "categoryId");
   const category = await findCategoryById(categoryId);
+  const requesterPortal = isRequesterPortalUser(user);
+  const submittedContact = optionalFormString(formData, "contact");
 
   const input = ticketSchema.parse({
     categoryId,
     title: sanitizeText(formString(formData, "title")),
     description: sanitizeText(formString(formData, "description")),
-    contact: sanitizeText(formString(formData, "contact")),
-    storeId: optionalFormString(formData, "storeId") ?? user.storeId ?? "",
-    department: optionalFormString(formData, "department") ?? user.department ?? "",
-    blocksWork: formData.get("blocksWork") === "on",
-    priority: formString(formData, "priority") || category?.defaultPriority || "NORMAL",
+    contact: sanitizeText(submittedContact ?? (requesterPortal ? user.email : "")),
+    storeId: requesterPortal ? user.storeId ?? "" : optionalFormString(formData, "storeId") ?? user.storeId ?? "",
+    department: requesterPortal ? user.department ?? "" : optionalFormString(formData, "department") ?? user.department ?? "",
+    blocksWork: requesterPortal ? false : formData.get("blocksWork") === "on",
+    priority: requesterPortal ? category?.defaultPriority || "NORMAL" : formString(formData, "priority") || category?.defaultPriority || "NORMAL",
     submissionId: formString(formData, "submissionId"),
     dayLogEntryId
   });
@@ -197,7 +200,7 @@ export async function addCommentAction(formData: FormData): Promise<void> {
     throw new Error("Brak dostępu do zgłoszenia.");
   }
 
-  const visibility = input.visibility;
+  const visibility = isRequesterPortalUser(user) ? "PUBLIC" : input.visibility;
 
   if (visibility === "INTERNAL" && !can(user, "comment:internal")) {
     throw new Error("Brak uprawnień do notatek wewnętrznych.");

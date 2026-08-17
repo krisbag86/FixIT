@@ -61,7 +61,10 @@ export async function createTicketViaUI(page: Page, categoryText: string, title:
   await page.fill('input[name="title"]', title);
   await page.fill('textarea[name="description"]', description);
   await page.fill('input[name="contact"]', 'test@bagietka.pl');
-  await page.selectOption('select[name="priority"]', priority);
+  const prioritySelect = page.locator('select[name="priority"]');
+  if (await prioritySelect.count()) {
+    await prioritySelect.selectOption(priority);
+  }
   
   await form.getByRole('button', { name: /Utwórz zgłoszenie/i }).click();
   await page.waitForURL(
