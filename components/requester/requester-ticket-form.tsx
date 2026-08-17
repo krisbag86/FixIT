@@ -13,29 +13,31 @@ export function RequesterTicketForm({
   submissionId: string;
 }) {
   return (
-    <form action={createTicketAction} data-testid="requester-ticket-form" className="grid gap-5 rounded-2xl border border-black/10 bg-white/80 p-5 shadow-sm dark:border-white/10 dark:bg-white/10 sm:p-6">
-      <input type="hidden" name="submissionId" value={submissionId} />
-      <Field label="Kategoria">
-        <select name="categoryId" className={inputClass} required>
-          {categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
-            </option>
-          ))}
-        </select>
-      </Field>
-      <Field label="Temat">
-        <input name="title" className={inputClass} minLength={4} maxLength={120} placeholder="np. Kasa 2 nie drukuje paragonów" required />
-      </Field>
-      <Field label="Co się dzieje?">
-        <textarea name="description" className={`${inputClass} min-h-40 py-3`} minLength={10} maxLength={2000} placeholder="Opisz problem, od kiedy występuje i czego próbowałeś." required />
-      </Field>
-      <Field label="Kontakt zwrotny (opcjonalnie)">
-        <input name="contact" className={inputClass} maxLength={120} placeholder="Telefon lub dodatkowy e-mail" />
-      </Field>
-      <TicketFormFaq articles={articles} categories={categories} />
-      <CreateTicketSubmit />
-    </form>
+    <div data-testid="new-ticket-form">
+      <form action={createTicketAction} data-testid="requester-ticket-form" className="grid gap-5 rounded-2xl border border-black/10 bg-white/80 p-5 shadow-sm dark:border-white/10 dark:bg-white/10 sm:p-6">
+        <input type="hidden" name="submissionId" value={submissionId} />
+        <Field label="Kategoria">
+          <select name="categoryId" className={inputClass} required>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Temat">
+          <input name="title" className={inputClass} minLength={4} maxLength={120} placeholder="np. Kasa 2 nie drukuje paragonów" required />
+        </Field>
+        <Field label="Co się dzieje?">
+          <textarea name="description" className={`${inputClass} min-h-40 py-3`} minLength={10} maxLength={2000} placeholder="Opisz problem, od kiedy występuje i czego próbowałeś." required />
+        </Field>
+        <Field label="Kontakt zwrotny (opcjonalnie)">
+          <input name="contact" className={inputClass} maxLength={120} placeholder="Telefon lub dodatkowy e-mail" />
+        </Field>
+        <TicketFormFaq articles={articles} categories={categories} />
+        <CreateTicketSubmit />
+      </form>
+    </div>
   );
 }
 

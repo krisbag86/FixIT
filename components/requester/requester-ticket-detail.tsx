@@ -29,7 +29,7 @@ export function RequesterTicketDetail({
       </Link>
 
       <section className="rounded-2xl border border-black/10 bg-white/80 p-5 shadow-sm dark:border-white/10 dark:bg-white/10 sm:p-7">
-        <div className="text-sm font-black uppercase tracking-wider text-mint">{ticket.number}</div>
+        <div data-testid="ticket-number" className="text-sm font-black uppercase tracking-wider text-mint">{ticket.number}</div>
         <h1 className="mt-2 text-3xl font-black leading-tight">{ticket.title}</h1>
         <p className="mt-5 whitespace-pre-wrap leading-7 text-ink/80 dark:text-paper/80">{ticket.description}</p>
         <div className="mt-7 border-t border-black/10 pt-6 dark:border-white/10">

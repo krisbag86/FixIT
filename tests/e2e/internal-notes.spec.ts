@@ -44,20 +44,14 @@ test.describe('Internal Notes - Permissions', () => {
     await expect(internalOption).toBeAttached();
   });
 
-  test('should NOT allow REPORTER to see internal note option', async ({ page }) => {
-    await loginAs(page, 'sklep.waw01@bagietka.pl');
-    await page.goto('/tickets/t_002');
-    
-    // Look for visibility select or ensure it's disabled
-    const visibilitySelect = page.getByTestId('visibility-select');
-    
-    // The visibility select is rendered but might be disabled, or the internal option is missing
-    await expect(visibilitySelect).toBeVisible();
-    await expect(visibilitySelect).toBeDisabled();
-    
-    // Should NOT have INTERNAL option
-    const internalOption = visibilitySelect.locator('option[value="INTERNAL"]');
-    await expect(internalOption).toHaveCount(0);
+  test('should NOT expose internal note controls to REPORTER', async ({ page }) => {
+    await loginAs(page, 'kasjer@bagietka.pl');
+    await page.goto('/tickets/t_001');
+
+    await expect(page.getByTestId('requester-ticket-detail')).toBeVisible();
+    await expect(page.getByTestId('requester-reply-form')).toBeVisible();
+    await expect(page.getByTestId('requester-reply-form').locator('select[name="visibility"]')).toHaveCount(0);
+    await expect(page.getByTestId('visibility-select')).toHaveCount(0);
   });
 
   test('AGENT should be able to post internal note', async ({ page }) => {

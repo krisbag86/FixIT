@@ -5,8 +5,8 @@ test.beforeEach(() => {
   resetDatabase();
 });
 
-test("reporter can upload and download a text attachment on an accessible ticket", async ({ page }) => {
-  await loginAs(page, "kasjer@bagietka.pl");
+test("IT can upload and download a text attachment on an accessible ticket", async ({ page }) => {
+  await loginAs(page, "agent@bagietka.pl");
   await page.goto("/tickets/t_001");
 
   const filename = "e2e-note.txt";

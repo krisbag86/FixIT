@@ -40,13 +40,13 @@ test.describe('Create Ticket', () => {
     expect(page.url()).toContain('/tickets/new');
   });
 
-  test('should prefill department from user profile', async ({ page }) => {
+  test('should keep department and other technical fields out of requester form', async ({ page }) => {
     await loginAs(page, 'sklep.waw01@bagietka.pl');
     await page.goto('/tickets/new');
     
-    // Check that department field exists and is visible
+    // Store and department are derived from the profile on the server.
     const departmentInput = page.locator('input[name="department"]');
-    await expect(departmentInput).toBeVisible();
+    await expect(departmentInput).toHaveCount(0);
   });
 });
 
@@ -65,7 +65,7 @@ test.describe('Ticket List', () => {
     await page.goto('/tickets');
     
     // Should see at least the ticket we just created
-    const ticketCards = page.getByTestId('ticket-card');
+    const ticketCards = page.getByTestId('requester-ticket-card');
     await expect(ticketCards.first()).toBeVisible();
     await expect(page.locator('body')).toContainText('List Visibility Test');
   });
