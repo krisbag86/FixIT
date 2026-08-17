@@ -23,9 +23,10 @@ const securityHeaders: Record<string, string> = {
     // In a future upgrade, migrate to nonce-based CSP for stricter control.
     "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
     "script-src-attr 'none'",
-    "style-src 'self' 'unsafe-inline'",
+    // Google Fonts (Inter/JetBrains Mono) referenced by globals.css
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: blob:",
-    "font-src 'self'",
+    "font-src 'self' https://fonts.gstatic.com",
     "connect-src 'self'",
     "frame-ancestors 'none'",
     "base-uri 'self'",
