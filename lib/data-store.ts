@@ -3557,19 +3557,65 @@ function isTicketOpen(status: TicketStatus): boolean {
   return !resolvedOrClosedStatuses.has(status);
 }
 
+function buildSlaBreachedWhere(now: Date): Prisma.TicketWhereInput {
+  return {
+    status: { notIn: [...resolvedOrClosedStatuses] },
+    OR: [
+      { priority: "CRITICAL", createdAt: { lt: new Date(now.getTime() - 4 * 60 * 60 * 1000) } },
+      { priority: "HIGH", createdAt: { lt: new Date(now.getTime() - 8 * 60 * 60 * 1000) } },
+      { priority: "NORMAL", createdAt: { lt: new Date(now.getTime() - 24 * 60 * 60 * 1000) } },
+      { priority: "LOW", createdAt: { lt: new Date(now.getTime() - 48 * 60 * 60 * 1000) } }
+    ]
+  };
+}
+
 export async function getDashboardMetrics(): Promise<DashboardMetrics> {
   if (shouldUsePrisma()) {
     const db = await getPrisma();
-    const [allTickets, categories] = await Promise.all([
-      db.ticket.findMany(),
-      db.category.findMany()
+    const now = new Date();
+    const openTicketWhere: Prisma.TicketWhereInput = {
+      status: { notIn: [...resolvedOrClosedStatuses] }
+    };
+    const [totalTickets, openTickets, criticalTickets, resolvedTickets, categoryCounts, breachedTickets] = await Promise.all([
+      db.ticket.count(),
+      db.ticket.count({ where: openTicketWhere }),
+      db.ticket.count({ where: { priority: "CRITICAL" } }),
+      db.ticket.findMany({
+        where: { resolvedAt: { not: null } },
+        select: { createdAt: true, resolvedAt: true }
+      }),
+      db.ticket.groupBy({
+        by: ["categoryId"],
+        where: { categoryId: { not: null } },
+        _count: { _all: true }
+      }),
+      db.ticket.findMany({
+        where: buildSlaBreachedWhere(now),
+        select: {
+          id: true,
+          number: true,
+          submissionId: true,
+          title: true,
+          description: true,
+          status: true,
+          priority: true,
+          impact: true,
+          blocksWork: true,
+          contact: true,
+          categoryId: true,
+          storeId: true,
+          department: true,
+          reporterId: true,
+          assigneeId: true,
+          dueAt: true,
+          resolvedAt: true,
+          closedAt: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      })
     ]);
 
-    const totalTickets = allTickets.length;
-    const openTickets = allTickets.filter((t) => isTicketOpen(t.status)).length;
-    const criticalTickets = allTickets.filter((t) => t.priority === "CRITICAL").length;
-
-    const resolvedTickets = allTickets.filter((t) => t.resolvedAt);
     const avgResolutionHours =
       resolvedTickets.length > 0
         ? resolvedTickets.reduce((sum, t) => {
@@ -3580,37 +3626,29 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
         : null;
 
     // Top categories
-    const categoryCounts = new Map<string, number>();
-    for (const t of allTickets) {
-      if (t.categoryId) {
-        categoryCounts.set(t.categoryId, (categoryCounts.get(t.categoryId) ?? 0) + 1);
-      }
-    }
-    const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
-    const topCategories = [...categoryCounts.entries()]
-      .sort((a, b) => b[1] - a[1])
+    const topCategoryCounts = categoryCounts
+      .sort((a, b) => b._count._all - a._count._all)
       .slice(0, 5)
-      .map(([categoryId, count]) => ({
-        categoryId,
-        categoryName: categoryMap.get(categoryId) ?? "Nieznana",
-        count
-      }));
+    const categoryIds = topCategoryCounts.map((item) => item.categoryId).filter(Boolean) as string[];
+    const categories = categoryIds.length > 0
+      ? await db.category.findMany({ where: { id: { in: categoryIds } }, select: { id: true, name: true } })
+      : [];
+    const categoryMap = new Map(categories.map((category) => [category.id, category.name]));
+    const topCategories = topCategoryCounts.map((item) => ({
+      categoryId: item.categoryId!,
+      categoryName: categoryMap.get(item.categoryId!) ?? "Nieznana",
+      count: item._count._all
+    }));
 
     // SLA breaches
-    const now = new Date();
     const slaBreached: DashboardMetrics["slaBreached"] = [];
-    for (const t of allTickets) {
-      if (!isTicketOpen(t.status)) continue;
-      const slaHours = slaRules[t.priority];
-      if (!slaHours) continue;
-      const deadline = new Date(t.createdAt.getTime() + slaHours * 60 * 60 * 1000);
-      if (now > deadline) {
-        slaBreached.push({
-          ticket: mapTicket(t),
-          slaDeadline: deadline.toISOString(),
-          hoursOverdue: Math.round(hoursBetween(deadline.toISOString(), now.toISOString()) * 10) / 10
-        });
-      }
+    for (const ticket of breachedTickets) {
+      const deadline = new Date(ticket.createdAt.getTime() + slaRules[ticket.priority] * 60 * 60 * 1000);
+      slaBreached.push({
+        ticket: mapTicket(ticket),
+        slaDeadline: deadline.toISOString(),
+        hoursOverdue: Math.round(hoursBetween(deadline.toISOString(), now.toISOString()) * 10) / 10
+      });
     }
     slaBreached.sort((a, b) => b.hoursOverdue - a.hoursOverdue);
 
@@ -3714,15 +3752,6 @@ export async function getDashboardData(): Promise<DashboardData> {
     const openTicketWhere: Prisma.TicketWhereInput = {
       status: { notIn: [...resolvedOrClosedStatuses] }
     };
-    const slaBreachedWhere: Prisma.TicketWhereInput = {
-      ...openTicketWhere,
-      OR: [
-        { priority: "CRITICAL", createdAt: { lt: new Date(now.getTime() - 4 * 60 * 60 * 1000) } },
-        { priority: "HIGH", createdAt: { lt: new Date(now.getTime() - 8 * 60 * 60 * 1000) } },
-        { priority: "NORMAL", createdAt: { lt: new Date(now.getTime() - 24 * 60 * 60 * 1000) } },
-        { priority: "LOW", createdAt: { lt: new Date(now.getTime() - 48 * 60 * 60 * 1000) } }
-      ]
-    };
 
     const [
       openTickets,
@@ -3741,7 +3770,7 @@ export async function getDashboardData(): Promise<DashboardData> {
         where: { resolvedAt: { not: null } },
         select: { createdAt: true, resolvedAt: true }
       }),
-      db.ticket.count({ where: slaBreachedWhere }),
+      db.ticket.count({ where: buildSlaBreachedWhere(now) }),
       db.ticket.findMany({
         where: {
           OR: [{ createdAt: { gte: thirtyDaysAgo } }, { resolvedAt: { gte: thirtyDaysAgo } }]
