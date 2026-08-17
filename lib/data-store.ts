@@ -1,7 +1,5 @@
 import "server-only";
 
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { unstable_noStore as noStore } from "next/cache";
 import type { Prisma } from "@prisma/client";
 import {
@@ -14,10 +12,37 @@ import {
   getStoreUsageSummary,
   getUserAuditChanges
 } from "@/lib/admin-utils";
-import { createSeedDatabase } from "@/lib/seed";
 import { addScheduleDays, isScheduleWeekend, resolveScheduleWeekStart, scheduleDateValue } from "@/lib/schedule";
 import { generateTicketNumber } from "@/lib/ticket-number";
 import { archivedStatuses, closedStatuses, matchesTicketFilters, type TicketListFilters } from "@/lib/ticket-filters";
+import {
+  definedString,
+  mapAdminAuditLog,
+  mapAttachment,
+  mapCategory,
+  mapComment,
+  mapDayLogEntry,
+  mapEvent,
+  mapKnowledgeArticle,
+  mapNotificationLog,
+  mapScheduleDuty,
+  mapScheduleTask,
+  mapStore,
+  mapStoredUser,
+  mapTicket,
+  mapUser
+} from "@/lib/data-store-mappers";
+import {
+  DayLogEntryLinkError,
+  getPrisma,
+  id,
+  isUniqueConstraintError,
+  nextTimestamp,
+  now,
+  readDatabase,
+  shouldUsePrisma,
+  withDatabase
+} from "@/lib/data-store-core";
 import type {
   AdminAuditLog,
   Category,
@@ -28,12 +53,8 @@ import type {
   DayLogEntry,
   KnowledgeArticle,
   NotificationLog,
-  ResponseMacro,
-  ResponseTemplate,
   ScheduleDuty,
   ScheduleTask,
-  Session,
-  SetupToken,
   Store,
   Ticket,
   TicketAttachment,
@@ -46,389 +67,7 @@ import type {
   WeeklyScheduleData
 } from "@/lib/types";
 
-const dataDir = path.join(process.cwd(), ".data");
-const dataFile = path.join(dataDir, "fixit-db.json");
-let databaseWriteQueue: Promise<void> = Promise.resolve();
-
-function shouldUsePrisma(): boolean {
-  if (process.env.FIXIT_DATA_PROVIDER === "json") {
-    return false;
-  }
-
-  if (process.env.FIXIT_DATA_PROVIDER === "prisma") {
-    return true;
-  }
-
-  return process.env.NODE_ENV === "production" && Boolean(process.env.DATABASE_URL);
-}
-
-function isUniqueConstraintError(error: unknown): boolean {
-  return typeof error === "object" && error !== null && "code" in error && error.code === "P2002";
-}
-
-class DayLogEntryLinkError extends Error {}
-
-async function getPrisma() {
-  return (await import("@/lib/prisma")).prisma;
-}
-
-function now(): string {
-  return new Date().toISOString();
-}
-
-function nextTimestamp(previous?: string): string {
-  const current = Date.now();
-  const previousTime = previous ? Date.parse(previous) : Number.NaN;
-  return new Date(Math.max(current, Number.isFinite(previousTime) ? previousTime + 1 : current)).toISOString();
-}
-
-function id(prefix: string): string {
-  return `${prefix}_${crypto.randomUUID().slice(0, 8)}`;
-}
-
-function iso(value: Date | string | null | undefined): string | undefined {
-  if (!value) {
-    return undefined;
-  }
-
-  return value instanceof Date ? value.toISOString() : value;
-}
-
-function definedString(value: string | null | undefined): string | undefined {
-  return value ?? undefined;
-}
-
-function mapUser(
-  user: Prisma.UserGetPayload<object> & { passwordHash?: string | null; mustChangePassword?: boolean; mfaSecret?: string | null },
-  options?: { includePasswordHash?: boolean; includeMfaSecret?: boolean }
-): User {
-  const passwordHash = definedString((user as { passwordHash?: string | null }).passwordHash);
-  const mfaSecret = definedString((user as { mfaSecret?: string | null }).mfaSecret);
-
-  return {
-    id: user.id,
-    name: user.name ?? user.email,
-    email: user.email,
-    role: user.role,
-    storeId: definedString(user.storeId),
-    department: definedString(user.department),
-    isActive: user.isActive,
-    isScheduleMember: user.isScheduleMember,
-    scheduleOrder: user.scheduleOrder ?? undefined,
-    mustChangePassword: (user as { mustChangePassword?: boolean }).mustChangePassword,
-    mfaEnabled: (user as { mfaEnabled?: boolean }).mfaEnabled ?? false,
-    ...(options?.includeMfaSecret && mfaSecret ? { mfaSecret } : {}),
-    ...(options?.includePasswordHash && passwordHash ? { passwordHash } : {})
-  };
-}
-
-function mapStoredUser(user: User, options?: { includePasswordHash?: boolean; includeMfaSecret?: boolean }): User {
-  const { passwordHash, mfaSecret, ...safeUser } = user;
-  return {
-    ...safeUser,
-    ...(options?.includePasswordHash && passwordHash ? { passwordHash } : {}),
-    ...(options?.includeMfaSecret && mfaSecret ? { mfaSecret } : {})
-  };
-}
-
-function mapStore(store: Prisma.StoreGetPayload<object>): Store {
-  return {
-    id: store.id,
-    code: store.code,
-    name: store.name,
-    city: definedString(store.city) ?? "",
-    address: definedString(store.address) ?? "",
-    region: definedString(store.region) ?? "",
-    isActive: store.isActive
-  };
-}
-
-function mapCategory(category: Prisma.CategoryGetPayload<object>): Category {
-  return {
-    id: category.id,
-    name: category.name,
-    defaultPriority: category.defaultPriority,
-    isActive: category.isActive
-  };
-}
-
-function mapTicket(ticket: Prisma.TicketGetPayload<object>): Ticket {
-  return {
-    id: ticket.id,
-    number: ticket.number,
-    submissionId: definedString(ticket.submissionId),
-    title: ticket.title,
-    description: ticket.description,
-    status: ticket.status,
-    priority: ticket.priority,
-    blocksWork: ticket.blocksWork,
-    contact: ticket.contact ?? "",
-    categoryId: ticket.categoryId ?? "",
-    storeId: definedString(ticket.storeId),
-    department: definedString(ticket.department),
-    reporterId: ticket.reporterId,
-    assigneeId: definedString(ticket.assigneeId),
-    // Keep parity with the JSON store, which returns null for unset timestamps.
-    dueAt: iso(ticket.dueAt) ?? null,
-    resolvedAt: iso(ticket.resolvedAt) ?? null,
-    closedAt: iso(ticket.closedAt) ?? null,
-    createdAt: iso(ticket.createdAt) ?? "",
-    updatedAt: iso(ticket.updatedAt) ?? ""
-  };
-}
-
-function mapComment(comment: Prisma.TicketCommentGetPayload<object>): TicketComment {
-  return {
-    id: comment.id,
-    ticketId: comment.ticketId,
-    authorId: comment.authorId,
-    body: comment.body,
-    visibility: comment.visibility,
-    createdAt: iso(comment.createdAt) ?? ""
-  };
-}
-
-function mapAttachment(attachment: Prisma.TicketAttachmentGetPayload<object>): TicketAttachment {
-  return {
-    id: attachment.id,
-    ticketId: attachment.ticketId,
-    commentId: definedString(attachment.commentId),
-    filename: attachment.filename,
-    mimeType: attachment.mimeType,
-    size: attachment.size,
-    storageKey: attachment.storageKey,
-    uploadedById: definedString(attachment.uploadedById),
-    createdAt: iso(attachment.createdAt) ?? ""
-  };
-}
-
-function mapEvent(event: Prisma.TicketEventGetPayload<object>): TicketEvent {
-  const payload = typeof event.payload === "object" && event.payload !== null && !Array.isArray(event.payload) ? event.payload : undefined;
-
-  return {
-    id: event.id,
-    ticketId: event.ticketId,
-    actorId: definedString(event.actorId),
-    type: event.type,
-    payload: payload as Record<string, string> | undefined,
-    createdAt: iso(event.createdAt) ?? ""
-  };
-}
-
-function mapKnowledgeArticle(article: Prisma.KnowledgeArticleGetPayload<object>): KnowledgeArticle {
-  return {
-    id: article.id,
-    title: article.title,
-    slug: article.slug,
-    body: article.body,
-    categoryId: definedString(article.categoryId),
-    isPublished: article.isPublished,
-    createdById: definedString(article.createdById),
-    updatedById: definedString(article.updatedById)
-  };
-}
-
-function mapSession(session: Prisma.SessionGetPayload<object>): Session {
-  return {
-    id: session.id,
-    userId: session.userId,
-    createdAt: iso(session.createdAt) ?? "",
-    expiresAt: iso(session.expiresAt) ?? "",
-    mfaVerified: session.mfaVerified
-  };
-}
-
-function mapSetupToken(token: Prisma.SetupTokenGetPayload<object>): SetupToken {
-  return {
-    id: token.id,
-    tokenHash: token.tokenHash,
-    email: token.email,
-    expiresAt: iso(token.expiresAt) ?? "",
-    usedAt: iso(token.usedAt),
-    createdAt: iso(token.createdAt) ?? ""
-  };
-}
-
-function mapNotificationLog(log: Prisma.NotificationLogGetPayload<object>): NotificationLog {
-  return {
-    id: log.id,
-    ticketId: definedString(log.ticketId),
-    recipientEmail: log.recipientEmail,
-    type: log.type,
-    status: log.status,
-    error: definedString(log.error),
-    createdAt: iso(log.createdAt) ?? "",
-    sentAt: iso(log.sentAt)
-  };
-}
-
-type DayLogEntryWithRelations = Prisma.DayLogEntryGetPayload<{
-  include: {
-    createdBy: { select: { name: true; email: true } };
-    ticket: { select: { id: true; number: true } };
-  };
-}>;
-
-function mapDayLogEntry(entry: DayLogEntryWithRelations): DayLogEntry {
-  return {
-    id: entry.id,
-    occurredAt: iso(entry.occurredAt) ?? "",
-    fromName: entry.fromName,
-    subject: entry.subject,
-    description: entry.description,
-    createdById: entry.createdById,
-    createdByName: entry.createdBy.name ?? entry.createdBy.email,
-    createdByEmail: entry.createdBy.email,
-    ticketId: definedString(entry.ticketId),
-    ticketNumber: entry.ticket?.number,
-    createdAt: iso(entry.createdAt) ?? "",
-    updatedAt: iso(entry.updatedAt) ?? ""
-  };
-}
-
-function mapScheduleTask(task: Prisma.ScheduleTaskGetPayload<object>): ScheduleTask {
-  return {
-    id: task.id,
-    date: task.date.toISOString().slice(0, 10),
-    title: task.title,
-    description: definedString(task.description),
-    isCompleted: task.isCompleted,
-    assigneeId: task.assigneeId,
-    createdById: task.createdById,
-    updatedById: task.updatedById,
-    createdAt: iso(task.createdAt) ?? "",
-    updatedAt: iso(task.updatedAt) ?? ""
-  };
-}
-
-function mapScheduleDuty(duty: Prisma.ScheduleDutyGetPayload<object>): ScheduleDuty {
-  return {
-    id: duty.id,
-    date: duty.date.toISOString().slice(0, 10),
-    assigneeId: duty.assigneeId,
-    createdById: duty.createdById,
-    createdAt: iso(duty.createdAt) ?? ""
-  };
-}
-
-function mapAdminAuditLog(log: Prisma.AdminAuditLogGetPayload<object>): AdminAuditLog {
-  const payload =
-    typeof log.payload === "object" && log.payload !== null && !Array.isArray(log.payload)
-      ? Object.fromEntries(Object.entries(log.payload).map(([key, value]) => [key, String(value)]))
-      : undefined;
-
-  return {
-    id: log.id,
-    actorId: definedString(log.actorId),
-    action: log.action,
-    entityType: log.entityType as AdminAuditLog["entityType"],
-    entityId: log.entityId,
-    summary: log.summary,
-    payload,
-    createdAt: iso(log.createdAt) ?? ""
-  };
-}
-
-async function ensureDatabase(): Promise<Database> {
-  try {
-    const raw = await readFile(dataFile, "utf8");
-    const parsed = JSON.parse(raw) as Partial<Database>;
-    if (!Array.isArray(parsed.attachments)) {
-      parsed.attachments = [];
-    }
-    if (!Array.isArray(parsed.adminAuditLogs)) {
-      parsed.adminAuditLogs = [];
-    }
-    if (!Array.isArray(parsed.responseTemplates)) {
-      parsed.responseTemplates = [];
-    }
-    if (!Array.isArray(parsed.responseMacros)) {
-      parsed.responseMacros = [];
-    }
-    if (!Array.isArray(parsed.dayLogEntries)) {
-      parsed.dayLogEntries = [];
-    }
-    if (!Array.isArray(parsed.scheduleTasks)) {
-      parsed.scheduleTasks = [];
-    }
-    if (!Array.isArray(parsed.scheduleDuties)) {
-      parsed.scheduleDuties = [];
-    }
-    if (!Array.isArray(parsed.setupTokens)) {
-      parsed.setupTokens = [];
-    }
-    if (Array.isArray(parsed.stores)) {
-      parsed.stores = parsed.stores.map((store) => ({
-        ...store,
-        address: store.address ?? ""
-      }));
-    }
-    return parsed as Database;
-  } catch {
-    const seed = createSeedDatabase();
-    await writeDatabase(seed);
-    return seed;
-  }
-}
-
-export async function readDatabase(): Promise<Database> {
-  noStore();
-  if (shouldUsePrisma()) {
-    const db = await getPrisma();
-    const [users, stores, categories, tickets, comments, attachments, events, knowledgeArticles, notificationLogs, adminAuditLogs, counters, sessions, setupTokens, responseTemplates, responseMacros, dayLogEntries, scheduleTasks, scheduleDuties] =
-      await Promise.all([
-        db.user.findMany(),
-        db.store.findMany(),
-        db.category.findMany(),
-        db.ticket.findMany(),
-        db.ticketComment.findMany(),
-        db.ticketAttachment.findMany(),
-        db.ticketEvent.findMany(),
-        db.knowledgeArticle.findMany(),
-        db.notificationLog.findMany(),
-        db.adminAuditLog.findMany(),
-        db.ticketCounter.findMany(),
-        db.session.findMany(),
-        db.setupToken.findMany(),
-        db.responseTemplate.findMany(),
-        db.responseMacro.findMany(),
-        db.dayLogEntry.findMany({
-          include: {
-            createdBy: { select: { name: true, email: true } },
-            ticket: { select: { id: true, number: true } }
-          },
-          orderBy: { occurredAt: "desc" }
-        }),
-        db.scheduleTask.findMany(),
-        db.scheduleDuty.findMany()
-      ]);
-
-    return {
-      meta: {
-        ticketSequences: Object.fromEntries(counters.map((counter) => [String(counter.year), counter.sequence]))
-      },
-      users: users.map((user) => mapUser(user)),
-      stores: stores.map(mapStore),
-      categories: categories.map(mapCategory),
-      tickets: tickets.map(mapTicket),
-      comments: comments.map(mapComment),
-      attachments: attachments.map(mapAttachment),
-      events: events.map(mapEvent),
-      knowledgeArticles: knowledgeArticles.map(mapKnowledgeArticle),
-      notificationLogs: notificationLogs.map(mapNotificationLog),
-      adminAuditLogs: adminAuditLogs.map(mapAdminAuditLog),
-      sessions: sessions.map(mapSession),
-      setupTokens: setupTokens.map(mapSetupToken),
-      responseTemplates: responseTemplates.map(mapTemplate),
-      responseMacros: responseMacros.map(mapMacro),
-      dayLogEntries: dayLogEntries.map(mapDayLogEntry),
-      scheduleTasks: scheduleTasks.map(mapScheduleTask),
-      scheduleDuties: scheduleDuties.map(mapScheduleDuty)
-    };
-  }
-
-  return ensureDatabase();
-}
+export { readDatabase, withDatabase, writeDatabase } from "@/lib/data-store-core";
 
 export async function listDayLogEntries(): Promise<DayLogEntry[]> {
   if (shouldUsePrisma()) {
@@ -990,28 +629,6 @@ export async function copyPreviousScheduleWeek(input: {
     })));
     return { taskCount: tasks.length, dutyCount: duties.length };
   });
-}
-
-export async function writeDatabase(database: Database): Promise<void> {
-  await mkdir(dataDir, { recursive: true });
-  await writeFile(dataFile, `${JSON.stringify(database, null, 2)}\n`, "utf8");
-}
-
-export async function withDatabase<T>(mutator: (database: Database) => T | Promise<T>): Promise<T> {
-  let result!: T;
-  const operation = databaseWriteQueue.then(async () => {
-    const database = await ensureDatabase();
-    result = await mutator(database);
-    await writeDatabase(database);
-  });
-
-  databaseWriteQueue = operation.then(
-    () => undefined,
-    () => undefined
-  );
-
-  await operation;
-  return result;
 }
 
 function appendAdminAuditLog(
@@ -4138,260 +3755,13 @@ export async function getStorePageData(
   return { dashboard, page };
 }
 
-async function getPrismaClient() {
-  return (await import("@/lib/prisma")).prisma;
-}
-
-function mapTemplate(
-  t: Prisma.ResponseTemplateGetPayload<object>
-): ResponseTemplate {
-  return {
-    id: t.id,
-    name: t.name,
-    body: t.body,
-    category: t.category ?? undefined,
-    isActive: t.isActive,
-    createdById: t.createdById,
-    createdAt: t.createdAt.toISOString(),
-    updatedAt: t.updatedAt.toISOString()
-  };
-}
-
-function mapMacro(m: Prisma.ResponseMacroGetPayload<object>): ResponseMacro {
-  return {
-    id: m.id,
-    name: m.name,
-    templateId: m.templateId ?? undefined,
-    body: m.body ?? undefined,
-    newStatus: m.newStatus ?? undefined,
-    newPriority: m.newPriority ?? undefined,
-    isActive: m.isActive,
-    createdById: m.createdById,
-    createdAt: m.createdAt.toISOString(),
-    updatedAt: m.updatedAt.toISOString()
-  };
-}
-
-export async function listTemplates(): Promise<ResponseTemplate[]> {
-  if (shouldUsePrisma()) {
-    const db = await getPrismaClient();
-    const templates = await db.responseTemplate.findMany({
-      orderBy: { name: "asc" }
-    });
-    return templates.map(mapTemplate);
-  }
-
-  const database = await readDatabase();
-  return [...database.responseTemplates].sort((a, b) =>
-    a.name.localeCompare(b.name)
-  );
-}
-
-export async function createTemplate(input: {
-  name: string;
-  body: string;
-  category?: string;
-  createdById: string;
-}): Promise<ResponseTemplate> {
-  const now = new Date().toISOString();
-
-  if (shouldUsePrisma()) {
-    const db = await getPrismaClient();
-    const template = await db.responseTemplate.create({
-      data: {
-        name: input.name,
-        body: input.body,
-        category: input.category,
-        isActive: true,
-        createdById: input.createdById
-      }
-    });
-    return mapTemplate(template);
-  }
-
-  return withDatabase((database) => {
-    const template: ResponseTemplate = {
-      id: id("tpl"),
-      name: input.name,
-      body: input.body,
-      category: input.category ?? undefined,
-      isActive: true,
-      createdById: input.createdById,
-      createdAt: now,
-      updatedAt: now
-    };
-    database.responseTemplates.push(template);
-    return template;
-  });
-}
-
-export async function updateTemplate(input: {
-  id: string;
-  name: string;
-  body: string;
-  category?: string;
-  isActive: boolean;
-}): Promise<ResponseTemplate | undefined> {
-  if (shouldUsePrisma()) {
-    const db = await getPrismaClient();
-    const existing = await db.responseTemplate.findUnique({ where: { id: input.id } });
-    if (!existing) return undefined;
-
-    const template = await db.responseTemplate.update({
-      where: { id: input.id },
-      data: {
-        name: input.name,
-        body: input.body,
-        category: input.category,
-        isActive: input.isActive
-      }
-    });
-    return mapTemplate(template);
-  }
-
-  return withDatabase((database) => {
-    const template = database.responseTemplates.find((t) => t.id === input.id);
-    if (!template) return undefined;
-
-    template.name = input.name;
-    template.body = input.body;
-    template.category = input.category ?? undefined;
-    template.isActive = input.isActive;
-    template.updatedAt = new Date().toISOString();
-    return template;
-  });
-}
-
-export async function deleteTemplate(id: string): Promise<boolean> {
-  if (shouldUsePrisma()) {
-    const db = await getPrismaClient();
-    const template = await db.responseTemplate.findUnique({ where: { id } });
-    if (!template) return false;
-    await db.responseTemplate.delete({ where: { id } });
-    return true;
-  }
-
-  return withDatabase((database) => {
-    const idx = database.responseTemplates.findIndex((t) => t.id === id);
-    if (idx === -1) return false;
-    database.responseTemplates.splice(idx, 1);
-    return true;
-  });
-}
-
-export async function listMacros(): Promise<ResponseMacro[]> {
-  if (shouldUsePrisma()) {
-    const db = await getPrismaClient();
-    const macros = await db.responseMacro.findMany({
-      orderBy: { name: "asc" }
-    });
-    return macros.map(mapMacro);
-  }
-
-  const database = await readDatabase();
-  return [...database.responseMacros].sort((a, b) => a.name.localeCompare(b.name));
-}
-
-export async function createMacro(input: {
-  name: string;
-  templateId?: string;
-  body?: string;
-  newStatus?: TicketStatus;
-  newPriority?: TicketPriority;
-  createdById: string;
-}): Promise<ResponseMacro> {
-  const now = new Date().toISOString();
-
-  if (shouldUsePrisma()) {
-    const db = await getPrismaClient();
-    const macro = await db.responseMacro.create({
-      data: {
-        name: input.name,
-        templateId: input.templateId,
-        body: input.body,
-        newStatus: input.newStatus,
-        newPriority: input.newPriority,
-        isActive: true,
-        createdById: input.createdById
-      }
-    });
-    return mapMacro(macro);
-  }
-
-  return withDatabase((database) => {
-    const macro: ResponseMacro = {
-      id: id("macro"),
-      name: input.name,
-      templateId: input.templateId ?? undefined,
-      body: input.body ?? undefined,
-      newStatus: input.newStatus ?? undefined,
-      newPriority: input.newPriority ?? undefined,
-      isActive: true,
-      createdById: input.createdById,
-      createdAt: now,
-      updatedAt: now
-    };
-    database.responseMacros.push(macro);
-    return macro;
-  });
-}
-
-export async function updateMacro(input: {
-  id: string;
-  name: string;
-  templateId?: string;
-  body?: string;
-  newStatus?: TicketStatus;
-  newPriority?: TicketPriority;
-  isActive: boolean;
-}): Promise<ResponseMacro | undefined> {
-  if (shouldUsePrisma()) {
-    const db = await getPrismaClient();
-    const existing = await db.responseMacro.findUnique({ where: { id: input.id } });
-    if (!existing) return undefined;
-
-    const macro = await db.responseMacro.update({
-      where: { id: input.id },
-      data: {
-        name: input.name,
-        templateId: input.templateId,
-        body: input.body,
-        newStatus: input.newStatus,
-        newPriority: input.newPriority,
-        isActive: input.isActive
-      }
-    });
-    return mapMacro(macro);
-  }
-
-  return withDatabase((database) => {
-    const macro = database.responseMacros.find((m) => m.id === input.id);
-    if (!macro) return undefined;
-
-    macro.name = input.name;
-    macro.templateId = input.templateId ?? undefined;
-    macro.body = input.body ?? undefined;
-    macro.newStatus = input.newStatus ?? undefined;
-    macro.newPriority = input.newPriority ?? undefined;
-    macro.isActive = input.isActive;
-    macro.updatedAt = new Date().toISOString();
-    return macro;
-  });
-}
-
-export async function deleteMacro(id: string): Promise<boolean> {
-  if (shouldUsePrisma()) {
-    const db = await getPrismaClient();
-    const macro = await db.responseMacro.findUnique({ where: { id } });
-    if (!macro) return false;
-    await db.responseMacro.delete({ where: { id } });
-    return true;
-  }
-
-  return withDatabase((database) => {
-    const idx = database.responseMacros.findIndex((m) => m.id === id);
-    if (idx === -1) return false;
-    database.responseMacros.splice(idx, 1);
-    return true;
-  });
-}
+export {
+  createMacro,
+  createTemplate,
+  deleteMacro,
+  deleteTemplate,
+  listMacros,
+  listTemplates,
+  updateMacro,
+  updateTemplate
+} from "@/lib/data-store-templates";
