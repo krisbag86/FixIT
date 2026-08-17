@@ -60,3 +60,7 @@ export const settingsTiles = [
   { href: "/admin/categories", label: "Kategorie", description: "Kategorie zgłoszeń i domyślne priorytety.", icon: Tags, adminOnly: true },
   { href: "/admin/templates", label: "Szablony", description: "Szablony odpowiedzi i makra dla zespołu IT.", icon: FileText, adminOnly: true }
 ] as const;
+
+export function getSettingsTilesForUser(user: Pick<User, "role">) {
+  return settingsTiles.filter((tile) => !tile.adminOnly || user.role === "ADMIN");
+}
