@@ -15,6 +15,20 @@ jobs:
   validate:
     name: Typecheck, lint, tests, build
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: fixit
+          POSTGRES_USER: fixit
+          POSTGRES_PASSWORD: fixit
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fixit"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,9 +37,20 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run db:generate
+      - name: Migrate test database
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://fixit:fixit@localhost:5432/fixit
+      - name: Seed test database
+        run: npm run db:seed
+        env:
+          DATABASE_URL: postgresql://fixit:fixit@localhost:5432/fixit
       - run: npm run typecheck
       - run: npm run lint
-      - run: npm run test
+      - name: Run unit + PostgreSQL integration tests
+        run: npm run test
+        env:
+          DATABASE_URL: postgresql://fixit:fixit@localhost:5432/fixit
       - run: npm run build
 
   e2e:

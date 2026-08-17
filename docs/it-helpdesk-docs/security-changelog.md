@@ -16,6 +16,8 @@
 - Dodano opcjonalne TOTP MFA dla administratorów oraz stan sesji oczekującej na potwierdzenie drugiego składnika.
 - Zdarzenia logowania, wylogowania, zmian haseł, MFA, zaproszeń i unieważnień sesji trafiają do dziennika audytowego bez zapisywania haseł, kodów ani tokenów.
 - Dodano workflow CI z wymaganym typecheckiem, lintem, testami, buildem, E2E, audytem zależności i skanowaniem sekretów.
+- Rozszerzono CSP o Google Fonts (`fonts.googleapis.com` w `style-src`, `fonts.gstatic.com` w `font-src`) po przeniesieniu `@import` czcionek na początek `globals.css`.
+- Dodano testy integracyjne PostgreSQL dla runtime Prisma (w CI na usłudze Postgres 16) — pokrywają m.in. ukrycie hashów haseł, audyt admina, widoczność notatek wewnętrznych i idempotencję powiązania DayLog→ticket.
 
 ---
 

@@ -168,9 +168,10 @@ function mapTicket(ticket: Prisma.TicketGetPayload<object>): Ticket {
     department: definedString(ticket.department),
     reporterId: ticket.reporterId,
     assigneeId: definedString(ticket.assigneeId),
-    dueAt: iso(ticket.dueAt),
-    resolvedAt: iso(ticket.resolvedAt),
-    closedAt: iso(ticket.closedAt),
+    // Keep parity with the JSON store, which returns null for unset timestamps.
+    dueAt: iso(ticket.dueAt) ?? null,
+    resolvedAt: iso(ticket.resolvedAt) ?? null,
+    closedAt: iso(ticket.closedAt) ?? null,
     createdAt: iso(ticket.createdAt) ?? "",
     updatedAt: iso(ticket.updatedAt) ?? ""
   };

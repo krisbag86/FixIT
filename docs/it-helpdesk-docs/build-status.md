@@ -158,7 +158,7 @@ Zrobione:
 
 ## Etap 10 - Grafik tygodniowy
 
-Status: przygotowany do wdrożenia.
+Status: zrealizowane (patrz Etap 11).
 
 Zrobione:
 
@@ -171,3 +171,19 @@ Zrobione:
 - Dodano modele Prisma, migrację oraz równoważną implementację JSON-store.
 - Dodano automatyczne odświeżanie ekranów operacyjnych co minutę oraz po powrocie do widocznej karty; odświeżanie jest wstrzymywane podczas pracy z formularzem.
 - Walidacja: `npm run typecheck`, `npm run lint`, `npm run test` (176 passed, 1 skipped) oraz `prisma validate`.
+
+## Etap 11 - Wydanie v1.2: hardening, CI i testy PostgreSQL
+
+Status: zmergowane do `main` (PR #9); wdrożenie na Railway i smoke test pozostają.
+
+Zrobione:
+
+- Hardening uwierzytelniania (szczegóły w `security-changelog.md`): wyłączenie rejestracji publicznej, sesje serwerowe, rotacja tokenów aktywacyjnych, limity logowania, opcjonalne MFA TOTP, unieważnianie sesji przy zmianie hasła/roli/statusu, dziennik audytu bezpieczeństwa.
+- Pipeline CI w `.github/workflows/ci.yml`: typecheck, lint, testy jednostkowe, build produkcyjny, Playwright E2E, `npm audit` i skan sekretów (TruffleHog).
+- Porządki produkcyjne: usunięcie martwego kodu, reguły ESLint Next.js/Core Web Vitals, aktualizacja Next.js 15.5.23, Nodemailer 9, PostCSS; `npm audit` czysty (0 podatności) — Sharp naprawiony override'em, ExcelJS/UUID ocenione jako bezpieczne.
+- Poprawka Google Fonts: `@import` przeniesiony na początek `app/globals.css` (wcześniej ignorowany) + CSP w `middleware.ts` dla `fonts.googleapis.com` i `fonts.gstatic.com`.
+- Testy integracyjne PostgreSQL (`tests/prisma-integration.test.ts`) dla runtime Prisma: numeracja ticketów, cykl życia statusów, ukrycie hashów haseł, audyt admina, widoczność notatek wewnętrznych, powiązanie DayLog→ticket (idempotencja), grafik tygodniowy.
+- CI uruchamia testy na usłudze Postgres 16 (migracje + seed przed testami); bez `DATABASE_URL` testy integracyjne są pomijane.
+- Poprawiono parzystość runtime Prisma z JSON-store: `resolvedAt`/`closedAt`/`dueAt` zwracają `null` zamiast `undefined`.
+- Wersja pakietu: `1.2.0`.
+- Walidacja: `npm run typecheck` OK, `npm run lint` OK, `npm run test` — 199 passed / 0 skipped z PostgreSQL (193 passed / 1 skipped bez bazy), build produkcyjny OK.

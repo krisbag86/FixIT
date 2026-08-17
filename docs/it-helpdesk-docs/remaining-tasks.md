@@ -2,21 +2,20 @@
 
 Dokument zawiera historyczne podsumowanie prac od Etapu 7. Bieżący stan projektu i nowe zmiany opisujemy na początku pliku oraz w `build-status.md`; starsze liczby testów i sekcje `ZROBIONE` pozostają jako zapis kolejnych etapów.
 
-## Aktualny stan — 2026-08-10
+## Aktualny stan — 2026-08-17
 
-- Etapy 0–10 są zrealizowane; ostatnim etapem funkcjonalnym jest grafik tygodniowy.
-- DayLog obsługuje tworzenie, edycję, usuwanie i eksport wpisów dla `AGENT` i `ADMIN`.
-- Wpis DayLog można przekształcić w jedno trwale powiązane zgłoszenie z automatycznie uzupełnionym tematem, opisem i kontaktem.
-- Formularz DayLog pobiera aktualną godzinę przy otwarciu, a ekrany operacyjne odświeżają dane automatycznie bez przerywania edycji formularzy.
-- Grafik obejmuje siedem dni, zadania, dyżury, kopiowanie tygodnia, eksport Excel i konfigurowalny skład zespołu bez nazw zapisanych w kodzie.
-- Walidacja po ostatniej zmianie: `npm run typecheck`, `npm run lint`, `npm run test` — 176 passed, 1 skipped; build produkcyjny i `prisma validate` — OK.
+- Wydanie v1.2 (hardening bezpieczeństwa, CI, porządki produkcyjne) zostało zmergowane do `main` (PR #9) i oczekuje na wdrożenie na Railway.
+- `npm audit` jest czysty (0 podatności); `package.json` ma wersję `1.2.0`.
+- Dodano testy integracyjne PostgreSQL (`tests/prisma-integration.test.ts`) dla runtime Prisma oraz usługę Postgres 16 w CI. Bez `DATABASE_URL` testy te są pomijane; lokalnie uruchamiane przez `docker compose up postgres` + `npm run db:migrate:deploy` + `npm run db:seed`.
+- Poprawiono parzystość runtime Prisma z JSON-store (znaczniki czasu `null`) oraz ładowanie Google Fonts (CSP + `@import` na początku CSS).
+- Walidacja: `npm run typecheck` OK, `npm run lint` OK, `npm run test` — 199 passed / 0 skipped z PostgreSQL (193 passed / 1 skipped bez bazy); build produkcyjny OK.
 
 ### Najbliższe zadania
 
-- Zweryfikować deploy Railway zawierający migrację `20260810120000_link_daylog_ticket`.
+- Wdrożyć v1.2 na Railway (migracje `20260810120000_link_daylog_ticket`, `20260810160000_add_weekly_schedule`, `20260817130000_add_mfa` uruchomione przez `prisma migrate deploy`) i wykonać backup bazy przed deployem.
 - Po deployu wykonać smoke test: logowanie, DayLog, utworzenie wpisu, konwersja do zgłoszenia, powrót linkiem do zgłoszenia, edycja, usunięcie i eksport XLSX.
-- Zweryfikować migrację `20260810160000_add_weekly_schedule`, włączyć wybrane konta opcją `Grafik` i ustawić ich kolejność.
-- Wykonać smoke test grafiku: siedem dni, zadanie, edycja, odhaczenie przez przypisanego agenta, dyżur, ostrzeżenie braku obsady i kopiowanie pustego tygodnia.
+- Włączyć wybrane konta opcją `Grafik` i ustawić ich kolejność, a następnie wykonać smoke test grafiku: siedem dni, zadanie, edycja, odhaczenie przez przypisanego agenta, dyżur, ostrzeżenie braku obsady i kopiowanie pustego tygodnia.
+- Zweryfikować konfigurację MFA administratora i przepływ aktywacji konta przez jednorazowy link.
 
 ## Decyzje zakresowe
 
