@@ -1,0 +1,4 @@
+-- Add optional administrator TOTP MFA and session verification state.
+ALTER TABLE "User" ADD COLUMN "mfaEnabled" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "User" ADD COLUMN "mfaSecret" TEXT;
+ALTER TABLE "Session" ADD COLUMN "mfaVerified" BOOLEAN NOT NULL DEFAULT true;

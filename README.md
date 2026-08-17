@@ -11,6 +11,7 @@ Wewnętrzny system helpdesk IT dla sklepów i biura **Bagietka**. Nowoczesna apl
 - **Kanban** — Wizualne zarządzanie zgłoszeniami metodą przeciągnij i upuść
 - **Baza wiedzy** — Artykuły FAQ dla użytkowników
 - **Autoryzacja** — Logowanie dla kont utworzonych przez administratora; dozwolona domena to `bagietka.pl`
+- **MFA administratorów** — Opcjonalne kody TOTP i unieważnianie sesji oczekujących na potwierdzenie
 - **Administracja użytkownikami** — Admin może tworzyć, usuwać i dezaktywować konta, nadawać role oraz wysyłać lub regenerować link aktywacyjny
 - **DayLog** — Wspólna dla agentów i administratorów oś czasu notatek z rozmów telefonicznych/ustnych, z aktualną godziną nowego wpisu, oznaczeniem autora, edycją, usuwaniem, eksportem do XLSX i konwersją wpisu w powiązane zgłoszenie
 - **Grafik tygodniowy** — Plan zadań i dyżurów od poniedziałku do niedzieli, z konfigurowalnym składem zespołu, kopiowaniem poprzedniego tygodnia i eksportem do Excela
@@ -143,6 +144,8 @@ npm run lint
 # Testy E2E (wymaga Playwright)
 npm run test:e2e
 ```
+
+Pull requesty są sprawdzane przez GitHub Actions: typecheck, lint, testy, build, Playwright E2E, `npm audit` i skan sekretów.
 
 ---
 

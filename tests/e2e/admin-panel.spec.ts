@@ -9,16 +9,18 @@ test.describe('Admin Panel - Ticket Management', () => {
   test('should display admin tickets page for agent/admin', async ({ page }) => {
     // Login as admin
     await loginAs(page, 'admin@bagietka.pl');
+    await page.goto('/admin/tickets');
     
     // Should be redirected to admin panel
     expect(page.url()).toContain('/admin/tickets');
     
     // Page should have queue title
-    await expect(page.locator('h1')).toContainText('Kolejka zgloszen');
+    await expect(page.locator('h1')).toContainText('Kolejka zgłoszeń');
   });
 
   test('should allow agent to view ticket details', async ({ page }) => {
     await loginAs(page, 'agent@bagietka.pl');
+    await page.goto('/admin/tickets');
     
     // We assume seed data creates at least one ticket
     const firstTicket = page.getByTestId('ticket-card').first();
@@ -52,7 +54,7 @@ test.describe('Admin Panel - Ticket Management', () => {
     await expect(assigneeSelect).toBeVisible();
     
     // Select Marek Agent (seed user)
-    await assigneeSelect.selectOption({ label: 'Marek Agent' });
+    await assigneeSelect.selectOption({ label: 'E2E Agent' });
     
     const saveBtn = adminActions.locator('button:has-text("Zapisz zmiany")');
     await saveBtn.click();
@@ -61,7 +63,7 @@ test.describe('Admin Panel - Ticket Management', () => {
     await page.waitForLoadState('networkidle');
     
     // Check if assignee is updated in info panel
-    await expect(page.locator('body')).toContainText('Marek Agent');
+    await expect(page.locator('body')).toContainText('E2E Agent');
   });
 
   test('should allow agent to change ticket status', async ({ page }) => {

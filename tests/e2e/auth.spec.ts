@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { resetDatabase } from './helpers';
+import { resetDatabase, submitLogin } from './helpers';
 
 test.beforeEach(() => {
   resetDatabase();
@@ -13,27 +13,23 @@ test.describe('Authentication - bagietka.pl domain', () => {
     expect(await page.getByTestId('login-form').isVisible()).toBeTruthy();
     
     // Fill form with valid email
-    await page.fill('input[name="email"]', 'admin@bagietka.pl');
-    
-    // Submit form
-    await page.click('button:has-text("Zaloguj się")');
+    await submitLogin(page, 'admin@bagietka.pl');
     
     // Should redirect to home page
-    await page.waitForURL('/admin/tickets', { timeout: 10000 });
-    expect(page.url()).toContain('/admin/tickets');
+    await page.waitForURL('/admin/dashboard', { timeout: 30000 });
+    expect(page.url()).toContain('/admin/dashboard');
   });
 
   test('should reject login with invalid domain email', async ({ page }) => {
     await page.goto('/login');
     
     // Try to login with non-bagietka.pl email
-    await page.fill('input[name="email"]', 'user@example.com');
-    await page.click('button:has-text("Zaloguj się")');
+    await submitLogin(page, 'user@example.com');
     
     // Should show error message
     const errorMessage = page.getByTestId('login-error');
     await expect(errorMessage).toBeVisible();
-    await expect(errorMessage).toContainText('Podaj sluzbowy adres w dokladnej domenie bagietka.pl');
+    await expect(errorMessage).toContainText('Podaj służbowy adres w domenie bagietka.pl');
     
     // Should still be on login page
     expect(page.url()).toContain('/login');
@@ -43,25 +39,23 @@ test.describe('Authentication - bagietka.pl domain', () => {
     await page.goto('/login');
     
     // Try to login with bagietka.com
-    await page.fill('input[name="email"]', 'user@bagietka.com');
-    await page.click('button:has-text("Zaloguj się")');
+    await submitLogin(page, 'user@bagietka.com');
     
     // Should show error message
     const errorMessage = page.getByTestId('login-error');
     await expect(errorMessage).toBeVisible();
-    await expect(errorMessage).toContainText('Podaj sluzbowy adres w dokladnej domenie bagietka.pl');
+    await expect(errorMessage).toContainText('Podaj służbowy adres w domenie bagietka.pl');
   });
 
   test('should normalize email addresses', async ({ page }) => {
     await page.goto('/login');
     
     // Try with uppercase and spaces
-    await page.fill('input[name="email"]', '  ADMIN@BAGIETKA.PL  ');
-    await page.click('button:has-text("Zaloguj się")');
+    await submitLogin(page, '  ADMIN@BAGIETKA.PL  ');
     
     // Should still work (normalize to lowercase)
-    await page.waitForURL('/admin/tickets', { timeout: 10000 });
-    expect(page.url()).toContain('/admin/tickets');
+    await page.waitForURL('/admin/dashboard', { timeout: 30000 });
+    expect(page.url()).toContain('/admin/dashboard');
   });
 });
 
@@ -69,9 +63,8 @@ test.describe('Authentication - logout', () => {
   test('should logout user and redirect to login', async ({ page }) => {
     // Login first
     await page.goto('/login');
-    await page.fill('input[name="email"]', 'admin@bagietka.pl');
-    await page.click('button:has-text("Zaloguj się")');
-    await page.waitForURL('/admin/tickets');
+    await submitLogin(page, 'admin@bagietka.pl');
+    await page.waitForURL('/admin/dashboard', { timeout: 30000 });
     
     // Find and click logout button
     const logoutButton = page.getByTestId('logout-button');

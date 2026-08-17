@@ -99,10 +99,11 @@ function definedString(value: string | null | undefined): string | undefined {
 }
 
 function mapUser(
-  user: Prisma.UserGetPayload<object> & { passwordHash?: string | null; mustChangePassword?: boolean },
-  options?: { includePasswordHash?: boolean }
+  user: Prisma.UserGetPayload<object> & { passwordHash?: string | null; mustChangePassword?: boolean; mfaSecret?: string | null },
+  options?: { includePasswordHash?: boolean; includeMfaSecret?: boolean }
 ): User {
   const passwordHash = definedString((user as { passwordHash?: string | null }).passwordHash);
+  const mfaSecret = definedString((user as { mfaSecret?: string | null }).mfaSecret);
 
   return {
     id: user.id,
@@ -115,13 +116,19 @@ function mapUser(
     isScheduleMember: user.isScheduleMember,
     scheduleOrder: user.scheduleOrder ?? undefined,
     mustChangePassword: (user as { mustChangePassword?: boolean }).mustChangePassword,
+    mfaEnabled: (user as { mfaEnabled?: boolean }).mfaEnabled ?? false,
+    ...(options?.includeMfaSecret && mfaSecret ? { mfaSecret } : {}),
     ...(options?.includePasswordHash && passwordHash ? { passwordHash } : {})
   };
 }
 
-function mapStoredUser(user: User, options?: { includePasswordHash?: boolean }): User {
-  const { passwordHash, ...safeUser } = user;
-  return options?.includePasswordHash && passwordHash ? { ...safeUser, passwordHash } : safeUser;
+function mapStoredUser(user: User, options?: { includePasswordHash?: boolean; includeMfaSecret?: boolean }): User {
+  const { passwordHash, mfaSecret, ...safeUser } = user;
+  return {
+    ...safeUser,
+    ...(options?.includePasswordHash && passwordHash ? { passwordHash } : {}),
+    ...(options?.includeMfaSecret && mfaSecret ? { mfaSecret } : {})
+  };
 }
 
 function mapStore(store: Prisma.StoreGetPayload<object>): Store {
@@ -225,7 +232,8 @@ function mapSession(session: Prisma.SessionGetPayload<object>): Session {
     id: session.id,
     userId: session.userId,
     createdAt: iso(session.createdAt) ?? "",
-    expiresAt: iso(session.expiresAt) ?? ""
+    expiresAt: iso(session.expiresAt) ?? "",
+    mfaVerified: session.mfaVerified
   };
 }
 
@@ -1030,6 +1038,100 @@ function appendAdminAuditLog(
   return log;
 }
 
+export async function recordSecurityAudit(input: {
+  actorId?: string;
+  action: string;
+  entityId: string;
+  summary: string;
+  payload?: Record<string, string>;
+}): Promise<void> {
+  try {
+    if (shouldUsePrisma()) {
+      const db = await getPrisma();
+      await db.adminAuditLog.create({
+        data: {
+          actorId: input.actorId,
+          action: input.action,
+          entityType: "AUTH",
+          entityId: input.entityId,
+          summary: input.summary,
+          payload: input.payload
+        }
+      });
+      return;
+    }
+
+    await withDatabase((database) => {
+      appendAdminAuditLog(database, {
+        actorId: input.actorId,
+        action: input.action,
+        entityType: "AUTH",
+        entityId: input.entityId,
+        summary: input.summary,
+        payload: input.payload
+      });
+    });
+  } catch (error) {
+    // Authentication must remain available if the audit sink is temporarily
+    // unavailable; the failure is still visible to server-side monitoring.
+    console.error("Security audit write failed:", error);
+  }
+}
+
+export async function updateUserMfa(input: {
+  userId: string;
+  enabled: boolean;
+  secret?: string | null;
+  actorId: string;
+  auditAction?: string;
+}): Promise<User | undefined> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    const updated = await db.$transaction(async (tx) => {
+      const user = await tx.user.update({
+        where: { id: input.userId },
+        data: {
+          mfaEnabled: input.enabled,
+          mfaSecret: input.secret === undefined ? null : input.secret
+        }
+      });
+
+      await tx.adminAuditLog.create({
+        data: {
+          actorId: input.actorId,
+          action: input.auditAction ?? (input.enabled ? "MFA_ENABLED" : "MFA_DISABLED"),
+          entityType: "AUTH",
+          entityId: user.id,
+          summary: `${user.email}: MFA ${input.enabled ? "włączone" : "wyłączone"}`
+        }
+      });
+
+      return user;
+    });
+
+    return mapUser(updated);
+  }
+
+  return withDatabase((database) => {
+    const user = database.users.find((item) => item.id === input.userId);
+    if (!user) {
+      return undefined;
+    }
+
+    user.mfaEnabled = input.enabled;
+    user.mfaSecret = input.secret === undefined || input.secret === null ? undefined : input.secret;
+    appendAdminAuditLog(database, {
+      actorId: input.actorId,
+      action: input.auditAction ?? (input.enabled ? "MFA_ENABLED" : "MFA_DISABLED"),
+      entityType: "AUTH",
+      entityId: user.id,
+      summary: `${user.email}: MFA ${input.enabled ? "włączone" : "wyłączone"}`
+    });
+
+    return mapStoredUser(user);
+  });
+}
+
 async function ensureActiveAdminRemains(userId: string, nextRole: UserRole, nextIsActive: boolean): Promise<void> {
   if (nextRole === "ADMIN" && nextIsActive) {
     return;
@@ -1328,7 +1430,7 @@ export async function listAdminAuditLogs(limit = 20): Promise<AdminAuditLog[]> {
 
 export async function findUserByEmail(
   email: string,
-  options?: { includeInactive?: boolean; includePasswordHash?: boolean }
+  options?: { includeInactive?: boolean; includePasswordHash?: boolean; includeMfaSecret?: boolean }
 ): Promise<User | undefined> {
   if (shouldUsePrisma()) {
     const db = await getPrisma();
@@ -1348,7 +1450,7 @@ export async function findUserByEmail(
 
 export async function findUserById(
   userId: string,
-  options?: { includeInactive?: boolean; includePasswordHash?: boolean }
+  options?: { includeInactive?: boolean; includePasswordHash?: boolean; includeMfaSecret?: boolean }
 ): Promise<User | undefined> {
   if (shouldUsePrisma()) {
     const db = await getPrisma();

@@ -1,5 +1,6 @@
 import type { Database } from "@/lib/types";
 import storeDirectory from "@/data/store-directory.json";
+import { hashPassword } from "@/lib/password";
 
 type StoreDirectoryEntry = (typeof storeDirectory)[number];
 
@@ -16,6 +17,87 @@ function createStoreDirectoryMarkdown(stores: StoreDirectoryEntry[]): string {
 }
 
 export function createSeedDatabase(): Database {
+  const isE2e = process.env.FIXIT_E2E === "true";
+  const e2ePasswordHash = isE2e ? hashPassword("TestPassword123!") : undefined;
+  const e2eUsers = isE2e
+    ? [
+        {
+          id: "usr_e2e_admin",
+          name: "E2E Admin",
+          email: "admin@bagietka.pl",
+          role: "ADMIN" as const,
+          department: "IT",
+          isActive: true,
+          passwordHash: e2ePasswordHash,
+          mustChangePassword: false
+        },
+        {
+          id: "usr_e2e_agent",
+          name: "E2E Agent",
+          email: "agent@bagietka.pl",
+          role: "AGENT" as const,
+          department: "IT",
+          isActive: true,
+          passwordHash: e2ePasswordHash,
+          mustChangePassword: false
+        },
+        {
+          id: "usr_e2e_manager",
+          name: "E2E Store Manager",
+          email: "sklep.waw01@bagietka.pl",
+          role: "STORE_MANAGER" as const,
+          storeId: storeDirectory[0]?.id,
+          isActive: true,
+          passwordHash: e2ePasswordHash,
+          mustChangePassword: false
+        },
+        {
+          id: "usr_e2e_reporter",
+          name: "E2E Reporter",
+          email: "kasjer@bagietka.pl",
+          role: "REPORTER" as const,
+          storeId: storeDirectory[0]?.id,
+          isActive: true,
+          passwordHash: e2ePasswordHash,
+          mustChangePassword: false
+        }
+      ]
+    : [];
+  const e2eTickets = isE2e
+    ? [
+        {
+          id: "t_001",
+          number: "IT-2026-0001",
+          title: "E2E internal note ticket",
+          description: "Ticket used by Playwright permission tests.",
+          status: "IN_PROGRESS" as const,
+          priority: "HIGH" as const,
+          blocksWork: false,
+          contact: "kasjer@bagietka.pl",
+          categoryId: "cat_other",
+          storeId: storeDirectory[0]?.id,
+          reporterId: "usr_e2e_reporter",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        },
+        {
+          id: "t_002",
+          number: "IT-2026-0002",
+          title: "E2E new ticket",
+          description: "Ticket used by Playwright queue tests.",
+          status: "NEW" as const,
+          priority: "NORMAL" as const,
+          blocksWork: false,
+          contact: "sklep.waw01@bagietka.pl",
+          categoryId: "cat_other",
+          storeId: storeDirectory[0]?.id,
+          reporterId: "usr_e2e_manager",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+      ]
+    : [];
+
   return {
     meta: {
       ticketSequences: {
@@ -32,7 +114,8 @@ export function createSeedDatabase(): Database {
         isActive: true,
         passwordHash: "a1d23467081c9be78f2d21b46d6b0342:722284589a896330acf291b4cbc73757a040d39ff8526f24f1ae5c30a732a46620b36334c36ded2d54ec43fed36b957e0704c800ba6c145c6913427390a50c91",
         mustChangePassword: true
-      }
+      },
+      ...e2eUsers
     ],
     stores: storeDirectory.map((store) => ({
       id: store.id,
@@ -53,7 +136,7 @@ export function createSeedDatabase(): Database {
       { id: "cat_mail", name: "Poczta", defaultPriority: "NORMAL", isActive: true },
       { id: "cat_other", name: "Inne", defaultPriority: "NORMAL", isActive: true }
     ],
-    tickets: [],
+    tickets: e2eTickets,
     comments: [],
     attachments: [],
     events: [],

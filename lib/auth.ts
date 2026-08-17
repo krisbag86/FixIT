@@ -6,7 +6,7 @@ import type { User } from "@/lib/types";
 
 export const sessionCookieName = "fixit_session";
 
-export async function getCurrentUser(options?: { includePasswordHash?: boolean }): Promise<User | undefined> {
+export async function getCurrentUser(options?: { includePasswordHash?: boolean; includeMfaSecret?: boolean; allowMfaPending?: boolean }): Promise<User | undefined> {
   const cookieStore = await cookies();
   const sessionId = cookieStore.get(sessionCookieName)?.value;
 

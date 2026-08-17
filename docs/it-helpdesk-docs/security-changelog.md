@@ -13,6 +13,9 @@
 - Produkcyjne limity logowania, aktywacji i zmiany hasła wymagają współdzielonego magazynu Prisma/PostgreSQL i nie opierają kluczy na nagłówkach proxy dostarczanych przez klienta.
 - Agenci widzą wyłącznie opublikowane artykuły bazy wiedzy; nieopublikowane treści pozostają dostępne dla administratorów.
 - Dodano testy regresyjne dla bezpiecznych mapowań użytkowników, unieważniania sesji, rotacji tokenów i wyłączenia rejestracji.
+- Dodano opcjonalne TOTP MFA dla administratorów oraz stan sesji oczekującej na potwierdzenie drugiego składnika.
+- Zdarzenia logowania, wylogowania, zmian haseł, MFA, zaproszeń i unieważnień sesji trafiają do dziennika audytowego bez zapisywania haseł, kodów ani tokenów.
+- Dodano workflow CI z wymaganym typecheckiem, lintem, testami, buildem, E2E, audytem zależności i skanowaniem sekretów.
 
 ---
 

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { consumeSetupToken } from "@/lib/setup-token";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter";
 import { deleteUserSessions } from "@/lib/session-store";
+import { recordSecurityAudit } from "@/lib/data-store";
 
 const setupSchema = z
   .object({
@@ -71,6 +72,7 @@ export async function setupPasswordAction(
       }
     });
     await deleteUserSessions(user.id);
+    await recordSecurityAudit({ action: "PASSWORD_SETUP", actorId: user.id, entityId: user.id, summary: `${user.email}: ustawiono hasło przez link aktywacyjny` });
   } else {
     const { readDatabase, writeDatabase } = await import("@/lib/data-store");
     const database = await readDatabase();
@@ -82,6 +84,7 @@ export async function setupPasswordAction(
     (user as Record<string, unknown>).mustChangePassword = false;
     await writeDatabase(database);
     await deleteUserSessions(user.id);
+    await recordSecurityAudit({ action: "PASSWORD_SETUP", actorId: user.id, entityId: user.id, summary: `${user.email}: ustawiono hasło przez link aktywacyjny` });
   }
 
   redirect("/login?setup=ok");

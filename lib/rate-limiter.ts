@@ -76,33 +76,45 @@ async function checkRateLimitDatabase(
 ): Promise<RateLimitResult> {
   const { prisma } = await import("@/lib/prisma");
 
-  // Use a transaction to prevent race conditions between concurrent requests
-  const result = await prisma.$transaction(async (tx) => {
-    const row = await tx.rateLimit.findUnique({ where: { key } });
-    const timestamps: number[] = row ? (row.timestamps as number[]) : [];
+  // Serializable isolation prevents two concurrent requests from both
+  // reading the same window and exceeding the configured limit.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        const row = await tx.rateLimit.findUnique({ where: { key } });
+        const timestamps: number[] = row ? (row.timestamps as number[]) : [];
 
-    // Filter out timestamps outside the current window
-    const valid = timestamps.filter((ts) => now - ts < windowMs);
+        // Filter out timestamps outside the current window
+        const valid = timestamps.filter((ts) => now - ts < windowMs);
 
-    if (valid.length >= maxAttempts) {
-      const oldest = valid[0];
-      const resetInSeconds = Math.ceil((oldest + windowMs - now) / 1000);
-      return { allowed: false as const, remaining: 0, resetInSeconds };
+        if (valid.length >= maxAttempts) {
+          const oldest = valid[0];
+          const resetInSeconds = Math.ceil((oldest + windowMs - now) / 1000);
+          return { allowed: false as const, remaining: 0, resetInSeconds };
+        }
+
+        // Add current timestamp
+        valid.push(now);
+
+        await tx.rateLimit.upsert({
+          where: { key },
+          create: { key, timestamps: valid },
+          update: { timestamps: valid }
+        });
+
+        return { allowed: true as const, remaining: maxAttempts - valid.length, resetInSeconds: 0 };
+      }, { isolationLevel: "Serializable" });
+
+      return result;
+    } catch (error) {
+      const isSerializationConflict = error instanceof Error && "code" in error && (error as { code?: string }).code === "P2034";
+      if (!isSerializationConflict || attempt === 2) {
+        throw error;
+      }
     }
+  }
 
-    // Add current timestamp
-    valid.push(now);
-
-    await tx.rateLimit.upsert({
-      where: { key },
-      create: { key, timestamps: valid },
-      update: { timestamps: valid }
-    });
-
-    return { allowed: true as const, remaining: maxAttempts - valid.length, resetInSeconds: 0 };
-  });
-
-  return result;
+  throw new Error("Nie udało się zaktualizować limitu żądań.");
 }
 
 function checkRateLimitMemory(

@@ -6,6 +6,7 @@ import { hashPassword, verifyPassword } from "@/lib/password";
 import { getCurrentUser, sessionCookieName } from "@/lib/auth";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limiter";
 import { createSession, deleteUserSessions } from "@/lib/session-store";
+import { recordSecurityAudit } from "@/lib/data-store";
 
 async function getPrisma() {
   return (await import("@/lib/prisma")).prisma;
@@ -103,6 +104,13 @@ export async function changePasswordAction(_previousState: string | undefined, f
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: 60 * 60 * 24 * 14
+  });
+
+  await recordSecurityAudit({
+    action: "PASSWORD_CHANGED",
+    actorId: user.id,
+    entityId: user.id,
+    summary: `${user.email}: zmieniono hasło i unieważniono poprzednie sesje`
   });
 
   redirect("/tickets");

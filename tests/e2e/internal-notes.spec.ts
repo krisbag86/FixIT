@@ -79,7 +79,7 @@ test.describe('Internal Notes - Permissions', () => {
     
     // And it should have internal badge
     const internalNote = page.getByTestId('comment-item').filter({ hasText: 'This is a secret internal note' });
-    await expect(internalNote.getByTestId('visibility-badge')).toContainText('Wewnetrzny');
+    await expect(internalNote.getByTestId('visibility-badge')).toContainText('Wewnętrzny');
   });
 
   test('REPORTER should only see PUBLIC comments, not internal notes', async ({ page }) => {

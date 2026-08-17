@@ -118,4 +118,15 @@ describe("session store (JSON mode)", () => {
 
     expect(mockSessions).toHaveLength(0);
   });
+
+  it("hides an MFA-pending session until it is verified", async () => {
+    const { createSession, getSessionUser, markSessionMfaVerified } = await import("@/lib/session-store");
+    const sessionId = await createSession("usr_admin", false);
+
+    expect(await getSessionUser(sessionId)).toBeUndefined();
+    expect(await getSessionUser(sessionId, { allowMfaPending: true })).toBeDefined();
+
+    await markSessionMfaVerified(sessionId);
+    expect(await getSessionUser(sessionId)).toBeDefined();
+  });
 });

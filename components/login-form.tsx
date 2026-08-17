@@ -73,7 +73,7 @@ export function LoginForm() {
       </div>
 
       {error ? (
-        <div className="flex items-start gap-2.5 rounded-xl bg-red-500/10 p-3.5 text-sm font-medium text-red-600 shadow-sm dark:text-red-300">
+        <div data-testid="login-error" className="flex items-start gap-2.5 rounded-xl bg-red-500/10 p-3.5 text-sm font-medium text-red-600 shadow-sm dark:text-red-300">
           <AlertCircle size={18} className="mt-0.5 shrink-0" />
           <span>{error}</span>
         </div>

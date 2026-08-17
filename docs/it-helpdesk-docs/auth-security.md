@@ -112,7 +112,14 @@ Domyslna sciezka tworzenia kont:
 - `AGENT` widzi tylko artykuly opublikowane.
 - Odpowiedzi z szablonow/makr sa celowa funkcja dla reporterow i nie sa bledem uprawnien.
 
-## 9. Permission matrix
+## 9. MFA administratorow
+
+- Administrator moze wlaczyc MFA TOTP w `/admin/users`.
+- Sekret jest wyswietlany tylko podczas konfiguracji, a logowanie z wlaczonym MFA wymaga kodu z aplikacji uwierzytelniajacej.
+- Sesja z poprawnym haslem pozostaje w stanie oczekujacym i nie daje dostepu do aplikacji przed potwierdzeniem kodu MFA.
+- W produkcji `APP_URL` musi wskazywac dokladny publiczny origin aplikacji, aby walidacja CSRF nie opierala sie na naglowku `Host`.
+
+## 10. Permission matrix
 
 | Akcja | REPORTER | STORE_MANAGER | AGENT | ADMIN |
 |---|---:|---:|---:|---:|
@@ -129,7 +136,7 @@ Domyslna sciezka tworzenia kont:
 | Zarzadzanie kategoriami | no | no | no | yes |
 | Zarzadzanie FAQ | no | no | no | yes |
 
-## 10. Testy domeny
+## 11. Testy domeny
 
 ```ts
 describe("isAllowedBagietkaEmail", () => {
@@ -163,11 +170,11 @@ describe("isAllowedBagietkaEmail", () => {
 });
 ```
 
-## 11. Dodatkowe rekomendacje
+## 12. Dodatkowe rekomendacje
 
 - Wymusic HTTPS w produkcji.
 - Ustawic secure cookies.
 - Nie logowac tokenow i hasel.
 - Monitorowac skutecznosc rate limitingu logowania i aktywacji.
-- Rozwazyc MFA dla administratorow.
+- Rozwazyc wymuszenie MFA dla wszystkich kont administracyjnych.
 - Zapisywac audit log dla zmian statusu, roli i uprawnien.

@@ -20,7 +20,8 @@ import {
   updateMacro,
   listStoresAdmin,
   findUserById,
-  deleteUserAdmin
+  deleteUserAdmin,
+  recordSecurityAudit
 } from "@/lib/data-store";
 import { sendEmailWithResult } from "@/lib/email";
 import { getSetupUrl, templateUserInvitation } from "@/lib/email-templates";
@@ -214,6 +215,12 @@ export async function updateUserAdminAction(formData: FormData): Promise<void> {
 
   if (target && (target.role !== input.role || target.isActive !== input.isActive)) {
     await deleteUserSessions(input.id);
+    await recordSecurityAudit({
+      action: "SESSIONS_REVOKED",
+      actorId: actor.id,
+      entityId: input.id,
+      summary: `${target.email}: sesje unieważnione po zmianie roli lub aktywności`
+    });
   }
 
   revalidatePath("/admin/users");
@@ -309,6 +316,15 @@ export async function createUserAdminAction(
     // via a secure link instead of receiving it in plain text via email.
     const setupToken = input.sendInvite ? await createSetupToken(user.email) : undefined;
 
+    if (setupToken) {
+      await recordSecurityAudit({
+        action: "INVITE_CREATED",
+        actorId: actor.id,
+        entityId: user.id,
+        summary: `${user.email}: utworzono jednorazowy link aktywacyjny`
+      });
+    }
+
     let inviteSent = false;
     let inviteError: string | undefined;
     let activationLink: string | undefined;
@@ -356,7 +372,7 @@ export async function resendUserInviteAdminAction(
   formData: FormData
 ): Promise<ResendUserInviteAdminState> {
   try {
-    await requireAdminAction("admin:manage-users");
+    const actor = await requireAdminAction("admin:manage-users");
 
     const input = resendInviteSchema.parse({
       id: String(formData.get("id") ?? "")
@@ -378,6 +394,12 @@ export async function resendUserInviteAdminAction(
     }
 
     const setupToken = await createSetupToken(user.email);
+    await recordSecurityAudit({
+      action: "INVITE_REISSUED",
+      actorId: actor.id,
+      entityId: user.id,
+      summary: `${user.email}: wygenerowano nowy jednorazowy link aktywacyjny`
+    });
     const result = await sendUserInvitationEmail(user, setupToken);
     const activationLink = result.ok ? undefined : getSetupUrl(setupToken);
 

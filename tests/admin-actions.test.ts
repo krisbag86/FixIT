@@ -56,7 +56,8 @@ function installActionMocks(sendResult: { ok: boolean; error?: string }, existin
     updateTemplate: vi.fn(),
     updateMacro: vi.fn(),
     listStoresAdmin: vi.fn(async () => []),
-    findUserById: vi.fn(async () => existingUser)
+    findUserById: vi.fn(async () => existingUser),
+    recordSecurityAudit: vi.fn(async () => undefined)
   };
   const sendEmailWithResult = vi.fn(async () => sendResult);
   const createSetupToken = vi.fn(async () => "setup-token");

@@ -19,7 +19,7 @@ function shouldUsePrisma(): boolean {
 /**
  * Create a new session for a user and return the opaque session ID.
  */
-export async function createSession(userId: string): Promise<string> {
+export async function createSession(userId: string, mfaVerified = true): Promise<string> {
   const sessionId = randomUUID();
   const now = new Date();
   const expiresAt = new Date(now.getTime() + SESSION_DURATION_MS);
@@ -31,7 +31,8 @@ export async function createSession(userId: string): Promise<string> {
         id: sessionId,
         userId,
         createdAt: now,
-        expiresAt
+        expiresAt,
+        mfaVerified
       }
     });
     return sessionId;
@@ -44,7 +45,8 @@ export async function createSession(userId: string): Promise<string> {
     id: sessionId,
     userId,
     createdAt: now.toISOString(),
-    expiresAt: expiresAt.toISOString()
+    expiresAt: expiresAt.toISOString(),
+    mfaVerified
   });
   await writeDatabase(database);
   return sessionId;
@@ -56,7 +58,7 @@ export async function createSession(userId: string): Promise<string> {
  */
 export async function getSessionUser(
   sessionId: string,
-  options?: { includePasswordHash?: boolean }
+  options?: { includePasswordHash?: boolean; includeMfaSecret?: boolean; allowMfaPending?: boolean }
 ): Promise<User | undefined> {
   if (shouldUsePrisma()) {
     const db = await getPrisma();
@@ -66,6 +68,10 @@ export async function getSessionUser(
     if (new Date() > session.expiresAt) {
       // Clean up expired session
       await db.session.delete({ where: { id: sessionId } }).catch(() => {});
+      return undefined;
+    }
+
+    if (!session.mfaVerified && !options?.allowMfaPending) {
       return undefined;
     }
 
@@ -87,7 +93,27 @@ export async function getSessionUser(
     return undefined;
   }
 
+  if (session.mfaVerified === false && !options?.allowMfaPending) {
+    return undefined;
+  }
+
   return findUserById(session.userId, options);
+}
+
+export async function markSessionMfaVerified(sessionId: string): Promise<void> {
+  if (shouldUsePrisma()) {
+    const db = await getPrisma();
+    await db.session.updateMany({ where: { id: sessionId }, data: { mfaVerified: true } });
+    return;
+  }
+
+  const { withDatabase } = await import("@/lib/data-store");
+  await withDatabase((database) => {
+    const session = database.sessions.find((item) => item.id === sessionId);
+    if (session) {
+      session.mfaVerified = true;
+    }
+  });
 }
 
 /**

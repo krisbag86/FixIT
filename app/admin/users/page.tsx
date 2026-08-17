@@ -5,6 +5,7 @@ import { AdminNav } from "@/components/admin/admin-nav";
 import { CreateUserForm } from "@/components/admin/create-user-form";
 import { UserDeleteButton } from "@/components/admin/user-delete-button";
 import { UserInviteButton } from "@/components/admin/user-invite-button";
+import { MfaSetup } from "@/components/admin/mfa-setup";
 import { AppShell } from "@/components/app-shell";
 import { RoleBadge } from "@/components/badges";
 import { requireUser } from "@/lib/auth";
@@ -45,6 +46,8 @@ export default async function AdminUsersPage({
       </div>
 
       <AdminNav user={user} currentPath="/admin/users" />
+
+      <MfaSetup enabled={Boolean(user.mfaEnabled)} />
 
       <CreateUserForm stores={stores} />
 
@@ -179,7 +182,7 @@ export default async function AdminUsersPage({
 
         <section className="rounded-md border border-black/10 bg-white/75 p-4 dark:border-white/10 dark:bg-white/10">
           <h2 className="text-lg font-black">Dziennik zmian</h2>
-          <p className="mt-1 text-sm text-ink/65 dark:text-paper/65">Ostatnie zmiany ról, aktywności i słowników.</p>
+          <p className="mt-1 text-sm text-ink/65 dark:text-paper/65">Ostatnie zmiany ról, aktywności, zaproszeń i zdarzeń bezpieczeństwa.</p>
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {auditLogs.map((log) => {
               const actor = users.find((entry) => entry.id === log.actorId);
