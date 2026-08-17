@@ -42,7 +42,7 @@ export async function createTicketViaUI(page: Page, categoryText: string, title:
   await page.goto('/tickets/new');
   
   // Wait for form to be ready
-  const form = page.getByTestId('new-ticket-form');
+  const form = page.getByTestId('new-ticket-form').or(page.getByTestId('requester-ticket-form'));
   await form.waitFor({ state: 'visible' });
 
   // Select category
@@ -71,5 +71,5 @@ export async function createTicketViaUI(page: Page, categoryText: string, title:
     (url) => url.pathname.startsWith('/tickets/') && url.pathname !== '/tickets/new',
     { timeout: 10000 }
   );
-  await expect(page.getByTestId('ticket-number')).toBeVisible();
+  await expect(page.getByTestId('ticket-number').or(page.getByTestId('requester-ticket-detail'))).toBeVisible();
 }

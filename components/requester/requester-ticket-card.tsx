@@ -1,12 +1,10 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { PublicTicketProgress } from "@/components/requester/public-ticket-progress";
 import { formatDateTime } from "@/lib/format";
-import { getPublicTicketStage, publicTicketStageLabels } from "@/lib/requester-portal";
 import type { Ticket } from "@/lib/types";
 
 export function RequesterTicketCard({ ticket, href }: { ticket: Ticket; href: string }) {
-  const stage = getPublicTicketStage(ticket.status);
-
   return (
     <Link
       href={href}
@@ -21,8 +19,8 @@ export function RequesterTicketCard({ ticket, href }: { ticket: Ticket; href: st
         </div>
         <ArrowRight className="mt-1 shrink-0 text-ink/30 transition-all group-hover:translate-x-1 group-hover:text-mint dark:text-paper/30" size={18} />
       </div>
-      <div data-testid="requester-ticket-stage" className="inline-flex w-fit rounded-full bg-mint/10 px-3 py-1 text-sm font-bold text-mint dark:bg-mint/15">
-        {publicTicketStageLabels[stage]}
+      <div data-testid="requester-ticket-stage">
+        <PublicTicketProgress status={ticket.status} compact />
       </div>
       <time dateTime={ticket.updatedAt} className="text-xs text-ink/50 dark:text-paper/50">
         Ostatnia aktualizacja: {formatDateTime(ticket.updatedAt)}

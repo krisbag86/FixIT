@@ -150,7 +150,9 @@ export async function updateTicketAction(formData: FormData): Promise<void> {
   }
 
   revalidatePath("/tickets");
+  revalidatePath(`/tickets/${oldTicket.id}`);
   revalidatePath("/admin/tickets");
+  revalidatePath(`/admin/tickets/${oldTicket.id}`);
 }
 
 export async function confirmTicketResolutionAction(formData: FormData): Promise<void> {

@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { TicketDetail } from "@/components/ticket-detail";
+import { RequesterTicketDetail } from "@/components/requester/requester-ticket-detail";
 import { requireUser } from "@/lib/auth";
-import { findTicket, getTicketDetailReferences, listAttachments, listComments, listEvents, listMacros, listTemplates } from "@/lib/data-store";
+import { findTicket, findUsersByIds, getTicketDetailReferences, listAttachments, listComments, listEvents, listMacros, listTemplates } from "@/lib/data-store";
 import { canViewTicket } from "@/lib/permissions";
+import { isRequesterPortalUser } from "@/lib/requester-portal";
 
 export default async function TicketDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
@@ -12,6 +14,17 @@ export default async function TicketDetailsPage({ params }: { params: Promise<{ 
 
   if (!ticket || !canViewTicket(user, ticket)) {
     notFound();
+  }
+
+  if (isRequesterPortalUser(user)) {
+    const comments = await listComments(ticket.id, false);
+    const users = await findUsersByIds([...new Set(comments.map((comment) => comment.authorId))]);
+
+    return (
+      <AppShell user={user}>
+        <RequesterTicketDetail currentUser={user} ticket={ticket} comments={comments} users={users} />
+      </AppShell>
+    );
   }
 
   const includeInternal = user.role === "AGENT" || user.role === "ADMIN";
