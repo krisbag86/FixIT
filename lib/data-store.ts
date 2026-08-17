@@ -76,6 +76,12 @@ function now(): string {
   return new Date().toISOString();
 }
 
+function nextTimestamp(previous?: string): string {
+  const current = Date.now();
+  const previousTime = previous ? Date.parse(previous) : Number.NaN;
+  return new Date(Math.max(current, Number.isFinite(previousTime) ? previousTime + 1 : current)).toISOString();
+}
+
 function id(prefix: string): string {
   return `${prefix}_${crypto.randomUUID().slice(0, 8)}`;
 }
@@ -546,7 +552,7 @@ export async function updateDayLogEntry(input: {
     entry.fromName = input.fromName;
     entry.subject = input.subject;
     entry.description = input.description;
-    entry.updatedAt = now();
+    entry.updatedAt = nextTimestamp(entry.updatedAt);
     return entry;
   });
 }

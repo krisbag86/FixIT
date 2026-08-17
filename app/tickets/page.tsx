@@ -27,6 +27,7 @@ export default async function TicketsPage({ searchParams }: { searchParams: Prom
           <Filter size={18} className="text-ink/50 dark:text-paper/50" />
           <input
             name="q"
+            type="search"
             defaultValue={filters.query ?? ""}
             placeholder="Szukaj zgłoszeń"
             className="h-10 min-w-52 rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper"
@@ -34,6 +35,7 @@ export default async function TicketsPage({ searchParams }: { searchParams: Prom
           />
           <select
             name="status"
+            aria-label="Filtruj po statusie"
             defaultValue={filters.status ?? ""}
             className="h-10 min-w-48 rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper"
           >

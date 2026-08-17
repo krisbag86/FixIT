@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Archive, BookOpen, ClipboardList, LayoutDashboard, LogOut, Plus, ShieldCheck, Store } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { logoutAction } from "@/app/login/actions";
+import { AppNav } from "@/components/app-nav";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { RoleBadge } from "@/components/badges";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -25,30 +26,7 @@ export function AppShell({ user, children }: { user: User; children: React.React
             </div>
           </Link>
 
-          <nav className="hidden items-center gap-1 md:flex">
-            <NavLink href="/tickets" icon={<ClipboardList size={17} />}>
-              Moje zgłoszenia
-            </NavLink>
-            <NavLink href="/tickets/archive" icon={<Archive size={17} />}>
-              Archiwum
-            </NavLink>
-            <NavLink href="/tickets/new" icon={<Plus size={17} />}>
-              Nowe
-            </NavLink>
-            <NavLink href="/knowledge" icon={<BookOpen size={17} />}>
-              Baza wiedzy
-            </NavLink>
-            {user.role === "STORE_MANAGER" && user.storeId ? (
-              <NavLink href="/store" icon={<Store size={17} />}>
-                Mój sklep
-              </NavLink>
-            ) : null}
-            {admin ? (
-              <NavLink href="/admin/tickets" icon={<LayoutDashboard size={17} />}>
-                Panel IT
-              </NavLink>
-            ) : null}
-          </nav>
+          <AppNav role={user.role} hasStore={Boolean(user.storeId)} admin={admin} />
 
           <div className="flex items-center gap-2">
             <div className="hidden text-right sm:block">
@@ -70,30 +48,7 @@ export function AppShell({ user, children }: { user: User; children: React.React
             </form>
           </div>
         </div>
-        <div className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 pb-3 md:hidden">
-          <NavLink href="/tickets" icon={<ClipboardList size={17} />}>
-            Moje
-          </NavLink>
-          <NavLink href="/tickets/archive" icon={<Archive size={17} />}>
-            Archiwum
-          </NavLink>
-          <NavLink href="/tickets/new" icon={<Plus size={17} />}>
-            Nowe
-          </NavLink>
-          <NavLink href="/knowledge" icon={<BookOpen size={17} />}>
-            Wiedza
-          </NavLink>
-          {user.role === "STORE_MANAGER" && user.storeId ? (
-            <NavLink href="/store" icon={<Store size={17} />}>
-              Sklep
-            </NavLink>
-          ) : null}
-          {admin ? (
-            <NavLink href="/admin/tickets" icon={<ShieldCheck size={17} />}>
-              IT
-            </NavLink>
-          ) : null}
-        </div>
+        <AppNav role={user.role} hasStore={Boolean(user.storeId)} admin={admin} mobile />
       </header>
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:py-8">{children}</main>
 
@@ -105,17 +60,5 @@ export function AppShell({ user, children }: { user: User; children: React.React
         </div>
       </footer>
     </div>
-  );
-}
-
-function NavLink({ href, icon, children }: { href: string; icon: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <Link
-      href={href}
-      className="inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-ink/65 transition-all duration-200 hover:bg-white/80 hover:text-ink dark:text-paper/65 dark:hover:bg-white/10 dark:hover:text-paper"
-    >
-      {icon}
-      {children}
-    </Link>
   );
 }

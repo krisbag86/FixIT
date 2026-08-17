@@ -1,6 +1,7 @@
 "use client";
 
 import { MessageSquare } from "lucide-react";
+import { useRef } from "react";
 import { addCommentAction } from "@/app/actions";
 import { TemplatePicker } from "@/components/templates/template-picker";
 import type { Category, ResponseMacro, ResponseTemplate, Ticket, User } from "@/lib/types";
@@ -24,6 +25,7 @@ export function TicketCommentForm({
   macros: ResponseMacro[];
   currentUserId: string;
 }) {
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
   const userInfo = reporter ?? {
     id: currentUserId,
     name: "Nieznany",
@@ -40,16 +42,16 @@ export function TicketCommentForm({
         assignee={assignee}
         category={category}
         onInsert={(body) => {
-          const textarea = document.querySelector('textarea[name="body"]') as HTMLTextAreaElement | null;
-          if (textarea) {
-            textarea.value = body;
-            textarea.focus();
+          if (bodyRef.current) {
+            bodyRef.current.value = body;
+            bodyRef.current.focus();
           }
         }}
       />
       <form action={addCommentAction} className="mt-5 space-y-3" data-testid="comment-form">
         <input type="hidden" name="ticketId" value={ticket.id} />
         <textarea
+          ref={bodyRef}
           name="body"
           className="min-h-28 w-full rounded-md border border-black/10 bg-white px-3 py-3 text-sm text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper"
           placeholder="Dodaj odpowiedź..."
