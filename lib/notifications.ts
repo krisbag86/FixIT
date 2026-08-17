@@ -1,7 +1,7 @@
 import "server-only";
 
 import { findLatestQueuedNotification, findUsersByIds, updateNotificationLog } from "@/lib/data-store";
-import { sendEmailWithResult } from "@/lib/email";
+import { sendEmailWithResult, type EmailSendResult } from "@/lib/email";
 import {
   templateCommentAdded,
   templateTicketAssigned,
@@ -17,6 +17,28 @@ type TicketNotificationType =
   | "TICKET_RESOLVED"
   | "TICKET_ASSIGNED"
   | "COMMENT_CREATED";
+
+export async function sendEmailWithRetry(
+  send: () => Promise<EmailSendResult>,
+  options?: { maxAttempts?: number; delayMs?: number }
+): Promise<EmailSendResult> {
+  const maxAttempts = Math.min(Math.max(options?.maxAttempts ?? 3, 1), 5);
+  const delayMs = Math.max(options?.delayMs ?? 250, 0);
+  let lastResult: EmailSendResult = { ok: false, error: "Email send failed." };
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    lastResult = await send();
+    if (lastResult.ok || attempt === maxAttempts) {
+      return lastResult;
+    }
+
+    if (delayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+
+  return lastResult;
+}
 
 async function sendQueuedNotification(input: {
   notification?: NotificationLog;
@@ -38,12 +60,14 @@ async function sendQueuedNotification(input: {
     return;
   }
 
-  const result = await sendEmailWithResult({
-    to: input.recipientEmail,
-    subject: input.template.subject,
-    html: input.template.html,
-    text: input.template.text
-  });
+  const result = await sendEmailWithRetry(() =>
+    sendEmailWithResult({
+      to: input.recipientEmail,
+      subject: input.template.subject,
+      html: input.template.html,
+      text: input.template.text
+    })
+  );
 
   await updateNotificationLog(notification.id, result.ok ? "SENT" : "FAILED", result.error);
 }

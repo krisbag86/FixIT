@@ -14,7 +14,7 @@ Stan na 2026-08-10:
 
 - produkcyjny auto-deploy dziala po pushu na branch `main`,
 - merge `v-1.1` -> `main` uruchomil deploy na Railway poprawnie,
-- healthcheck aplikacji pozostaje oparty o `GET /api/health`.
+- liveness aplikacji pozostaje oparty o `GET /api/health`, a readiness o `GET /api/health/ready`.
 - Railway Serverless jest wyłączony dla usług `FixIT` i `Postgres`, aby uniknąć cold startów oraz startu migracji przed gotowością wybudzanej bazy. Obie usługi naliczają stałe użycie zasobów.
 - Railway korzysta z `DOCKERFILE` buildera z `railway.json`; runtime Node jest przypiety w repo do `20.20.2` przez `Dockerfile`, `.nvmrc`, `.node-version` i `package.json#engines`.
 - Onboarding adminowski uzywa jednorazowych linkow aktywacyjnych. Jesli provider email nie wysle wiadomosci, panel pokazuje awaryjny link i pozwala wygenerowac nowy link przy uzytkowniku.
@@ -91,7 +91,8 @@ W Railway Dashboard → project → Variables, ustaw:
    - Pomija seed, chyba ze ustawiono `FIXIT_RUN_SEED=true`
 
 ### Krok 5: Sprawdz czy dziala
-- Odwiedz `https://twoja-aplikacja.railway.app/api/health` - powinien zwrocic JSON z `"status": "ok"` i `"database": "connected"`
+- Odwiedz `https://twoja-aplikacja.railway.app/api/health` - powinien zwrocic status liveness `200`.
+- Odwiedz `https://twoja-aplikacja.railway.app/api/health/ready` - powinien zwrocic `200` oraz `{"status":"ready","checks":{"database":"ok","storage":"ok"}}`.
 - Zaloguj sie na `https://twoja-aplikacja.railway.app/login`
 
 ## 4. Co dziala automatycznie
@@ -104,7 +105,8 @@ W Railway Dashboard → project → Variables, ustaw:
 | Migracje Prisma | `docker-entrypoint.sh` uruchamia `prisma migrate deploy` przy starcie |
 | Seed danych | `docker-entrypoint.sh` uruchamia `prisma db seed` tylko przy `FIXIT_RUN_SEED=true` |
 | SSL do bazy | Entrypoint automatycznie dodaje `?sslmode=require` jesli brak |
-| Healthcheck | Endpoint `GET /api/health` sprawdza baze i zwraca status |
+| Liveness | Endpoint `GET /api/health` sprawdza dostępność procesu i bazy |
+| Readiness | Endpoint `GET /api/health/ready` sprawdza provider danych i konfigurację storage |
 | Data provider | Automatycznie wybiera Prisma gdy `NODE_ENV=production` i `DATABASE_URL` ustawiony |
 
 ## 5. Prisma w produkcji
@@ -155,7 +157,9 @@ Rozwiazania:
 - [ ] `BREVO_API_KEY` i zweryfikowany `EMAIL_FROM` skonfigurowane dla powiadomien email
 - [ ] Railway Bucket S3 skonfigurowany (jesli potrzebujesz persistent zalacznikow)
 - [ ] Domena `bagietka.pl` wymuszona po stronie serwera (dziala domyslnie)
-- [ ] Healthcheck dziala: `GET /api/health` → `{"status":"ok","database":"connected"}`
+- [ ] Liveness dziala: `GET /api/health` → HTTP 200
+- [ ] Readiness dziala: `GET /api/health/ready` → `{"status":"ready","checks":{"database":"ok","storage":"ok"}}`
+- [ ] Powiadomienia e-mail mają skonfigurowany provider; chwilowe błędy są ponawiane maksymalnie trzy razy.
 - [ ] Rejestracja `/register` pozostaje wylaczona; konta sa tworzone przez `/admin/users`
 - [ ] Tworzenie usera z `/admin/users` wysyla mail poprawnie przez Brevo API
 

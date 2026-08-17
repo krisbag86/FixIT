@@ -75,7 +75,7 @@ export function TicketDetail({
             {comments.map((comment) => {
               const author = usersById.get(comment.authorId);
               return (
-                <article key={comment.id} data-testid="comment-item" className="rounded-md border border-black/10 bg-paper/70 p-4 dark:border-white/10 dark:bg-white/5">
+                <article key={comment.id} data-testid="comment-item" data-comment-id={comment.id} className="rounded-md border border-black/10 bg-paper/70 p-4 dark:border-white/10 dark:bg-white/5">
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <div className="font-bold">{author?.name ?? "Nieznany"}</div>

@@ -261,7 +261,7 @@ function ScheduleCell({
 
 function ScheduleTaskCard({ task, canManage, canToggle }: { task: ScheduleTask; canManage: boolean; canToggle: boolean }) {
   return (
-    <div className={`rounded-md border p-2 ${task.isCompleted ? "border-green-500/20 bg-green-500/5" : "border-black/10 bg-white/80 dark:border-white/10 dark:bg-white/5"}`}>
+    <div data-testid="schedule-task" className={`rounded-md border p-2 ${task.isCompleted ? "border-green-500/20 bg-green-500/5" : "border-black/10 bg-white/80 dark:border-white/10 dark:bg-white/5"}`}>
       <div className="flex items-start gap-2">
         {canToggle ? (
           <form action={toggleScheduleTaskAction}>
