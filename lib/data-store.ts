@@ -14,6 +14,7 @@ import {
   getStoreUsageSummary,
   getUserAuditChanges
 } from "@/lib/admin-utils";
+import { shouldUsePrisma } from "@/lib/data-provider";
 import { createSeedDatabase } from "@/lib/seed";
 import { addScheduleDays, isScheduleWeekend, resolveScheduleWeekStart, scheduleDateValue } from "@/lib/schedule";
 import { generateTicketNumber } from "@/lib/ticket-number";
@@ -49,18 +50,6 @@ import type {
 const dataDir = path.join(process.cwd(), ".data");
 const dataFile = path.join(dataDir, "fixit-db.json");
 let databaseWriteQueue: Promise<void> = Promise.resolve();
-
-function shouldUsePrisma(): boolean {
-  if (process.env.FIXIT_DATA_PROVIDER === "json") {
-    return false;
-  }
-
-  if (process.env.FIXIT_DATA_PROVIDER === "prisma") {
-    return true;
-  }
-
-  return process.env.NODE_ENV === "production" && Boolean(process.env.DATABASE_URL);
-}
 
 function isUniqueConstraintError(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === "P2002";
