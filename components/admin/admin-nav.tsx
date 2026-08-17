@@ -1,21 +1,6 @@
 import Link from "next/link";
-import { Archive, BarChart3, BookOpen, Building2, CalendarClock, CalendarDays, ClipboardList, Columns3, LayoutDashboard, Tags, Users, FileText } from "lucide-react";
+import { getAdminNavGroups, isSettingsPath } from "@/lib/admin-navigation";
 import type { User } from "@/lib/types";
-
-const links = [
-  { href: "/admin/dashboard", label: "Pulpit", icon: LayoutDashboard, adminOnly: false },
-  { href: "/admin/tickets", label: "Zgłoszenia", icon: ClipboardList, adminOnly: false },
-  { href: "/tickets/archive", label: "Archiwum", icon: Archive, adminOnly: false },
-  { href: "/admin/kanban", label: "Kanban", icon: Columns3, adminOnly: false },
-  { href: "/admin/reports", label: "Raporty", icon: BarChart3, adminOnly: false },
-  { href: "/admin/daylog", label: "DayLog", icon: CalendarClock, adminOnly: false },
-  { href: "/admin/schedule", label: "Grafik", icon: CalendarDays, adminOnly: false },
-  { href: "/admin/knowledge", label: "Baza wiedzy", icon: BookOpen, adminOnly: false },
-  { href: "/admin/templates", label: "Szablony", icon: FileText, adminOnly: true },
-  { href: "/admin/users", label: "Użytkownicy", icon: Users, adminOnly: true },
-  { href: "/admin/stores", label: "Sklepy", icon: Building2, adminOnly: true },
-  { href: "/admin/categories", label: "Kategorie", icon: Tags, adminOnly: true }
-] as const;
 
 export function AdminNav({ user, currentPath }: { user: User; currentPath: string }) {
   return (
@@ -23,28 +8,42 @@ export function AdminNav({ user, currentPath }: { user: User; currentPath: strin
       aria-label="Nawigacja panelu IT"
       className="mb-6 flex flex-nowrap gap-2 overflow-x-auto rounded-md border border-black/10 bg-white/70 p-2 scrollbar-none dark:border-white/10 dark:bg-white/10 lg:flex-wrap lg:overflow-visible"
     >
-      {links
-        .filter((link) => !link.adminOnly || user.role === "ADMIN")
-        .map((link) => {
-          const Icon = link.icon;
-          const active = currentPath === link.href || currentPath.startsWith(`${link.href}/`);
+      {getAdminNavGroups(user).map((group, groupIndex) => (
+        <div
+          key={group.label}
+          aria-label={group.label}
+          data-nav-group={group.label}
+          className={`flex shrink-0 items-center gap-1 ${groupIndex > 0 ? "border-l border-black/10 pl-2 dark:border-white/10" : ""}`}
+        >
+          <span className="sr-only">{group.label}</span>
+          {group.links.map((link) => {
+            const Icon = link.icon;
+            const active = link.href === "/admin/settings"
+              ? isSettingsPath(currentPath)
+              : currentPath === link.href || currentPath.startsWith(`${link.href}/`);
 
-          return (
-            <Link
-              key={link.href}
-              href={link.href}
-              aria-current={active ? "page" : undefined}
-              className={`inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-3 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mint/60 ${
-                active
-                  ? "bg-ink text-white dark:bg-paper dark:text-ink"
-                  : "text-ink/70 hover:bg-white hover:text-ink dark:text-paper/70 dark:hover:bg-white/10 dark:hover:text-paper"
-              }`}
-            >
-              <Icon size={16} />
-              {link.label}
-            </Link>
-          );
-        })}
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                aria-current={active ? "page" : undefined}
+                className={`inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-3 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mint/60 ${
+                  active
+                    ? link.featured
+                      ? "bg-mint text-white shadow-sm shadow-mint/20"
+                      : "bg-ink text-white dark:bg-paper dark:text-ink"
+                    : link.featured
+                      ? "bg-mint/10 text-mint hover:bg-mint/20 dark:bg-mint/15 dark:hover:bg-mint/25"
+                      : "text-ink/70 hover:bg-white hover:text-ink dark:text-paper/70 dark:hover:bg-white/10 dark:hover:text-paper"
+                }`}
+              >
+                <Icon size={16} />
+                {link.label}
+              </Link>
+            );
+          })}
+        </div>
+      ))}
     </nav>
   );
 }
