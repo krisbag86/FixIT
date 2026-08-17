@@ -1,13 +1,13 @@
 import { redirect } from "next/navigation";
-import { Filter, LayoutDashboard } from "lucide-react";
+import { LayoutDashboard } from "lucide-react";
 import Link from "next/link";
 import { AdminNav } from "@/components/admin/admin-nav";
 import { AppShell } from "@/components/app-shell";
+import { TicketFilters } from "@/components/admin/ticket-filters";
 import { TicketCard } from "@/components/ticket-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { requireUser } from "@/lib/auth";
 import { getTicketListPageData } from "@/lib/data-store";
-import { activeTicketStatuses, priorityLabels, statusLabels, ticketPriorities } from "@/lib/labels";
 import { buildTicketListHref, getTicketListCursor, parseTicketListFilters, type TicketListSearchParams } from "@/lib/ticket-filters";
 import { canUseAdmin } from "@/lib/permissions";
 
@@ -53,81 +53,7 @@ export default async function AdminTicketsPage({
 
       <AdminNav user={user} currentPath="/admin/tickets" />
 
-      <form method="get" className="control-panel mb-5 flex flex-wrap items-center gap-2 rounded-md p-3">
-        <Filter size={18} className="text-ink/50 dark:text-paper/50" />
-        <input
-          name="q"
-          type="search"
-          defaultValue={filters.query ?? ""}
-          placeholder="Szukaj numeru, tytułu lub opisu"
-          className={`${filterClass} min-w-64`}
-          aria-label="Szukaj ticketów"
-        />
-        <select name="status" aria-label="Filtruj po statusie" defaultValue={filters.status ?? ""} className={filterClass}>
-          <option value="">Status</option>
-          {activeTicketStatuses.map((status) => (
-            <option key={status} value={status}>
-              {statusLabels[status]}
-            </option>
-          ))}
-        </select>
-        <select name="priority" aria-label="Filtruj po priorytecie" defaultValue={filters.priority ?? ""} className={filterClass}>
-          <option value="">Priorytet</option>
-          {ticketPriorities.map((priority) => (
-            <option key={priority} value={priority}>
-              {priorityLabels[priority]}
-            </option>
-          ))}
-        </select>
-        <select name="assignee" aria-label="Filtruj po wykonawcy" defaultValue={filters.assigneeId ?? ""} className={filterClass}>
-          <option value="">Wykonawca</option>
-          {page.users
-            .filter((item) => item.isActive && (item.role === "AGENT" || item.role === "ADMIN"))
-            .map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-        </select>
-        <select name="store" aria-label="Filtruj po sklepie" defaultValue={filters.storeId ?? ""} className={filterClass}>
-          <option value="">Sklep</option>
-          {page.stores
-            .filter((item) => item.isActive)
-            .map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.code} — {item.name}
-              </option>
-            ))}
-        </select>
-        <select name="category" aria-label="Filtruj po kategorii" defaultValue={filters.categoryId ?? ""} className={filterClass}>
-          <option value="">Kategoria</option>
-          {page.categories
-            .filter((item) => item.isActive)
-            .map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-        </select>
-        <label className={checkLabelClass}>
-          <input type="checkbox" name="mine" value="1" defaultChecked={filters.mine} />
-          Moje
-        </label>
-        <label className={checkLabelClass}>
-          <input type="checkbox" name="unassigned" value="1" defaultChecked={filters.unassigned} />
-          Nieprzypisane
-        </label>
-        <label className={checkLabelClass}>
-          <input type="checkbox" name="overdue" value="1" defaultChecked={filters.overdue} />
-          Po SLA
-        </label>
-        <button className="inline-flex h-10 items-center justify-center rounded-md bg-ink px-4 text-sm font-bold text-white dark:bg-paper dark:text-ink" type="submit">
-          Filtruj
-        </button>
-        <Link href="/admin/tickets" className="inline-flex h-10 items-center justify-center rounded-md px-3 text-sm font-bold text-ink/65 hover:text-ink dark:text-paper/65 dark:hover:text-paper">
-          Wyczyść
-        </Link>
-      </form>
+      <TicketFilters filters={filters} users={page.users} stores={page.stores} categories={page.categories} />
 
       {page.tickets.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -165,12 +91,6 @@ export default async function AdminTicketsPage({
     </AppShell>
   );
 }
-
-const filterClass =
-  "h-10 min-w-40 rounded-md border border-black/10 bg-white px-3 text-sm text-ink outline-none transition focus:border-mint focus:ring-4 focus:ring-mint/15 dark:border-white/10 dark:bg-white/10 dark:text-paper";
-
-const checkLabelClass =
-  "inline-flex h-10 items-center gap-2 rounded-md border border-black/10 px-3 text-sm font-semibold text-ink/70 dark:border-white/10 dark:text-paper/70";
 
 function Metric({ label, value }: { label: string; value: number }) {
   return (
