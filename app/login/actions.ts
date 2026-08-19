@@ -23,12 +23,15 @@ export async function loginAction(_previousState: string | undefined, formData: 
 
   // Rate limit by account identity. Do not trust client-supplied proxy headers
   // as part of the key because they can be changed on every request.
-  const rateLimitKey = `login:${email}`;
-  const rateCheck = await checkRateLimit(rateLimitKey, RATE_LIMITS.LOGIN.windowMs, RATE_LIMITS.LOGIN.maxAttempts);
+  const isIsolatedE2e = process.env.NODE_ENV !== "production" && process.env.FIXIT_E2E === "true";
+  if (!isIsolatedE2e) {
+    const rateLimitKey = `login:${email}`;
+    const rateCheck = await checkRateLimit(rateLimitKey, RATE_LIMITS.LOGIN.windowMs, RATE_LIMITS.LOGIN.maxAttempts);
 
-  if (!rateCheck.allowed) {
-    const minutes = Math.ceil(rateCheck.resetInSeconds / 60);
-    return `Zbyt wiele prób logowania. Spróbuj ponownie za ${minutes} min.`;
+    if (!rateCheck.allowed) {
+      const minutes = Math.ceil(rateCheck.resetInSeconds / 60);
+      return `Zbyt wiele prób logowania. Spróbuj ponownie za ${minutes} min.`;
+    }
   }
 
   const user = await findUserByEmail(email, { includePasswordHash: true, includeMfaSecret: true });

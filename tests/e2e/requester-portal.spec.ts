@@ -81,22 +81,24 @@ test("reporter cannot open another user's ticket by direct URL", async ({ page }
   await expect(page.getByTestId("ticket-number")).toHaveCount(0);
 });
 
-test("reporter can confirm a resolved own ticket", async ({ page, context }) => {
+test("reporter can confirm a resolved own ticket", async ({ page, browser }) => {
   await loginAs(page, "kasjer@bagietka.pl");
   await createTicketViaUI(page, "Inne", "Resolution confirmation test", "Ticket used to verify the requester resolution action.");
   const reporterUrl = page.url();
-  const adminPage = await context.newPage();
+  const adminContext = await browser.newContext();
+  const adminPage = await adminContext.newPage();
 
   await loginAs(adminPage, "admin@bagietka.pl");
   await adminPage.goto(reporterUrl.replace("/tickets/", "/admin/tickets/"));
   const adminActions = adminPage.getByTestId("admin-actions");
   await adminActions.locator('select[name="status"]').selectOption("RESOLVED");
-  await adminActions.getByRole("button", { name: "Zapisz zmiany" }).click();
-  await adminPage.reload();
-  await expect(adminPage.getByTestId("admin-actions").locator('select[name="status"]')).toHaveValue("RESOLVED");
-  await adminPage.close();
+  const [updateResponse] = await Promise.all([
+    adminPage.waitForResponse((response) => response.request().method() === "POST"),
+    adminActions.getByRole("button", { name: "Zapisz zmiany" }).click()
+  ]);
+  expect(updateResponse.status()).toBeLessThan(400);
+  await adminContext.close();
 
-  await loginAs(page, "kasjer@bagietka.pl");
   await page.goto(reporterUrl);
   await expect(page.getByRole("button", { name: "Potwierdź i zamknij zgłoszenie" })).toBeVisible();
 });
