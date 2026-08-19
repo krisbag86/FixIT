@@ -2,17 +2,18 @@
 
 Dokument zawiera historyczne podsumowanie prac od Etapu 7. Bieżący stan projektu i nowe zmiany opisujemy na początku pliku oraz w `build-status.md`; starsze liczby testów i sekcje `ZROBIONE` pozostają jako zapis kolejnych etapów.
 
-## Aktualny stan — 2026-08-17
+## Aktualny stan — 2026-08-19
 
-- Wydanie v1.2 (hardening bezpieczeństwa, CI, porządki produkcyjne) zostało zmergowane do `main` (PR #9) i oczekuje na wdrożenie na Railway.
+- Wydanie v1.2 zostało wcześniej zmergowane do `main` (PR #9). Dodatkowy hardening z 2026-08-19 został oparty bezpośrednio na aktualnym `origin/main`, bez ponownego scalania starego brancha.
 - `npm audit` jest czysty (0 podatności); `package.json` ma wersję `1.2.0`.
-- Dodano testy integracyjne PostgreSQL (`tests/prisma-integration.test.ts`) dla runtime Prisma oraz usługę Postgres 16 w CI. Bez `DATABASE_URL` testy te są pomijane; lokalnie uruchamiane przez `docker compose up postgres` + `npm run db:migrate:deploy` + `npm run db:seed`.
+- CI obejmuje lint, typecheck, Vitest, sześć testów Prisma/PostgreSQL, build, 50 scenariuszy Playwright, pełny audyt zależności i secret scan.
 - Poprawiono parzystość runtime Prisma z JSON-store (znaczniki czasu `null`) oraz ładowanie Google Fonts (CSP + `@import` na początku CSS).
-- Walidacja: `npm run typecheck` OK, `npm run lint` OK, `npm run test` — 199 passed / 0 skipped z PostgreSQL (193 passed / 1 skipped bez bazy); build produkcyjny OK.
+- Domknięto limity CSP/uploadu, granice notatek wewnętrznych, własność komentarzy załączników i neutralizację formuł CSV.
+- Walidacja na Node.js `20.20.2`: typecheck i lint OK; Vitest 225 passed / 7 skipped; Prisma 6/6; Playwright 50/50; build produkcyjny 23 stron; oba audyty npm 0 podatności.
 
 ### Najbliższe zadania
 
-- Wdrożyć v1.2 na Railway (migracje `20260810120000_link_daylog_ticket`, `20260810160000_add_weekly_schedule`, `20260817130000_add_mfa` uruchomione przez `prisma migrate deploy`) i wykonać backup bazy przed deployem.
+- Przed publikacją potwierdzić backup PostgreSQL i możliwość odtworzenia, następnie zweryfikować Railway build/deploy oraz `/api/health/ready` po pushu `main`.
 - Po deployu wykonać smoke test: logowanie, DayLog, utworzenie wpisu, konwersja do zgłoszenia, powrót linkiem do zgłoszenia, edycja, usunięcie i eksport XLSX.
 - Włączyć wybrane konta opcją `Grafik` i ustawić ich kolejność, a następnie wykonać smoke test grafiku: siedem dni, zadanie, edycja, odhaczenie przez przypisanego agenta, dyżur, ostrzeżenie braku obsady i kopiowanie pustego tygodnia.
 - Zweryfikować konfigurację MFA administratora i przepływ aktywacji konta przez jednorazowy link.
