@@ -1,7 +1,7 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
-import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { UploadValidationError, isValidStorageKey } from "@/lib/storage-utils";
 
 function getS3Config() {
@@ -85,4 +85,19 @@ export async function readAttachmentFileS3(storageKey: string): Promise<Buffer> 
 
   const body = await response.Body.transformToByteArray();
   return Buffer.from(body);
+}
+
+export async function deleteAttachmentFileS3(storageKey: string): Promise<void> {
+  if (!isValidStorageKey(storageKey)) {
+    throw new UploadValidationError("Nieprawidłowy klucz pliku.");
+  }
+
+  const config = getS3Config();
+  if (!config) {
+    throw new Error("S3 nie jest skonfigurowane.");
+  }
+
+  await getS3Client(config).send(
+    new DeleteObjectCommand({ Bucket: config.bucket, Key: storageKey })
+  );
 }

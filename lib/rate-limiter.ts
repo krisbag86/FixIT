@@ -32,10 +32,13 @@ function shouldUsePrisma(): boolean {
  * Default configuration:
  * - Login: 5 attempts per 15 minutes
  * - Mutations: 20 requests per 1 minute
+ * - CSP reports: 20 per client and 1,000 globally per 1 minute
  */
 export const RATE_LIMITS = {
   LOGIN: { windowMs: 15 * 60 * 1000, maxAttempts: 5 },
   MUTATION: { windowMs: 60 * 1000, maxAttempts: 20 },
+  CSP_CLIENT: { windowMs: 60 * 1000, maxAttempts: 20 },
+  CSP_GLOBAL: { windowMs: 60 * 1000, maxAttempts: 1_000 },
 } as const;
 
 /**

@@ -274,12 +274,17 @@ export async function listComments(ticketId: string, includeInternal: boolean): 
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
-export async function listEvents(ticketId: string): Promise<TicketEvent[]> {
+export async function listEvents(ticketId: string, includeInternal = true): Promise<TicketEvent[]> {
   if (shouldUsePrisma()) {
     const db = await getPrisma();
-    return (await db.ticketEvent.findMany({ where: { ticketId }, orderBy: { createdAt: "asc" } })).map(mapEvent);
+    return (await db.ticketEvent.findMany({
+      where: { ticketId, ...(includeInternal ? {} : { type: { not: "INTERNAL_NOTE_CREATED" } }) },
+      orderBy: { createdAt: "asc" }
+    })).map(mapEvent);
   }
-  return (await readDatabase()).events.filter((event) => event.ticketId === ticketId).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  return (await readDatabase()).events
+    .filter((event) => event.ticketId === ticketId && (includeInternal || event.type !== "INTERNAL_NOTE_CREATED"))
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
 export async function createTicketWithResult(input: {

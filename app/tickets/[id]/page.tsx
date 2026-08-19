@@ -30,10 +30,10 @@ export default async function TicketDetailsPage({ params }: { params: Promise<{ 
   const includeInternal = user.role === "AGENT" || user.role === "ADMIN";
   const [comments, events, attachments, templates, macros] = await Promise.all([
     listComments(ticket.id, includeInternal),
-    listEvents(ticket.id),
-    listAttachments(ticket.id),
-    listTemplates(),
-    listMacros()
+    listEvents(ticket.id, includeInternal),
+    listAttachments(ticket.id, includeInternal),
+    includeInternal ? listTemplates() : Promise.resolve([]),
+    includeInternal ? listMacros() : Promise.resolve([])
   ]);
   const references = await getTicketDetailReferences({
     ticket,

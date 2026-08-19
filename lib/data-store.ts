@@ -664,11 +664,11 @@ export async function exportTicketsCSV(): Promise<string> {
 }
 
 function escapeCSV(value: string): string {
-  // Spreadsheet formula injection prevention: neutralize leading = + - @
-  // by prepending a single quote (works in Excel, Google Sheets, LibreOffice)
-  const sanitized = /^[=+\-@]/.test(value) ? `'${value}` : value;
+  // Spreadsheet engines may ignore leading whitespace before formula markers.
+  // Prefix the entire value so tabs/newlines cannot bypass neutralization.
+  const sanitized = /^\s*[=+\-@]/.test(value) ? `'${value}` : value;
 
-  if (sanitized.includes(",") || sanitized.includes('"') || sanitized.includes("\n")) {
+  if (sanitized.includes(",") || sanitized.includes('"') || sanitized.includes("\n") || sanitized.includes("\r")) {
     return `"${sanitized.replace(/"/g, '""')}"`;
   }
   return sanitized;

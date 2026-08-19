@@ -282,6 +282,26 @@ describe("CSV injection prevention", () => {
       priority: "NORMAL"
     });
 
+    await createTicket({
+      title: "\t=HYPERLINK(\"https://evil.example\")",
+      description: "Whitespace bypass",
+      blocksWork: false,
+      contact: "test@bagietka.pl",
+      categoryId: "cat_other",
+      reporterId: "usr_admin",
+      priority: "NORMAL"
+    });
+
+    await createTicket({
+      title: "\r=1+1",
+      description: "Carriage return bypass",
+      blocksWork: false,
+      contact: "test@bagietka.pl",
+      categoryId: "cat_other",
+      reporterId: "usr_admin",
+      priority: "NORMAL"
+    });
+
     // Safe title should not be affected
     await createTicket({
       title: "Normal title with no injection",
@@ -301,9 +321,105 @@ describe("CSV injection prevention", () => {
     expect(csv).toContain("'+SUM");
     expect(csv).toContain("'-DDE");
     expect(csv).toContain("'@SUM");
+    expect(csv).toContain("'\t=HYPERLINK");
+    expect(csv).toContain("'\r=1+1");
 
     // Safe values should remain unchanged
     expect(csv).toContain("Normal title with no injection");
+  });
+});
+
+describe("internal ticket metadata visibility", () => {
+  beforeEach(resetDatabase);
+  afterEach(resetDatabase);
+
+  it("hides internal-note events and attachments from non-agent views", async () => {
+    const { addComment, createAttachment, createTicket, findUserByEmail, listAttachments, listEvents } = await import("@/lib/data-store");
+    const admin = await findUserByEmail("krzysztofgraczyk@bagietka.pl");
+    expect(admin).toBeDefined();
+
+    const ticket = await createTicket({
+      title: "Widoczność notatek",
+      description: "Dane wewnętrzne nie mogą wyciekać.",
+      blocksWork: false,
+      contact: admin!.email,
+      categoryId: "cat_other",
+      reporterId: admin!.id,
+      priority: "NORMAL"
+    });
+    const internalComment = await addComment({
+      ticketId: ticket.id,
+      authorId: admin!.id,
+      body: "Tajne dane serwisowe",
+      visibility: "INTERNAL"
+    });
+    expect(internalComment).toBeDefined();
+    await createAttachment({
+      ticketId: ticket.id,
+      commentId: internalComment!.id,
+      filename: "internal.txt",
+      mimeType: "text/plain",
+      size: 10,
+      storageKey: "abcdef0123456789abcdef0123456789",
+      uploadedById: admin!.id
+    });
+    await createAttachment({
+      ticketId: ticket.id,
+      filename: "public.txt",
+      mimeType: "text/plain",
+      size: 10,
+      storageKey: "0123456789abcdef0123456789abcdef",
+      uploadedById: admin!.id
+    });
+
+    expect((await listEvents(ticket.id, true)).some((event) => event.type === "INTERNAL_NOTE_CREATED")).toBe(true);
+    expect((await listEvents(ticket.id, false)).some((event) => event.type === "INTERNAL_NOTE_CREATED")).toBe(false);
+    expect((await listAttachments(ticket.id, true)).map((attachment) => attachment.filename)).toEqual([
+      "internal.txt",
+      "public.txt"
+    ]);
+    expect((await listAttachments(ticket.id, false)).map((attachment) => attachment.filename)).toEqual(["public.txt"]);
+  });
+
+  it("rejects attachments linked to a comment from another ticket", async () => {
+    const { addComment, createAttachment, createTicket, findUserByEmail } = await import("@/lib/data-store");
+    const admin = await findUserByEmail("krzysztofgraczyk@bagietka.pl");
+    expect(admin).toBeDefined();
+
+    const first = await createTicket({
+      title: "Pierwsze zgłoszenie",
+      description: "Źródło komentarza.",
+      blocksWork: false,
+      contact: admin!.email,
+      categoryId: "cat_other",
+      reporterId: admin!.id,
+      priority: "NORMAL"
+    });
+    const second = await createTicket({
+      title: "Drugie zgłoszenie",
+      description: "Nie może przejąć komentarza.",
+      blocksWork: false,
+      contact: admin!.email,
+      categoryId: "cat_other",
+      reporterId: admin!.id,
+      priority: "NORMAL"
+    });
+    const comment = await addComment({
+      ticketId: first.id,
+      authorId: admin!.id,
+      body: "Komentarz pierwszego zgłoszenia",
+      visibility: "PUBLIC"
+    });
+
+    await expect(createAttachment({
+      ticketId: second.id,
+      commentId: comment!.id,
+      filename: "invalid.txt",
+      mimeType: "text/plain",
+      size: 10,
+      storageKey: "fedcba9876543210fedcba9876543210",
+      uploadedById: admin!.id
+    })).rejects.toThrow("Komentarz nie należy do tego zgłoszenia.");
   });
 });
 

@@ -40,4 +40,29 @@ describe("attachment password-change gate", () => {
     expect(response.status).toBe(403);
     expect(await response.json()).toEqual({ error: "Najpierw ustaw nowe hasło." });
   });
+
+  it("rejects an oversized upload before parsing multipart data", async () => {
+    vi.doMock("@/lib/auth", () => ({
+      getCurrentUser: vi.fn(async () => ({ id: "usr_reporter", role: "REPORTER", isActive: true, mustChangePassword: false }))
+    }));
+    vi.doMock("@/lib/data-store", () => ({
+      findTicket: vi.fn(async () => ({ id: "tkt-1", reporterId: "usr_reporter" })),
+      createAttachment: vi.fn(),
+      listComments: vi.fn(async () => [])
+    }));
+    vi.doMock("@/lib/permissions", () => ({
+      can: vi.fn(() => true),
+      canViewTicket: vi.fn(() => true)
+    }));
+
+    const { POST } = await import("@/app/api/attachments/ticket/[ticketId]/route");
+    const request = new Request("http://fixit.test/api/attachments/ticket/tkt-1", {
+      method: "POST",
+      headers: { "content-length": String(20 * 1024 * 1024) },
+      body: "small"
+    });
+    const response = await POST(request, { params: Promise.resolve({ ticketId: "tkt-1" }) });
+
+    expect(response.status).toBe(413);
+  });
 });

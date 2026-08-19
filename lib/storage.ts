@@ -1,6 +1,6 @@
 import "server-only";
 
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import {
@@ -79,4 +79,21 @@ export async function readAttachmentFile(storageKey: string): Promise<Buffer> {
 
   const fullPath = path.join(storageRoot, storageKey);
   return readFile(fullPath);
+}
+
+export async function deleteAttachmentFile(storageKey: string): Promise<void> {
+  if (!isValidStorageKey(storageKey)) {
+    throw new UploadValidationError("Nieprawidłowy klucz pliku.");
+  }
+
+  if (isS3Configured()) {
+    const { deleteAttachmentFileS3 } = await import("@/lib/s3-storage");
+    await deleteAttachmentFileS3(storageKey);
+    return;
+  }
+
+  const fullPath = path.join(storageRoot, storageKey);
+  await unlink(fullPath).catch((error: NodeJS.ErrnoException) => {
+    if (error.code !== "ENOENT") throw error;
+  });
 }
