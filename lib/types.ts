@@ -232,6 +232,40 @@ export type DashboardData = {
   recentEvents: (TicketEvent & { actorName?: string; ticketNumber?: string })[];
 };
 
+export type DashboardQueueStage = "new" | "waiting" | "in_progress";
+
+export type DashboardTicketItem = Pick<
+  Ticket,
+  "id" | "number" | "title" | "status" | "priority" | "createdAt"
+> & {
+  storeCode?: string;
+};
+
+export type DashboardAlertItem = DashboardTicketItem & {
+  isCritical: boolean;
+  isSlaBreached: boolean;
+  hoursOverdue: number | null;
+};
+
+export type OperationalDashboardData = {
+  alerts: {
+    criticalCount: number;
+    slaBreachedCount: number;
+    tickets: DashboardAlertItem[];
+  };
+  myQueue: Record<
+    DashboardQueueStage,
+    { count: number; tickets: DashboardTicketItem[] }
+  >;
+  analytics: {
+    openTickets: number;
+    avgResolutionHours: number | null;
+    dailyTicketCounts: { date: string; created: number; resolved: number }[];
+    topCategories: { categoryId: string; categoryName: string; count: number }[];
+    agentWorkload: { agentId: string; agentName: string; openCount: number }[];
+  };
+};
+
 export type ResponseTemplate = {
   id: string;
   name: string;
