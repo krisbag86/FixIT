@@ -16,7 +16,7 @@ export default async function DashboardPage() {
     redirect("/tickets");
   }
 
-  const dashboardData = await getDashboardData();
+  const dashboardData = await getDashboardData(user);
 
   return (
     <AppShell user={user}>

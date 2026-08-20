@@ -1,45 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import {
-  AlertTriangle,
-  BarChart3,
-  Clock,
-  FileText,
-  Flame,
-  TrendingDown,
-  Users,
-} from "lucide-react";
-import {
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from "recharts";
-import { APP_TIME_ZONE, formatDateTime } from "@/lib/format";
-import type {
-  DashboardData,
-} from "@/lib/types";
+import { AlertTriangle, ArrowRight, BarChart3, FileText, Users } from "lucide-react";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { DashboardMyTickets } from "@/components/admin/dashboard-my-tickets";
+import { APP_TIME_ZONE } from "@/lib/format";
+import type { DashboardAlertItem, DashboardData } from "@/lib/types";
 
 function formatShortDate(iso: string): string {
-  return new Intl.DateTimeFormat("pl-PL", {
-    day: "numeric",
-    month: "numeric",
-    timeZone: APP_TIME_ZONE
-  }).format(new Date(iso));
+  return new Intl.DateTimeFormat("pl-PL", { day: "numeric", month: "numeric", timeZone: APP_TIME_ZONE }).format(new Date(iso));
 }
 
-function CustomTooltip({
-  active,
-  payload,
-  label,
-}: {
+function CustomTooltip({ active, payload, label }: {
   active?: boolean;
   payload?: Array<{ name: string; value: number; color: string }>;
   label?: string;
@@ -50,10 +22,7 @@ function CustomTooltip({
       <div className="mb-1 text-xs font-bold">{label}</div>
       {payload.map((entry) => (
         <div key={entry.name} className="flex items-center gap-2 text-xs">
-          <span
-            className="inline-block h-2 w-2 rounded-full"
-            style={{ backgroundColor: entry.color }}
-          />
+          <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
           <span className="text-ink/60 dark:text-paper/60">{entry.name}:</span>
           <span className="font-bold">{entry.value}</span>
         </div>
@@ -62,245 +31,147 @@ function CustomTooltip({
   );
 }
 
-export function ITDashboard({
-  data
-}: {
-  data: DashboardData;
-}) {
-  const slaWarnings = data.kpi.criticalTickets + data.kpi.slaBreachedCount;
+export function ITDashboard({ data }: { data: DashboardData }) {
+  return (
+    <div className="space-y-8">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(18rem,1fr)]">
+        <DashboardAlerts alerts={data.alerts} />
+        <DashboardMyTickets queue={data.myQueue} />
+      </div>
+      <DashboardAnalytics analytics={data.analytics} />
+    </div>
+  );
+}
+
+function DashboardAlerts({ alerts }: { alerts: DashboardData["alerts"] }) {
+  return (
+    <section data-testid="dashboard-alerts" className="min-w-0 rounded-md border border-red-500/20 bg-white/75 p-4 dark:border-red-400/20 dark:bg-white/10">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-lg font-black"><AlertTriangle size={18} className="text-red-600 dark:text-red-400" />Wymaga reakcji</h2>
+        <span className="text-xs font-bold text-ink/50 dark:text-paper/50">Cały zespół</span>
+      </div>
+      <div className="mb-4 grid grid-cols-2 gap-3">
+        <Link href="/admin/tickets?attention=critical" className="rounded-md border border-red-500/20 bg-red-500/5 p-3 transition hover:border-red-500/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500">
+          <span className="text-xs font-black uppercase text-red-700 dark:text-red-300">Krytyczne</span>
+          <strong className="block text-2xl">{alerts.criticalCount}</strong>
+        </Link>
+        <Link href="/admin/tickets?attention=overdue" className="rounded-md border border-amber-500/25 bg-amber-500/5 p-3 transition hover:border-amber-500/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500">
+          <span className="text-xs font-black uppercase text-amber-700 dark:text-amber-300">SLA przekroczone</span>
+          <strong className="block text-2xl">{alerts.slaBreachedCount}</strong>
+        </Link>
+      </div>
+      {alerts.tickets.length === 0 ? (
+        <p className="py-12 text-center text-sm text-ink/55 dark:text-paper/55">Brak krytycznych zgłoszeń i naruszeń SLA</p>
+      ) : (
+        <div className="space-y-2">{alerts.tickets.map((ticket) => <DashboardAlertRow key={ticket.id} ticket={ticket} />)}</div>
+      )}
+      <Link href="/admin/tickets?attention=all" className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-mint hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mint">
+        Zobacz wszystkie wymagające reakcji<ArrowRight size={15} />
+      </Link>
+    </section>
+  );
+}
+
+function DashboardAlertRow({ ticket }: { ticket: DashboardAlertItem }) {
+  const reasons = [
+    ticket.isCritical ? "Krytyczne" : null,
+    ticket.isSlaBreached && ticket.hoursOverdue !== null ? `SLA +${ticket.hoursOverdue} h` : null
+  ].filter(Boolean).join(" · ");
 
   return (
-    <div>
-      {/* KPI Cards */}
-      <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <KPICard
-          icon={<FileText size={22} />}
-          label="Otwarte zgłoszenia"
-          value={data.kpi.openTickets}
-          color="text-blue-600 dark:text-blue-400"
-        />
-        <KPICard
-          icon={<Flame size={22} />}
-          label="Krytyczne"
-          value={data.kpi.criticalTickets}
-          color="text-red-600 dark:text-red-400"
-        />
-        <KPICard
-          icon={<TrendingDown size={22} />}
-          label="Średni czas rozwiązania"
-          value={
-            data.kpi.avgResolutionHours !== null
-              ? `${data.kpi.avgResolutionHours}h`
-              : "---"
-          }
-          color="text-emerald-600 dark:text-emerald-400"
-        />
-        <KPICard
-          icon={<AlertTriangle size={22} />}
-          label="Naruszenia SLA"
-          value={data.kpi.slaBreachedCount}
-          color={slaWarnings > 0 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}
-        />
+    <Link href={`/admin/tickets/${ticket.id}`} className="block min-w-0 rounded-md border border-black/10 bg-white/80 p-3 transition hover:-translate-y-0.5 hover:border-red-500/30 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:border-white/10 dark:bg-white/5">
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-mono text-xs font-black text-mint">{ticket.number}</div>
+          <div className="mt-1 truncate text-sm font-bold">{ticket.title}</div>
+          {ticket.storeCode ? <div className="mt-1 text-xs text-ink/50 dark:text-paper/50">Sklep {ticket.storeCode}</div> : null}
+        </div>
+        <span className="shrink-0 text-right text-xs font-black text-red-700 dark:text-red-300">{reasons}</span>
+      </div>
+    </Link>
+  );
+}
+
+function DashboardAnalytics({ analytics }: { analytics: DashboardData["analytics"] }) {
+  return (
+    <section data-testid="dashboard-analytics" className="rounded-md border border-black/10 bg-white/50 p-4 dark:border-white/10 dark:bg-white/5">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div className="text-xs font-black uppercase tracking-wide text-mint">Ostatnie 30 dni</div>
+          <h2 className="mt-1 text-xl font-black">Sytuacja i obciążenie zespołu</h2>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Metric label="Otwarte" value={analytics.openTickets} />
+          <Metric label="Średni czas rozwiązania" value={analytics.avgResolutionHours === null ? "---" : `${analytics.avgResolutionHours}h`} />
+        </div>
       </div>
 
-      {/* Charts Row */}
-      <div className="mb-8 grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(16rem,1fr)]">
-        {/* Ticket Volume Chart */}
-        <div className="rounded-md border border-black/10 bg-white/75 p-4 dark:border-white/10 dark:bg-white/10">
-          <h2 className="mb-4 flex items-center gap-2 text-lg font-black">
-            <BarChart3 size={18} className="text-mint" />
-            Liczba zgłoszeń (ostatnie 30 dni)
-          </h2>
-          {data.dailyTicketCounts.every((d) => d.created === 0 && d.resolved === 0) ? (
-            <p className="py-12 text-center text-sm text-ink/55 dark:text-paper/55">
-              Brak danych do wyświetlenia wykresu.
-            </p>
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(14rem,1fr)_minmax(14rem,1fr)]">
+        <div className="min-w-0 rounded-md border border-black/10 bg-white/75 p-4 dark:border-white/10 dark:bg-white/10">
+          <h3 className="mb-4 flex items-center gap-2 text-base font-black"><BarChart3 size={18} className="text-mint" />Utworzone i rozwiązane</h3>
+          {analytics.dailyTicketCounts.every((day) => day.created === 0 && day.resolved === 0) ? (
+            <p className="py-12 text-center text-sm text-ink/55 dark:text-paper/55">Brak danych do wyświetlenia wykresu.</p>
           ) : (
             <ResponsiveContainer width="100%" height={280}>
-              <AreaChart
-                data={data.dailyTicketCounts}
-                margin={{ top: 5, right: 10, left: -10, bottom: 5 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  className="stroke-black/10 dark:stroke-white/10"
-                />
-                <XAxis
-                  dataKey="date"
-                  tickFormatter={formatShortDate}
-                  tick={{ fontSize: 11 }}
-                  className="text-ink/50 dark:text-paper/50"
-                />
-                <YAxis tick={{ fontSize: 11 }} className="text-ink/50 dark:text-paper/50" />
+              <AreaChart data={analytics.dailyTicketCounts} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-black/10 dark:stroke-white/10" />
+                <XAxis dataKey="date" tickFormatter={formatShortDate} tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Area
-                  type="monotone"
-                  dataKey="created"
-                  name="Utworzone"
-                  stroke="#3b82f6"
-                  fill="#3b82f6"
-                  fillOpacity={0.15}
-                  strokeWidth={2}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="resolved"
-                  name="Rozwiązane"
-                  stroke="#10b981"
-                  fill="#10b981"
-                  fillOpacity={0.15}
-                  strokeWidth={2}
-                />
+                <Area type="monotone" dataKey="created" name="Utworzone" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.15} strokeWidth={2} />
+                <Area type="monotone" dataKey="resolved" name="Rozwiązane" stroke="#10b981" fill="#10b981" fillOpacity={0.15} strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           )}
         </div>
 
-        {/* Top Categories Chart */}
-        <div className="rounded-md border border-black/10 bg-white/75 p-4 dark:border-white/10 dark:bg-white/10">
-          <h2 className="mb-4 flex items-center gap-2 text-lg font-black">
-            <FileText size={18} className="text-mint" />
-            Top kategorie
-          </h2>
-          {data.topCategories.length === 0 ? (
-            <p className="py-12 text-center text-sm text-ink/55 dark:text-paper/55">
-              Brak danych.
-            </p>
+        <div className="min-w-0 rounded-md border border-black/10 bg-white/75 p-4 dark:border-white/10 dark:bg-white/10">
+          <h3 className="mb-4 flex items-center gap-2 text-base font-black"><FileText size={18} className="text-mint" />Top kategorie</h3>
+          {analytics.topCategories.length === 0 ? (
+            <p className="py-12 text-center text-sm text-ink/55 dark:text-paper/55">Brak danych.</p>
           ) : (
             <ResponsiveContainer width="100%" height={280}>
-              <BarChart
-                data={data.topCategories}
-                layout="vertical"
-                margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  className="stroke-black/10 dark:stroke-white/10"
-                />
-                <XAxis type="number" tick={{ fontSize: 11 }} className="text-ink/50 dark:text-paper/50" />
-                <YAxis
-                  dataKey="categoryName"
-                  type="category"
-                  width={120}
-                  tick={{ fontSize: 11 }}
-                  className="text-ink/50 dark:text-paper/50"
-                />
+              <BarChart data={analytics.topCategories} layout="vertical" margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-black/10 dark:stroke-white/10" />
+                <XAxis type="number" tick={{ fontSize: 11 }} />
+                <YAxis dataKey="categoryName" type="category" width={92} tick={{ fontSize: 10 }} />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="count" name="Zgłoszenia" fill="#06b6a2" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
         </div>
-      </div>
 
-      {/* Bottom Row: Agent Workload + Recent Activity */}
-      <div className="grid gap-6 xl:grid-cols-2">
-        {/* Agent Workload */}
-        <div className="rounded-md border border-black/10 bg-white/75 p-4 dark:border-white/10 dark:bg-white/10">
-          <h2 className="mb-4 flex items-center gap-2 text-lg font-black">
-            <Users size={18} className="text-mint" />
-            Obciążenie agentów
-          </h2>
-          {data.agentWorkload.length === 0 ? (
-            <p className="py-8 text-center text-sm text-ink/55 dark:text-paper/55">
-              Brak przypisanych zgłoszeń.
-            </p>
+        <div className="min-w-0 rounded-md border border-black/10 bg-white/75 p-4 dark:border-white/10 dark:bg-white/10">
+          <h3 className="mb-4 flex items-center gap-2 text-base font-black"><Users size={18} className="text-mint" />Obciążenie agentów</h3>
+          {analytics.agentWorkload.length === 0 ? (
+            <p className="py-12 text-center text-sm text-ink/55 dark:text-paper/55">Brak przypisanych zgłoszeń.</p>
           ) : (
             <div className="space-y-3">
-              {data.agentWorkload.map((agent) => {
-                const maxCount = data.agentWorkload[0]?.openCount ?? 1;
-                const pct = maxCount > 0 ? Math.round((agent.openCount / maxCount) * 100) : 0;
+              {analytics.agentWorkload.map((agent) => {
+                const maxCount = analytics.agentWorkload[0]?.openCount ?? 1;
+                const width = maxCount > 0 ? Math.round((agent.openCount / maxCount) * 100) : 0;
                 return (
                   <div key={agent.agentId}>
-                    <div className="mb-1 flex items-center justify-between text-sm">
-                      <span className="font-semibold">{agent.agentName}</span>
-                      <span className="font-bold text-ink/70 dark:text-paper/70">
-                        {agent.openCount}
-                      </span>
-                    </div>
-                    <div className="h-2.5 overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
-                      <div
-                        className="h-full rounded-full bg-mint transition-all"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
+                    <div className="mb-1 flex items-center justify-between gap-2 text-sm"><span className="truncate font-semibold">{agent.agentName}</span><span className="font-bold text-ink/70 dark:text-paper/70">{agent.openCount}</span></div>
+                    <div className="h-2.5 overflow-hidden rounded-full bg-black/10 dark:bg-white/10"><div className="h-full rounded-full bg-mint" style={{ width: `${width}%` }} /></div>
                   </div>
                 );
               })}
             </div>
           )}
         </div>
-
-        {/* Recent Activity */}
-        <div className="rounded-md border border-black/10 bg-white/75 p-4 dark:border-white/10 dark:bg-white/10">
-          <h2 className="mb-4 flex items-center gap-2 text-lg font-black">
-            <Clock size={18} className="text-mint" />
-            Ostatnia aktywność
-          </h2>
-          {data.recentEvents.length === 0 ? (
-            <p className="py-8 text-center text-sm text-ink/55 dark:text-paper/55">
-              Brak zdarzeń.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {data.recentEvents.slice(0, 10).map((event) => {
-                return (
-                  <Link
-                    key={event.id}
-                    href={`/admin/tickets/${event.ticketId}`}
-                    className="block rounded-md border border-black/10 bg-white/80 p-3 transition hover:-translate-y-0.5 hover:shadow-md dark:border-white/10 dark:bg-white/5"
-                  >
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="font-mono font-bold text-mint">
-                        {event.ticketNumber ?? "??"}
-                      </span>
-                      <span className="rounded bg-black/5 px-1.5 py-0.5 font-semibold text-ink/60 dark:bg-white/10 dark:text-paper/60">
-                        {event.type}
-                      </span>
-                    </div>
-                    {event.payload && Object.keys(event.payload).length > 0 && (
-                      <div className="mt-1 text-xs text-ink/55 dark:text-paper/55">
-                        {Object.entries(event.payload).map(([key, value]) => (
-                          <span key={key} className="mr-2">
-                            {key}: {value}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    <div className="mt-1 text-xs text-ink/45 dark:text-paper/45">
-                        {event.actorName ?? "System"} &middot;{" "}
-                      {formatDateTime(event.createdAt)}
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-        </div>
       </div>
-    </div>
+    </section>
   );
 }
 
-function KPICard({
-  icon,
-  label,
-  value,
-  color,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string | number;
-  color: string;
-}) {
+function Metric({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-md border border-black/10 bg-white/75 px-4 py-4 transition hover:shadow-md dark:border-white/10 dark:bg-white/10">
-      <div className={`mb-2 ${color}`}>{icon}</div>
-      <div className="text-2xl font-black">{value}</div>
-      <div className="text-xs font-bold uppercase text-ink/50 dark:text-paper/50">
-        {label}
-      </div>
+    <div className="min-w-0 rounded-md border border-black/10 bg-white/75 px-3 py-2 dark:border-white/10 dark:bg-white/10">
+      <div className="text-xl font-black">{value}</div>
+      <div className="text-[10px] font-black uppercase leading-tight text-ink/50 dark:text-paper/50">{label}</div>
     </div>
   );
 }

@@ -81,6 +81,7 @@ export function createSeedDatabase(): Database {
           categoryId: "cat_other",
           storeId: storeDirectory[0]?.id,
           reporterId: "usr_e2e_reporter",
+          assigneeId: "usr_e2e_agent",
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         },
@@ -96,8 +97,41 @@ export function createSeedDatabase(): Database {
           categoryId: "cat_other",
           storeId: storeDirectory[0]?.id,
           reporterId: "usr_e2e_manager",
+          assigneeId: "usr_e2e_agent",
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
+        },
+        {
+          id: "t_003",
+          number: "IT-2026-0003",
+          title: "E2E waiting ticket",
+          description: "Ticket used by Playwright dashboard waiting queue tests.",
+          status: "WAITING_FOR_USER" as const,
+          priority: "NORMAL" as const,
+          blocksWork: false,
+          contact: "sklep.waw01@bagietka.pl",
+          categoryId: "cat_other",
+          storeId: storeDirectory[0]?.id,
+          reporterId: "usr_e2e_manager",
+          assigneeId: "usr_e2e_agent",
+          createdAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+          updatedAt: new Date().toISOString()
+        },
+        {
+          id: "t_004",
+          number: "IT-2026-0004",
+          title: "E2E critical overdue ticket",
+          description: "Ticket used by Playwright dashboard alert tests.",
+          status: "IN_PROGRESS" as const,
+          priority: "CRITICAL" as const,
+          blocksWork: true,
+          contact: "kasjer@bagietka.pl",
+          categoryId: "cat_other",
+          storeId: storeDirectory[0]?.id,
+          reporterId: "usr_e2e_reporter",
+          createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
+          updatedAt: new Date().toISOString(),
+          dueAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
         }
       ]
     : [];

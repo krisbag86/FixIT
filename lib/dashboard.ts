@@ -6,8 +6,8 @@ import {
 import type {
   Category,
   DashboardAlertItem,
+  DashboardData,
   DashboardQueueStage,
-  OperationalDashboardData,
   Ticket,
   TicketPriority,
   TicketStatus,
@@ -76,7 +76,7 @@ export function buildDashboardAlerts(
   tickets: DashboardSourceTicket[],
   storeCodes: Map<string, string>,
   now: Date
-): OperationalDashboardData["alerts"] {
+): DashboardData["alerts"] {
   const candidates: DashboardAlertItem[] = tickets.flatMap((ticket) => {
     const isCritical =
       ticket.priority === "CRITICAL" &&
@@ -115,7 +115,7 @@ export function buildDashboardAlerts(
 export function buildDashboardMyQueue(
   tickets: DashboardSourceTicket[],
   userId: string
-): OperationalDashboardData["myQueue"] {
+): DashboardData["myQueue"] {
   return Object.fromEntries(
     (Object.keys(DASHBOARD_STAGE_STATUSES) as DashboardQueueStage[]).map((stage) => {
       const matching = tickets
@@ -139,13 +139,13 @@ export function buildDashboardMyQueue(
         }
       ];
     })
-  ) as OperationalDashboardData["myQueue"];
+  ) as DashboardData["myQueue"];
 }
 
 export function buildDashboardDailyCounts(
   tickets: Array<Pick<DashboardSourceTicket, "createdAt" | "resolvedAt">>,
   now: Date
-): OperationalDashboardData["analytics"]["dailyTicketCounts"] {
+): DashboardData["analytics"]["dailyTicketCounts"] {
   const start = getDashboardWindowStart(now);
   const counts = new Map<string, { created: number; resolved: number }>();
   for (let offset = 0; offset < DASHBOARD_DAYS; offset += 1) {
@@ -186,7 +186,7 @@ export function calculateAverageResolutionHours(
 export function buildTopCategories(
   tickets: DashboardSourceTicket[],
   categories: Array<Pick<Category, "id" | "name">>
-): OperationalDashboardData["analytics"]["topCategories"] {
+): DashboardData["analytics"]["topCategories"] {
   const names = new Map(categories.map((category) => [category.id, category.name]));
   const counts = new Map<string, number>();
   for (const ticket of tickets) {
@@ -211,7 +211,7 @@ export function buildTopCategories(
 export function buildAgentWorkload(
   tickets: DashboardSourceTicket[],
   users: User[]
-): OperationalDashboardData["analytics"]["agentWorkload"] {
+): DashboardData["analytics"]["agentWorkload"] {
   const agents = new Map(
     users
       .filter(

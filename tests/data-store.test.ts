@@ -88,7 +88,7 @@ describe("getDashboardMetrics", () => {
   });
 });
 
-describe("getOperationalDashboardData", () => {
+describe("getDashboardData", () => {
   beforeEach(async () => {
     await resetDatabase();
     vi.useFakeTimers();
@@ -101,7 +101,7 @@ describe("getOperationalDashboardData", () => {
   });
 
   it("returns the limited operational dashboard contract for the JSON provider", async () => {
-    const { getOperationalDashboardData, readDatabase, writeDatabase } = await import("@/lib/data-store");
+    const { getDashboardData, readDatabase, writeDatabase } = await import("@/lib/data-store");
     const database = await readDatabase();
     const agent: User = {
       id: "dashboard-agent",
@@ -141,7 +141,7 @@ describe("getOperationalDashboardData", () => {
     );
     await writeDatabase(database);
 
-    const dashboard = await getOperationalDashboardData(agent);
+    const dashboard = await getDashboardData(agent);
 
     expect(dashboard.alerts).toMatchObject({ criticalCount: 1, slaBreachedCount: 1 });
     expect(dashboard.alerts.tickets).toHaveLength(1);

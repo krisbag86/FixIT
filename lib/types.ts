@@ -207,31 +207,6 @@ export type DashboardMetrics = {
   }[];
 };
 
-type DailyTicketCount = {
-  date: string;
-  created: number;
-  resolved: number;
-};
-
-type AgentWorkload = {
-  agentId: string;
-  agentName: string;
-  openCount: number;
-};
-
-export type DashboardData = {
-  kpi: {
-    openTickets: number;
-    criticalTickets: number;
-    avgResolutionHours: number | null;
-    slaBreachedCount: number;
-  };
-  dailyTicketCounts: DailyTicketCount[];
-  topCategories: { categoryId: string; categoryName: string; count: number }[];
-  agentWorkload: AgentWorkload[];
-  recentEvents: (TicketEvent & { actorName?: string; ticketNumber?: string })[];
-};
-
 export type DashboardQueueStage = "new" | "waiting" | "in_progress";
 
 export type DashboardTicketItem = Pick<
@@ -247,7 +222,7 @@ export type DashboardAlertItem = DashboardTicketItem & {
   hoursOverdue: number | null;
 };
 
-export type OperationalDashboardData = {
+export type DashboardData = {
   alerts: {
     criticalCount: number;
     slaBreachedCount: number;

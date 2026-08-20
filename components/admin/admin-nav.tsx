@@ -6,7 +6,7 @@ export function AdminNav({ user, currentPath }: { user: User; currentPath: strin
   return (
     <nav
       aria-label="Nawigacja panelu IT"
-      className="mb-6 flex flex-nowrap gap-2 overflow-x-auto rounded-md border border-black/10 bg-white/70 p-2 scrollbar-none dark:border-white/10 dark:bg-white/10 lg:flex-wrap lg:overflow-visible"
+      className="mb-6 flex flex-nowrap gap-2 overflow-x-auto rounded-md border border-black/10 bg-white/70 p-2 [contain:paint] scrollbar-none dark:border-white/10 dark:bg-white/10 lg:flex-wrap lg:overflow-visible"
     >
       {getAdminNavGroups(user).map((group, groupIndex) => (
         <div

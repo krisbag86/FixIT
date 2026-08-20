@@ -134,7 +134,7 @@ describe.skipIf(!hasDatabase)("PostgreSQL integration (Prisma runtime)", () => {
   });
 
   it("returns operational dashboard data from Prisma with the same semantics", async () => {
-    const { getOperationalDashboardData } = await import("@/lib/data-store");
+    const { getDashboardData } = await import("@/lib/data-store");
     const agent = await createUserFixture({ role: "AGENT", name: "Dashboard Agent" });
     const category = await createCategoryFixture();
     const current = new Date();
@@ -185,7 +185,7 @@ describe.skipIf(!hasDatabase)("PostgreSQL integration (Prisma runtime)", () => {
       ]
     });
 
-    const dashboard = await getOperationalDashboardData({
+    const dashboard = await getDashboardData({
       id: agent.id,
       name: agent.name ?? agent.email,
       email: agent.email,
