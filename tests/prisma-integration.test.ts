@@ -112,30 +112,25 @@ describe.skipIf(!hasDatabase)("PostgreSQL integration (Prisma runtime)", () => {
       priority: first.priority
     });
     expect(resolved?.resolvedAt).toBeDefined();
+    const resolvedAt = resolved?.resolvedAt;
 
-    const reopened = await updateTicket({
-      ticketId: first.id,
-      actorId: reporter.id,
-      status: "IN_PROGRESS",
-      priority: first.priority
-    });
-    expect(reopened?.resolvedAt).toBeNull();
-
-    const closed = await updateTicket({
+    const confirmedClosed = await updateTicket({
       ticketId: first.id,
       actorId: reporter.id,
       status: "CLOSED",
       priority: first.priority
     });
-    expect(closed?.closedAt).toBeDefined();
+    expect(confirmedClosed?.closedAt).toBeDefined();
+    expect(confirmedClosed?.resolvedAt).toBe(resolvedAt);
 
-    const reopenedAgain = await updateTicket({
+    const reopenedAfterClose = await updateTicket({
       ticketId: first.id,
       actorId: reporter.id,
       status: "IN_PROGRESS",
       priority: first.priority
     });
-    expect(reopenedAgain?.closedAt).toBeNull();
+    expect(reopenedAfterClose?.resolvedAt).toBeNull();
+    expect(reopenedAfterClose?.closedAt).toBeNull();
   });
 
   it("hides password hashes from display lookups and records admin audit logs", async () => {

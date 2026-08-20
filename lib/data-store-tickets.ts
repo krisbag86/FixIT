@@ -412,6 +412,14 @@ export async function updateTicket(input: {
       const priorityChanged = ticket.priority !== input.priority;
       const assigneeChanged = (ticket.assigneeId ?? "") !== (input.assigneeId ?? "");
       const timestamp = new Date();
+      const nextResolvedAt =
+        !statusChanged
+          ? undefined
+          : input.status === "RESOLVED"
+            ? timestamp
+            : input.status === "CLOSED"
+              ? undefined
+              : null;
       const events: Prisma.TicketEventCreateManyInput[] = [];
       if (statusChanged) events.push({ ticketId: ticket.id, actorId: input.actorId, type: "STATUS_CHANGED", payload: { from: ticket.status, to: input.status } });
       if (priorityChanged) events.push({ ticketId: ticket.id, actorId: input.actorId, type: "PRIORITY_CHANGED", payload: { from: ticket.priority, to: input.priority } });
@@ -422,7 +430,7 @@ export async function updateTicket(input: {
           status: input.status,
           priority: input.priority,
           assigneeId: input.assigneeId,
-          resolvedAt: statusChanged && input.status === "RESOLVED" ? timestamp : statusChanged && ticket.status === "RESOLVED" ? null : undefined,
+          resolvedAt: nextResolvedAt,
           closedAt: statusChanged && input.status === "CLOSED" ? timestamp : statusChanged && ticket.status === "CLOSED" ? null : undefined
         }
       });
@@ -452,7 +460,8 @@ export async function updateTicket(input: {
     if (statusChanged) {
       events.push({ id: id("e"), ticketId: ticket.id, actorId: input.actorId, type: "STATUS_CHANGED", payload: { from: ticket.status, to: input.status }, createdAt: timestamp });
       ticket.status = input.status;
-      ticket.resolvedAt = input.status === "RESOLVED" ? timestamp : previousStatus === "RESOLVED" ? null : ticket.resolvedAt;
+      if (input.status === "RESOLVED") ticket.resolvedAt = timestamp;
+      else if (input.status !== "CLOSED") ticket.resolvedAt = null;
       ticket.closedAt = input.status === "CLOSED" ? timestamp : previousStatus === "CLOSED" ? null : ticket.closedAt;
     }
     if (priorityChanged) {

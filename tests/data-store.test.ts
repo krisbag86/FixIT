@@ -199,7 +199,7 @@ describe("ticket lifecycle timestamps", () => {
   beforeEach(resetDatabase);
   afterEach(resetDatabase);
 
-  it("clears stale resolution and closure timestamps when a ticket is reopened", async () => {
+  it("preserves resolution on close and clears stale lifecycle timestamps when reopened", async () => {
     const { createTicket, findUserByEmail, updateTicket } = await import("@/lib/data-store");
     const admin = await findUserByEmail("krzysztofgraczyk@bagietka.pl");
 
@@ -222,6 +222,16 @@ describe("ticket lifecycle timestamps", () => {
       priority: ticket.priority
     });
     expect(resolved?.resolvedAt).toBeDefined();
+    const resolvedAt = resolved?.resolvedAt;
+
+    const confirmedClosed = await updateTicket({
+      ticketId: ticket.id,
+      actorId: admin!.id,
+      status: "CLOSED",
+      priority: ticket.priority
+    });
+    expect(confirmedClosed?.closedAt).toBeDefined();
+    expect(confirmedClosed?.resolvedAt).toBe(resolvedAt);
 
     const reopened = await updateTicket({
       ticketId: ticket.id,
@@ -230,22 +240,7 @@ describe("ticket lifecycle timestamps", () => {
       priority: ticket.priority
     });
     expect(reopened?.resolvedAt).toBeNull();
-
-    const closed = await updateTicket({
-      ticketId: ticket.id,
-      actorId: admin!.id,
-      status: "CLOSED",
-      priority: ticket.priority
-    });
-    expect(closed?.closedAt).toBeDefined();
-
-    const reopenedAgain = await updateTicket({
-      ticketId: ticket.id,
-      actorId: admin!.id,
-      status: "IN_PROGRESS",
-      priority: ticket.priority
-    });
-    expect(reopenedAgain?.closedAt).toBeNull();
+    expect(reopened?.closedAt).toBeNull();
   });
 });
 
