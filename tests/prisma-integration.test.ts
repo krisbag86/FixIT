@@ -133,6 +133,75 @@ describe.skipIf(!hasDatabase)("PostgreSQL integration (Prisma runtime)", () => {
     expect(reopenedAfterClose?.closedAt).toBeNull();
   });
 
+  it("returns operational dashboard data from Prisma with the same semantics", async () => {
+    const { getOperationalDashboardData } = await import("@/lib/data-store");
+    const agent = await createUserFixture({ role: "AGENT", name: "Dashboard Agent" });
+    const category = await createCategoryFixture();
+    const current = new Date();
+
+    await prisma.ticket.createMany({
+      data: [
+        {
+          number: "IT-2026-7001",
+          title: "Critical overdue",
+          description: "Critical dashboard fixture.",
+          status: "IN_PROGRESS",
+          priority: "CRITICAL",
+          blocksWork: false,
+          contact: agent.email,
+          categoryId: category.id,
+          reporterId: agent.id,
+          assigneeId: agent.id,
+          dueAt: new Date(current.getTime() - 3_600_000),
+          createdAt: new Date(current.getTime() - 8 * 3_600_000)
+        },
+        {
+          number: "IT-2026-7002",
+          title: "New assigned ticket",
+          description: "Personal queue dashboard fixture.",
+          status: "NEW",
+          priority: "NORMAL",
+          blocksWork: false,
+          contact: agent.email,
+          categoryId: category.id,
+          reporterId: agent.id,
+          assigneeId: agent.id,
+          createdAt: new Date(current.getTime() - 3_600_000)
+        },
+        {
+          number: "IT-2026-7003",
+          title: "Recently resolved",
+          description: "Resolution analytics dashboard fixture.",
+          status: "RESOLVED",
+          priority: "NORMAL",
+          blocksWork: false,
+          contact: agent.email,
+          categoryId: category.id,
+          reporterId: agent.id,
+          assigneeId: agent.id,
+          createdAt: new Date(current.getTime() - 4 * 3_600_000),
+          resolvedAt: new Date(current.getTime() - 2 * 3_600_000)
+        }
+      ]
+    });
+
+    const dashboard = await getOperationalDashboardData({
+      id: agent.id,
+      name: agent.name ?? agent.email,
+      email: agent.email,
+      role: agent.role,
+      isActive: agent.isActive
+    });
+
+    expect(dashboard.alerts).toMatchObject({ criticalCount: 1, slaBreachedCount: 1 });
+    expect(dashboard.myQueue.new.count).toBe(1);
+    expect(dashboard.analytics.openTickets).toBe(2);
+    expect(dashboard.analytics.dailyTicketCounts).toHaveLength(30);
+    expect(dashboard.analytics.avgResolutionHours).toBe(2);
+    expect(dashboard.analytics.topCategories[0]).toMatchObject({ count: 2 });
+    expect(dashboard.analytics.agentWorkload[0]).toMatchObject({ agentId: agent.id, openCount: 2 });
+  });
+
   it("hides password hashes from display lookups and records admin audit logs", async () => {
     const { createUser, findUserByEmail, listAdminAuditLogs } = await import("@/lib/data-store");
     const actor = await createUserFixture({ role: "ADMIN" });

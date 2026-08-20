@@ -88,6 +88,75 @@ describe("getDashboardMetrics", () => {
   });
 });
 
+describe("getOperationalDashboardData", () => {
+  beforeEach(async () => {
+    await resetDatabase();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-20T12:00:00.000Z"));
+  });
+
+  afterEach(async () => {
+    vi.useRealTimers();
+    await resetDatabase();
+  });
+
+  it("returns the limited operational dashboard contract for the JSON provider", async () => {
+    const { getOperationalDashboardData, readDatabase, writeDatabase } = await import("@/lib/data-store");
+    const database = await readDatabase();
+    const agent: User = {
+      id: "dashboard-agent",
+      name: "Dashboard Agent",
+      email: "dashboard.agent@bagietka.pl",
+      role: "AGENT",
+      isActive: true
+    };
+    const otherAgent: User = {
+      id: "dashboard-other",
+      name: "Other Agent",
+      email: "other.agent@bagietka.pl",
+      role: "AGENT",
+      isActive: true
+    };
+    database.users.push(agent, otherAgent);
+    const base = {
+      id: "dashboard-base",
+      number: "IT-2026-8000",
+      title: "Dashboard fixture",
+      description: "Fixture for dashboard aggregation.",
+      status: "NEW" as const,
+      priority: "NORMAL" as const,
+      blocksWork: false,
+      contact: "dashboard.agent@bagietka.pl",
+      categoryId: "cat_other",
+      reporterId: agent.id,
+      assigneeId: agent.id,
+      createdAt: "2026-08-20T08:00:00.000Z",
+      updatedAt: "2026-08-20T08:00:00.000Z"
+    };
+    database.tickets.push(
+      { ...base, id: "dashboard-alert", number: "IT-2026-8001", status: "IN_PROGRESS", priority: "CRITICAL", createdAt: "2026-08-19T00:00:00.000Z" },
+      ...Array.from({ length: 7 }, (_, index) => ({ ...base, id: `dashboard-new-${index}`, number: `IT-2026-81${index}` })),
+      { ...base, id: "dashboard-other-waiting", number: "IT-2026-8200", assigneeId: otherAgent.id, status: "WAITING_FOR_USER" },
+      { ...base, id: "dashboard-resolved", number: "IT-2026-8300", status: "RESOLVED", resolvedAt: "2026-08-20T10:00:00.000Z" }
+    );
+    await writeDatabase(database);
+
+    const dashboard = await getOperationalDashboardData(agent);
+
+    expect(dashboard.alerts).toMatchObject({ criticalCount: 1, slaBreachedCount: 1 });
+    expect(dashboard.alerts.tickets).toHaveLength(1);
+    expect(dashboard.myQueue.new.count).toBe(7);
+    expect(dashboard.myQueue.new.tickets).toHaveLength(5);
+    expect(dashboard.myQueue.waiting.count).toBe(0);
+    expect(dashboard.analytics.openTickets).toBe(9);
+    expect(dashboard.analytics.dailyTicketCounts).toHaveLength(30);
+    expect(dashboard.analytics.avgResolutionHours).toBe(2);
+    expect(dashboard.alerts.tickets[0]).not.toHaveProperty("description");
+    expect(dashboard.alerts.tickets[0]).not.toHaveProperty("contact");
+    expect("recentEvents" in dashboard).toBe(false);
+  });
+});
+
 describe("listVisibleTickets filters", () => {
   beforeEach(resetDatabase);
   afterEach(resetDatabase);

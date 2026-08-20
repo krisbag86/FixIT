@@ -4,6 +4,16 @@ import { unstable_noStore as noStore } from "next/cache";
 import type { TicketListFilters } from "@/lib/ticket-filters";
 import { buildOpenTicketWhere, buildSlaBreachedWhere } from "@/lib/ticket-query";
 import {
+  buildAgentWorkload,
+  buildDashboardAlerts,
+  buildDashboardDailyCounts,
+  buildDashboardMyQueue,
+  buildTopCategories,
+  calculateAverageResolutionHours,
+  getDashboardWindowStart
+} from "@/lib/dashboard";
+import type { DashboardSourceTicket } from "@/lib/dashboard";
+import {
   COMPLETED_TICKET_STATUSES,
   getTicketSlaDeadline,
   isTicketOverdue
@@ -23,6 +33,7 @@ import type {
   DashboardData,
   DashboardMetrics,
   NotificationLog,
+  OperationalDashboardData,
   TicketEvent,
   TicketStatus,
   User
@@ -555,6 +566,171 @@ export async function getDashboardData(): Promise<DashboardData> {
     topCategories,
     agentWorkload,
     recentEvents
+  };
+}
+
+export async function getOperationalDashboardData(
+  user: User
+): Promise<OperationalDashboardData> {
+  noStore();
+  const now = new Date();
+
+  if (!shouldUsePrisma()) {
+    const database = await readDatabase();
+    const storeCodes = new Map(
+      database.stores.map((store) => [store.id, store.code])
+    );
+    const openTickets = database.tickets.filter(
+      (ticket) => !COMPLETED_TICKET_STATUSES.has(ticket.status)
+    );
+
+    return {
+      alerts: buildDashboardAlerts(openTickets, storeCodes, now),
+      myQueue: buildDashboardMyQueue(openTickets, user.id),
+      analytics: {
+        openTickets: openTickets.length,
+        avgResolutionHours: calculateAverageResolutionHours(database.tickets, now),
+        dailyTicketCounts: buildDashboardDailyCounts(database.tickets, now),
+        topCategories: buildTopCategories(openTickets, database.categories),
+        agentWorkload: buildAgentWorkload(openTickets, database.users)
+      }
+    };
+  }
+
+  const db = await getPrisma();
+  const windowStart = getDashboardWindowStart(now);
+  const [openRows, recentRows, categoryCounts, workloadCounts] = await Promise.all([
+    db.ticket.findMany({
+      where: buildOpenTicketWhere(),
+      select: {
+        id: true,
+        number: true,
+        title: true,
+        status: true,
+        priority: true,
+        createdAt: true,
+        dueAt: true,
+        resolvedAt: true,
+        assigneeId: true,
+        categoryId: true,
+        storeId: true,
+        store: { select: { code: true } }
+      }
+    }),
+    db.ticket.findMany({
+      where: {
+        OR: [
+          { createdAt: { gte: windowStart } },
+          { resolvedAt: { gte: windowStart } }
+        ]
+      },
+      select: { createdAt: true, resolvedAt: true }
+    }),
+    db.ticket.groupBy({
+      by: ["categoryId"],
+      where: { ...buildOpenTicketWhere(), categoryId: { not: null } },
+      _count: { _all: true }
+    }),
+    db.ticket.groupBy({
+      by: ["assigneeId"],
+      where: { ...buildOpenTicketWhere(), assigneeId: { not: null } },
+      _count: { _all: true }
+    })
+  ]);
+
+  const openTickets: DashboardSourceTicket[] = openRows.map(
+    ({ store: _store, ...ticket }) => ({
+      ...ticket,
+      createdAt: ticket.createdAt.toISOString(),
+      dueAt: ticket.dueAt?.toISOString() ?? null,
+      resolvedAt: ticket.resolvedAt?.toISOString() ?? null,
+      assigneeId: ticket.assigneeId ?? undefined,
+      categoryId: ticket.categoryId ?? undefined,
+      storeId: ticket.storeId ?? undefined
+    })
+  );
+  const storeCodes = new Map(
+    openRows.flatMap((row) =>
+      row.storeId && row.store
+        ? [[row.storeId, row.store.code] as const]
+        : []
+    )
+  );
+  const recentTickets = recentRows.map((ticket) => ({
+    createdAt: ticket.createdAt.toISOString(),
+    resolvedAt: ticket.resolvedAt?.toISOString() ?? null
+  }));
+
+  const categoryIds = categoryCounts.flatMap((item) =>
+    item.categoryId ? [item.categoryId] : []
+  );
+  const agentIds = workloadCounts.flatMap((item) =>
+    item.assigneeId ? [item.assigneeId] : []
+  );
+  const [categories, agents] = await Promise.all([
+    categoryIds.length > 0
+      ? db.category.findMany({
+          where: { id: { in: categoryIds } },
+          select: { id: true, name: true }
+        })
+      : Promise.resolve([]),
+    agentIds.length > 0
+      ? db.user.findMany({
+          where: {
+            id: { in: agentIds },
+            isActive: true,
+            role: { in: ["AGENT", "ADMIN"] }
+          },
+          select: { id: true, name: true, email: true }
+        })
+      : Promise.resolve([])
+  ]);
+  const categoryNames = new Map(
+    categories.map((category) => [category.id, category.name])
+  );
+  const agentNames = new Map(
+    agents.map((agent) => [agent.id, agent.name ?? agent.email])
+  );
+  const topCategories = categoryCounts
+    .flatMap((item) =>
+      item.categoryId
+        ? [{
+            categoryId: item.categoryId,
+            categoryName: categoryNames.get(item.categoryId) ?? "Nieznana",
+            count: item._count._all
+          }]
+        : []
+    )
+    .sort(
+      (a, b) =>
+        b.count - a.count || a.categoryName.localeCompare(b.categoryName, "pl")
+    )
+    .slice(0, 8);
+  const agentWorkload = workloadCounts
+    .flatMap((item) =>
+      item.assigneeId && agentNames.has(item.assigneeId)
+        ? [{
+            agentId: item.assigneeId,
+            agentName: agentNames.get(item.assigneeId)!,
+            openCount: item._count._all
+          }]
+        : []
+    )
+    .sort(
+      (a, b) =>
+        b.openCount - a.openCount || a.agentName.localeCompare(b.agentName, "pl")
+    );
+
+  return {
+    alerts: buildDashboardAlerts(openTickets, storeCodes, now),
+    myQueue: buildDashboardMyQueue(openTickets, user.id),
+    analytics: {
+      openTickets: openTickets.length,
+      avgResolutionHours: calculateAverageResolutionHours(recentTickets, now),
+      dailyTicketCounts: buildDashboardDailyCounts(recentTickets, now),
+      topCategories,
+      agentWorkload
+    }
   };
 }
 
