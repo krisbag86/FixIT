@@ -158,6 +158,41 @@ describe("listVisibleTickets filters", () => {
     const visible = await listVisibleTickets(manager);
     expect(visible.map((item) => item.id)).toEqual(["own"]);
   });
+
+  it("applies grouped dashboard stage and attention filters in the JSON data provider", async () => {
+    const { findUserByEmail, listVisibleTickets, readDatabase, writeDatabase } = await import("@/lib/data-store");
+    const admin = await findUserByEmail("krzysztofgraczyk@bagietka.pl");
+    const database = await readDatabase();
+    const base = {
+      id: "filter-new",
+      number: "IT-2026-9001",
+      title: "Dashboard filter fixture",
+      description: "Fixture for grouped dashboard filters.",
+      status: "NEW" as const,
+      priority: "CRITICAL" as const,
+      blocksWork: false,
+      contact: "admin@bagietka.pl",
+      categoryId: "cat_other",
+      reporterId: admin!.id,
+      dueAt: "2026-08-19T00:00:00.000Z",
+      createdAt: "2026-08-19T00:00:00.000Z",
+      updatedAt: "2026-08-19T00:00:00.000Z"
+    };
+    database.tickets.push(
+      base,
+      { ...base, id: "filter-user", number: "IT-2026-9002", status: "WAITING_FOR_USER", priority: "NORMAL" },
+      { ...base, id: "filter-vendor", number: "IT-2026-9003", status: "WAITING_FOR_VENDOR", priority: "NORMAL" },
+      { ...base, id: "filter-progress", number: "IT-2026-9004", status: "IN_PROGRESS", priority: "NORMAL" },
+      { ...base, id: "filter-resolved", number: "IT-2026-9005", status: "RESOLVED", priority: "CRITICAL" }
+    );
+    await writeDatabase(database);
+
+    expect((await listVisibleTickets(admin!, { stage: "waiting" })).map((ticket) => ticket.status).sort()).toEqual([
+      "WAITING_FOR_USER",
+      "WAITING_FOR_VENDOR"
+    ]);
+    expect((await listVisibleTickets(admin!, { attention: "all" })).map((ticket) => ticket.id)).not.toContain("filter-resolved");
+  });
 });
 
 describe("ticket lifecycle timestamps", () => {

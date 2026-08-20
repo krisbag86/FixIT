@@ -51,6 +51,32 @@ describe("ticket list filters", () => {
     expect(parseTicketListFilters({ status: "BROKEN", priority: "URGENT" })).toEqual({});
   });
 
+  it("parses dashboard stage and attention filters and ignores invalid values", () => {
+    expect(parseTicketListFilters({ stage: "waiting", attention: "all" })).toEqual({
+      stage: "waiting",
+      attention: "all"
+    });
+    expect(parseTicketListFilters({ stage: "broken", attention: "later" })).toEqual({});
+  });
+
+  it("lets an exact status override a dashboard stage", () => {
+    const filters = parseTicketListFilters({ status: "IN_PROGRESS", stage: "new" });
+
+    expect(matchesTicketFilters({ ...baseTicket, status: "IN_PROGRESS" }, filters)).toBe(true);
+    expect(matchesTicketFilters({ ...baseTicket, status: "NEW" }, filters)).toBe(false);
+  });
+
+  it("matches grouped stages and deduplicated attention modes", () => {
+    const now = new Date("2026-08-20T12:00:00.000Z");
+
+    expect(matchesTicketFilters({ ...baseTicket, status: "WAITING_FOR_USER" }, { stage: "waiting" }, undefined, now)).toBe(true);
+    expect(matchesTicketFilters({ ...baseTicket, status: "WAITING_FOR_VENDOR" }, { stage: "waiting" }, undefined, now)).toBe(true);
+    expect(matchesTicketFilters({ ...baseTicket, status: "NEW" }, { stage: "waiting" }, undefined, now)).toBe(false);
+    expect(matchesTicketFilters({ ...baseTicket, priority: "CRITICAL" }, { attention: "critical" }, undefined, now)).toBe(true);
+    expect(matchesTicketFilters(baseTicket, { attention: "overdue" }, undefined, now)).toBe(true);
+    expect(matchesTicketFilters({ ...baseTicket, status: "RESOLVED", priority: "CRITICAL" }, { attention: "all" }, undefined, now)).toBe(false);
+  });
+
   it("matches search text across number, title and description", () => {
     expect(matchesTicketFilters(baseTicket, { query: "0001" })).toBe(true);
     expect(matchesTicketFilters(baseTicket, { query: "paragonów" })).toBe(true);

@@ -13,6 +13,9 @@ export type { TicketSlaState } from "@/lib/ticket-sla";
 
 export type TicketListSearchParams = Record<string, string | string[] | undefined>;
 
+export type TicketStageFilter = "new" | "waiting" | "in_progress";
+export type TicketAttentionFilter = "critical" | "overdue" | "all";
+
 export type TicketListFilters = {
   query?: string;
   status?: TicketStatus;
@@ -24,6 +27,8 @@ export type TicketListFilters = {
   unassigned?: boolean;
   overdue?: boolean;
   archived?: boolean;
+  stage?: TicketStageFilter;
+  attention?: TicketAttentionFilter;
 };
 
 const ticketStatuses: TicketStatus[] = [
@@ -38,6 +43,11 @@ const ticketStatuses: TicketStatus[] = [
 ];
 
 const ticketPriorities: TicketPriority[] = ["LOW", "NORMAL", "HIGH", "CRITICAL"];
+const stageStatuses: Record<TicketStageFilter, TicketStatus[]> = {
+  new: ["NEW", "TRIAGED"],
+  waiting: ["WAITING_FOR_USER", "WAITING_FOR_VENDOR"],
+  in_progress: ["IN_PROGRESS"]
+};
 
 const closedStatuses = COMPLETED_TICKET_STATUSES;
 const archivedStatuses = new Set<TicketStatus>(["CLOSED", "CANCELLED"]);
@@ -49,6 +59,10 @@ function firstParam(value: string | string[] | undefined): string | undefined {
 
 export function getTicketListCursor(params: TicketListSearchParams): string | undefined {
   return firstParam(params.cursor);
+}
+
+export function getStageStatuses(stage: TicketStageFilter): TicketStatus[] {
+  return stageStatuses[stage];
 }
 
 export function buildTicketListHref(path: string, params: TicketListSearchParams, cursor?: string): string {
@@ -80,6 +94,8 @@ export function parseTicketListFilters(params: TicketListSearchParams): TicketLi
   const assigneeId = firstParam(params.assignee);
   const storeId = firstParam(params.store);
   const categoryId = firstParam(params.category);
+  const stage = enumParam(firstParam(params.stage), ["new", "waiting", "in_progress"] as const);
+  const attention = enumParam(firstParam(params.attention), ["critical", "overdue", "all"] as const);
 
   return {
     ...(query ? { query } : {}),
@@ -91,7 +107,9 @@ export function parseTicketListFilters(params: TicketListSearchParams): TicketLi
     ...(booleanParam(firstParam(params.mine)) ? { mine: true } : {}),
     ...(booleanParam(firstParam(params.unassigned)) ? { unassigned: true } : {}),
     ...(booleanParam(firstParam(params.overdue)) ? { overdue: true } : {}),
-    ...(booleanParam(firstParam(params.archived)) ? { archived: true } : {})
+    ...(booleanParam(firstParam(params.archived)) ? { archived: true } : {}),
+    ...(stage ? { stage } : {}),
+    ...(attention ? { attention } : {})
   };
 }
 
@@ -105,6 +123,7 @@ export function matchesTicketFilters(ticket: Ticket, filters: TicketListFilters,
   }
 
   if (filters.status && ticket.status !== filters.status) return false;
+  if (!filters.status && filters.stage && !getStageStatuses(filters.stage).includes(ticket.status)) return false;
   if (filters.priority && ticket.priority !== filters.priority) return false;
   if (filters.assigneeId && ticket.assigneeId !== filters.assigneeId) return false;
   if (filters.storeId && ticket.storeId !== filters.storeId) return false;
@@ -112,6 +131,16 @@ export function matchesTicketFilters(ticket: Ticket, filters: TicketListFilters,
   if (filters.mine && ticket.assigneeId !== currentUserId) return false;
   if (filters.unassigned && ticket.assigneeId) return false;
   if (filters.overdue && !isTicketOverdue(ticket, now)) return false;
+  if (
+    filters.attention === "critical" &&
+    (COMPLETED_TICKET_STATUSES.has(ticket.status) || ticket.priority !== "CRITICAL")
+  ) return false;
+  if (filters.attention === "overdue" && !isTicketOverdue(ticket, now)) return false;
+  if (
+    filters.attention === "all" &&
+    (COMPLETED_TICKET_STATUSES.has(ticket.status) ||
+      (ticket.priority !== "CRITICAL" && !isTicketOverdue(ticket, now)))
+  ) return false;
 
   return true;
 }

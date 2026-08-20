@@ -3,7 +3,11 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import { generateTicketNumber } from "@/lib/ticket-number";
 import { archivedStatuses, closedStatuses, matchesTicketFilters, type TicketListFilters } from "@/lib/ticket-filters";
-import { buildSlaBreachedWhere } from "@/lib/ticket-query";
+import {
+  buildAttentionWhere,
+  buildSlaBreachedWhere,
+  buildStageWhere
+} from "@/lib/ticket-query";
 import { isRequesterPortalUser } from "@/lib/requester-portal";
 import {
   DayLogEntryLinkError,
@@ -81,6 +85,7 @@ function buildVisibleTicketQuery(user: User, filters: TicketListFilters, cursor?
     });
   }
   if (filters.status) filterWhere.push({ status: filters.status });
+  else if (filters.stage) filterWhere.push(buildStageWhere(filters.stage));
   if (filters.priority) filterWhere.push({ priority: filters.priority });
   if (filters.assigneeId) filterWhere.push({ assigneeId: filters.assigneeId });
   if (filters.storeId) filterWhere.push({ storeId: filters.storeId });
@@ -89,9 +94,8 @@ function buildVisibleTicketQuery(user: User, filters: TicketListFilters, cursor?
   if (filters.unassigned) filterWhere.push({ assigneeId: null });
   filterWhere.push(filters.archived ? { status: { in: [...archivedStatuses] } } : { status: { notIn: [...archivedStatuses] } });
 
-  if (filters.overdue) {
-    filterWhere.push(buildSlaBreachedWhere(currentTime));
-  }
+  if (filters.attention) filterWhere.push(buildAttentionWhere(filters.attention, currentTime));
+  else if (filters.overdue) filterWhere.push(buildSlaBreachedWhere(currentTime));
 
   const decodedCursor = decodeTicketCursor(cursor);
   if (decodedCursor) {

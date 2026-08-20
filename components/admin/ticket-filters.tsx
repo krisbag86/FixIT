@@ -52,6 +52,8 @@ export function TicketFilters({ filters, users, stores, categories }: TicketFilt
         hidden={!isExpanded}
         className={`${isExpanded ? "flex" : "hidden"} mt-3 flex-wrap items-center gap-2 border-t border-black/10 pt-3 dark:border-white/10`}
       >
+        {filters.stage ? <input type="hidden" name="stage" value={filters.stage} /> : null}
+        {filters.attention ? <input type="hidden" name="attention" value={filters.attention} /> : null}
         <select name="status" aria-label="Filtruj po statusie" defaultValue={filters.status ?? ""} className={filterClass}>
           <option value="">Status</option>
           {activeTicketStatuses.map((status) => (
