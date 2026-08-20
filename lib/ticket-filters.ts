@@ -130,7 +130,7 @@ export function matchesTicketFilters(ticket: Ticket, filters: TicketListFilters,
   if (filters.categoryId && ticket.categoryId !== filters.categoryId) return false;
   if (filters.mine && ticket.assigneeId !== currentUserId) return false;
   if (filters.unassigned && ticket.assigneeId) return false;
-  if (filters.overdue && !isTicketOverdue(ticket, now)) return false;
+  if (!filters.attention && filters.overdue && !isTicketOverdue(ticket, now)) return false;
   if (
     filters.attention === "critical" &&
     (COMPLETED_TICKET_STATUSES.has(ticket.status) || ticket.priority !== "CRITICAL")

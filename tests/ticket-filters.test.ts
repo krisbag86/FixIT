@@ -77,6 +77,24 @@ describe("ticket list filters", () => {
     expect(matchesTicketFilters({ ...baseTicket, status: "RESOLVED", priority: "CRITICAL" }, { attention: "all" }, undefined, now)).toBe(false);
   });
 
+  it("lets the dashboard attention filter take precedence over the legacy overdue flag", () => {
+    const now = new Date("2026-08-20T12:00:00.000Z");
+    const criticalOnTrack = {
+      ...baseTicket,
+      priority: "CRITICAL" as const,
+      dueAt: "2026-08-20T13:00:00.000Z"
+    };
+
+    expect(
+      matchesTicketFilters(
+        criticalOnTrack,
+        { attention: "critical", overdue: true },
+        undefined,
+        now
+      )
+    ).toBe(true);
+  });
+
   it("matches search text across number, title and description", () => {
     expect(matchesTicketFilters(baseTicket, { query: "0001" })).toBe(true);
     expect(matchesTicketFilters(baseTicket, { query: "paragonów" })).toBe(true);
