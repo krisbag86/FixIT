@@ -1,8 +1,13 @@
 import "server-only";
 
 import { unstable_noStore as noStore } from "next/cache";
-import type { Prisma } from "@prisma/client";
 import type { TicketListFilters } from "@/lib/ticket-filters";
+import { buildOpenTicketWhere, buildSlaBreachedWhere } from "@/lib/ticket-query";
+import {
+  COMPLETED_TICKET_STATUSES,
+  getTicketSlaDeadline,
+  isTicketOverdue
+} from "@/lib/ticket-sla";
 import {
   mapEvent,
   mapNotificationLog,
@@ -19,7 +24,6 @@ import type {
   DashboardMetrics,
   NotificationLog,
   TicketEvent,
-  TicketPriority,
   TicketStatus,
   User
 } from "@/lib/types";
@@ -93,6 +97,7 @@ export {
   updateTicket
 } from "@/lib/data-store-tickets";
 export type { TicketListPage, TicketListPageData, TicketListPageOptions } from "@/lib/data-store-tickets";
+export { SLA_HOURS as slaRules } from "@/lib/ticket-sla";
 
 export async function updateNotificationLog(
   notificationId: string,
@@ -149,44 +154,19 @@ export async function findLatestQueuedNotification(input: {
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
 }
 
-// --- SLA Rules (hours) ---
-
-export const slaRules: Record<TicketPriority, number> = {
-  CRITICAL: 4,
-  HIGH: 8,
-  NORMAL: 24,
-  LOW: 48
-};
-
-const resolvedOrClosedStatuses = new Set(["RESOLVED", "CLOSED", "CANCELLED"] as TicketStatus[]);
-
 function hoursBetween(start: string, end: string): number {
   return (new Date(end).getTime() - new Date(start).getTime()) / (1000 * 60 * 60);
 }
 
 function isTicketOpen(status: TicketStatus): boolean {
-  return !resolvedOrClosedStatuses.has(status);
-}
-
-function buildSlaBreachedWhere(now: Date): Prisma.TicketWhereInput {
-  return {
-    status: { notIn: [...resolvedOrClosedStatuses] },
-    OR: [
-      { priority: "CRITICAL", createdAt: { lt: new Date(now.getTime() - 4 * 60 * 60 * 1000) } },
-      { priority: "HIGH", createdAt: { lt: new Date(now.getTime() - 8 * 60 * 60 * 1000) } },
-      { priority: "NORMAL", createdAt: { lt: new Date(now.getTime() - 24 * 60 * 60 * 1000) } },
-      { priority: "LOW", createdAt: { lt: new Date(now.getTime() - 48 * 60 * 60 * 1000) } }
-    ]
-  };
+  return !COMPLETED_TICKET_STATUSES.has(status);
 }
 
 export async function getDashboardMetrics(): Promise<DashboardMetrics> {
   if (shouldUsePrisma()) {
     const db = await getPrisma();
     const now = new Date();
-    const openTicketWhere: Prisma.TicketWhereInput = {
-      status: { notIn: [...resolvedOrClosedStatuses] }
-    };
+    const openTicketWhere = buildOpenTicketWhere();
     const [totalTickets, openTickets, criticalTickets, resolvedTickets, categoryCounts, breachedTickets] = await Promise.all([
       db.ticket.count(),
       db.ticket.count({ where: openTicketWhere }),
@@ -254,9 +234,10 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
     // SLA breaches
     const slaBreached: DashboardMetrics["slaBreached"] = [];
     for (const ticket of breachedTickets) {
-      const deadline = new Date(ticket.createdAt.getTime() + slaRules[ticket.priority] * 60 * 60 * 1000);
+      const mappedTicket = mapTicket(ticket);
+      const deadline = getTicketSlaDeadline(mappedTicket);
       slaBreached.push({
-        ticket: mapTicket(ticket),
+        ticket: mappedTicket,
         slaDeadline: deadline.toISOString(),
         hoursOverdue: Math.round(hoursBetween(deadline.toISOString(), now.toISOString()) * 10) / 10
       });
@@ -288,7 +269,7 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
 
   const database = await readDatabase();
   const allTickets = database.tickets;
-  const currentTime = new Date().toISOString();
+  const currentTime = new Date();
 
   const totalTickets = allTickets.length;
   const openTickets = allTickets.filter((t) => isTicketOpen(t.status)).length;
@@ -319,18 +300,13 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
   // SLA breaches
   const slaBreached: DashboardMetrics["slaBreached"] = [];
   for (const t of allTickets) {
-    if (!isTicketOpen(t.status)) continue;
-    const slaHours = slaRules[t.priority];
-    if (!slaHours) continue;
-    const createdAt = t.createdAt;
-    const deadline = new Date(new Date(createdAt).getTime() + slaHours * 60 * 60 * 1000);
-    if (new Date(currentTime) > deadline) {
-      slaBreached.push({
-        ticket: t,
-        slaDeadline: deadline.toISOString(),
-        hoursOverdue: Math.round(hoursBetween(deadline.toISOString(), currentTime) * 10) / 10
-      });
-    }
+    if (!isTicketOverdue(t, currentTime)) continue;
+    const deadline = getTicketSlaDeadline(t);
+    slaBreached.push({
+      ticket: t,
+      slaDeadline: deadline.toISOString(),
+      hoursOverdue: Math.round(hoursBetween(deadline.toISOString(), currentTime.toISOString()) * 10) / 10
+    });
   }
   slaBreached.sort((a, b) => b.hoursOverdue - a.hoursOverdue);
 
@@ -360,9 +336,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const openTicketWhere: Prisma.TicketWhereInput = {
-      status: { notIn: [...resolvedOrClosedStatuses] }
-    };
+    const openTicketWhere = buildOpenTicketWhere();
 
     const [
       openTickets,
@@ -492,8 +466,8 @@ export async function getDashboardData(): Promise<DashboardData> {
   const allTickets = database.tickets;
   const currentTime = new Date().toISOString();
 
-  const openTickets = allTickets.filter((t) => !resolvedOrClosedStatuses.has(t.status)).length;
-  const criticalTickets = allTickets.filter((t) => t.priority === "CRITICAL" && !resolvedOrClosedStatuses.has(t.status)).length;
+  const openTickets = allTickets.filter((t) => !COMPLETED_TICKET_STATUSES.has(t.status)).length;
+  const criticalTickets = allTickets.filter((t) => t.priority === "CRITICAL" && !COMPLETED_TICKET_STATUSES.has(t.status)).length;
 
   const resolvedTickets = allTickets.filter((t) => t.resolvedAt);
   const avgResolutionHours =
@@ -503,11 +477,7 @@ export async function getDashboardData(): Promise<DashboardData> {
 
   let slaBreachedCount = 0;
   for (const t of allTickets) {
-    if (resolvedOrClosedStatuses.has(t.status)) continue;
-    const slaHours = slaRules[t.priority];
-    if (!slaHours) continue;
-    const deadline = new Date(new Date(t.createdAt).getTime() + slaHours * 60 * 60 * 1000);
-    if (new Date(currentTime) > deadline) slaBreachedCount++;
+    if (isTicketOverdue(t, new Date(currentTime))) slaBreachedCount++;
   }
 
   // Daily ticket counts (last 30 days)
@@ -535,7 +505,7 @@ export async function getDashboardData(): Promise<DashboardData> {
   // Top categories (open tickets)
   const categoryCounts = new Map<string, number>();
   for (const t of allTickets) {
-    if (!resolvedOrClosedStatuses.has(t.status) && t.categoryId) {
+    if (!COMPLETED_TICKET_STATUSES.has(t.status) && t.categoryId) {
       categoryCounts.set(t.categoryId, (categoryCounts.get(t.categoryId) ?? 0) + 1);
     }
   }
@@ -551,12 +521,12 @@ export async function getDashboardData(): Promise<DashboardData> {
   // Agent workload
   const workloadMap = new Map<string, number>();
   for (const t of allTickets) {
-    if (!resolvedOrClosedStatuses.has(t.status) && t.assigneeId) {
+    if (!COMPLETED_TICKET_STATUSES.has(t.status) && t.assigneeId) {
       workloadMap.set(t.assigneeId, (workloadMap.get(t.assigneeId) ?? 0) + 1);
     }
   }
   const unassignedCount = allTickets.filter(
-    (t) => !resolvedOrClosedStatuses.has(t.status) && !t.assigneeId
+    (t) => !COMPLETED_TICKET_STATUSES.has(t.status) && !t.assigneeId
   ).length;
   const agentWorkload = [...workloadMap.entries()]
     .sort((a, b) => b[1] - a[1])
@@ -688,7 +658,7 @@ export async function getStoreDashboard(storeId: string): Promise<StoreDashboard
   if (shouldUsePrisma()) {
     const db = await getPrisma();
     const [openTickets, criticalTickets, blockingTickets, resolvedToday, recentEventsRaw] = await Promise.all([
-      db.ticket.count({ where: { storeId, status: { notIn: [...resolvedOrClosedStatuses] } } }),
+      db.ticket.count({ where: { storeId, status: { notIn: [...COMPLETED_TICKET_STATUSES] } } }),
       db.ticket.count({ where: { storeId, priority: "CRITICAL" } }),
       db.ticket.count({ where: { storeId, blocksWork: true } }),
       db.ticket.count({ where: { storeId, resolvedAt: { gte: new Date(`${today}T00:00:00.000Z`), lt: new Date(`${today}T23:59:59.999Z`) } } }),

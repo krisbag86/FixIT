@@ -1,4 +1,15 @@
 import type { Ticket, TicketPriority, TicketStatus } from "@/lib/types";
+import {
+  COMPLETED_TICKET_STATUSES,
+  isTicketOverdue
+} from "@/lib/ticket-sla";
+
+export {
+  getTicketSlaDeadline,
+  getTicketSlaState,
+  isTicketOverdue
+} from "@/lib/ticket-sla";
+export type { TicketSlaState } from "@/lib/ticket-sla";
 
 export type TicketListSearchParams = Record<string, string | string[] | undefined>;
 
@@ -28,17 +39,8 @@ const ticketStatuses: TicketStatus[] = [
 
 const ticketPriorities: TicketPriority[] = ["LOW", "NORMAL", "HIGH", "CRITICAL"];
 
-const slaHours: Record<TicketPriority, number> = {
-  CRITICAL: 4,
-  HIGH: 8,
-  NORMAL: 24,
-  LOW: 48
-};
-
-const closedStatuses = new Set<TicketStatus>(["RESOLVED", "CLOSED", "CANCELLED"]);
+const closedStatuses = COMPLETED_TICKET_STATUSES;
 const archivedStatuses = new Set<TicketStatus>(["CLOSED", "CANCELLED"]);
-
-export type TicketSlaState = "ON_TRACK" | "AT_RISK" | "BREACHED" | "COMPLETED";
 
 function firstParam(value: string | string[] | undefined): string | undefined {
   const first = Array.isArray(value) ? value[0] : value;
@@ -91,32 +93,6 @@ export function parseTicketListFilters(params: TicketListSearchParams): TicketLi
     ...(booleanParam(firstParam(params.overdue)) ? { overdue: true } : {}),
     ...(booleanParam(firstParam(params.archived)) ? { archived: true } : {})
   };
-}
-
-export function getTicketSlaDeadline(ticket: Pick<Ticket, "createdAt" | "dueAt" | "priority">): Date {
-  if (ticket.dueAt) {
-    const dueAt = new Date(ticket.dueAt);
-    if (!Number.isNaN(dueAt.getTime())) return dueAt;
-  }
-
-  const createdAt = new Date(ticket.createdAt);
-  return new Date(createdAt.getTime() + slaHours[ticket.priority] * 60 * 60 * 1000);
-}
-
-export function isTicketOverdue(ticket: Pick<Ticket, "createdAt" | "dueAt" | "priority" | "status">, now = new Date()): boolean {
-  return !closedStatuses.has(ticket.status) && getTicketSlaDeadline(ticket).getTime() < now.getTime();
-}
-
-export function getTicketSlaState(
-  ticket: Pick<Ticket, "createdAt" | "dueAt" | "priority" | "status">,
-  now = new Date()
-): TicketSlaState {
-  if (closedStatuses.has(ticket.status)) return "COMPLETED";
-
-  const remainingHours = (getTicketSlaDeadline(ticket).getTime() - now.getTime()) / (60 * 60 * 1000);
-  if (remainingHours <= 0) return "BREACHED";
-
-  return remainingHours <= Math.max(2, slaHours[ticket.priority] * 0.25) ? "AT_RISK" : "ON_TRACK";
 }
 
 export function matchesTicketFilters(ticket: Ticket, filters: TicketListFilters, currentUserId?: string, now = new Date()): boolean {

@@ -3,6 +3,7 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import { generateTicketNumber } from "@/lib/ticket-number";
 import { archivedStatuses, closedStatuses, matchesTicketFilters, type TicketListFilters } from "@/lib/ticket-filters";
+import { buildSlaBreachedWhere } from "@/lib/ticket-query";
 import { isRequesterPortalUser } from "@/lib/requester-portal";
 import {
   DayLogEntryLinkError,
@@ -89,21 +90,7 @@ function buildVisibleTicketQuery(user: User, filters: TicketListFilters, cursor?
   filterWhere.push(filters.archived ? { status: { in: [...archivedStatuses] } } : { status: { notIn: [...archivedStatuses] } });
 
   if (filters.overdue) {
-    filterWhere.push({
-      status: { notIn: [...closedStatuses] },
-      OR: [
-        { dueAt: { lt: currentTime } },
-        {
-          dueAt: null,
-          OR: [
-            { priority: "CRITICAL", createdAt: { lt: new Date(currentTime.getTime() - 4 * 60 * 60 * 1000) } },
-            { priority: "HIGH", createdAt: { lt: new Date(currentTime.getTime() - 8 * 60 * 60 * 1000) } },
-            { priority: "NORMAL", createdAt: { lt: new Date(currentTime.getTime() - 24 * 60 * 60 * 1000) } },
-            { priority: "LOW", createdAt: { lt: new Date(currentTime.getTime() - 48 * 60 * 60 * 1000) } }
-          ]
-        }
-      ]
-    });
+    filterWhere.push(buildSlaBreachedWhere(currentTime));
   }
 
   const decodedCursor = decodeTicketCursor(cursor);
