@@ -122,7 +122,7 @@ export function createSeedDatabase(): Database {
           number: "IT-2026-0004",
           title: "E2E critical overdue ticket",
           description: "Ticket used by Playwright dashboard alert tests.",
-          status: "IN_PROGRESS" as const,
+          status: "TRIAGED" as const,
           priority: "CRITICAL" as const,
           blocksWork: true,
           contact: "kasjer@bagietka.pl",
